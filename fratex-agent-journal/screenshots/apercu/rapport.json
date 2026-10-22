@@ -1,0 +1,207 @@
+[
+ {
+  "name": "01-accueil",
+  "url": "/crm",
+  "final": "/crm",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "02-accueil-ventes",
+  "url": "/crm?vue=ventes",
+  "final": "/crm?vue=ventes",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "03-prospects",
+  "url": "/crm/real-estate/leads",
+  "final": "/crm/real-estate/leads",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "04-fiche-karim",
+  "url": "/crm/real-estate/leads/cmvjm05x50009bl7dq6u0h1mo?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "final": "/crm/real-estate/leads/cmvjm05x50009bl7dq6u0h1mo?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "05-fiche-sophie",
+  "url": "/crm/real-estate/leads/cmvjm0613000ubl7d26em6t70?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "final": "/crm/real-estate/leads/cmvjm0613000ubl7d26em6t70?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "06-pipeline",
+  "url": "/crm/real-estate/pipeline",
+  "final": "/crm/real-estate/pipeline",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "07-boite-reception",
+  "url": "/crm/real-estate/inbox",
+  "final": "/crm/real-estate/inbox",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "08-boite-sophie",
+  "url": "/crm/real-estate/inbox?agencyId=cmvjm05un0000bl7ddebn4lfi&leadId=cmvjm0613000ubl7d26em6t70",
+  "final": "/crm/real-estate/inbox?agencyId=cmvjm05un0000bl7ddebn4lfi&leadId=cmvjm0613000ubl7d26em6t70",
+  "status": "ok",
+  "errors": [
+   "console: Encountered two children with the same key, `%s`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause chi"
+  ]
+ },
+ {
+  "name": "09-portail",
+  "url": "/crm/real-estate/portal",
+  "final": "/crm/real-estate/portal",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "10-estimateur",
+  "url": "/crm/real-estate/valuation",
+  "final": "/crm/real-estate/valuation",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "11-courtiers",
+  "url": "/crm/real-estate/realtors",
+  "final": "/crm/real-estate/realtors",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "12-nouveau-courtier",
+  "url": "/crm/real-estate/realtors/new",
+  "final": "/crm/real-estate/realtors/new",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "13-onboarding-courtier",
+  "url": "/onboarding/realtor",
+  "final": "/onboarding/realtor",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "14-connexions",
+  "url": "/crm/settings/connections",
+  "final": "/crm/settings/connections",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "15-agenda-google",
+  "url": "/crm/settings/connections/realtor-calendar",
+  "final": "/crm/settings/connections/realtor-calendar",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "16-meta",
+  "url": "/crm/settings/connections/meta-ads",
+  "final": "/crm/settings/connections/meta-ads",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "17-parametres",
+  "url": "/crm/settings",
+  "final": "/crm/settings",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "18-membres",
+  "url": "/crm/settings/members",
+  "final": "/crm/settings/members",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "19-assistant-ia",
+  "url": "/crm/chat",
+  "final": "/crm/chat",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "20-contacts",
+  "url": "/crm/contacts",
+  "final": "/crm/contacts",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "21-entreprises",
+  "url": "/crm/companies",
+  "final": "/crm/companies",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "22-affaires",
+  "url": "/crm/deals",
+  "final": "/crm/deals",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "m1-accueil",
+  "url": "/crm",
+  "final": "/crm",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "m2-prospects",
+  "url": "/crm/real-estate/leads",
+  "final": "/crm/real-estate/leads",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "m3-portail",
+  "url": "/crm/real-estate/portal",
+  "final": "/crm/real-estate/portal",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "x1-accueil",
+  "url": "/crm",
+  "final": "/crm",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "x2-prospects",
+  "url": "/crm/real-estate/leads",
+  "final": "/crm/real-estate/leads",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "x3-fiche",
+  "url": "/crm/real-estate/leads/cmvjm05x50009bl7dq6u0h1mo?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "final": "/crm/real-estate/leads/cmvjm05x50009bl7dq6u0h1mo?agencyId=cmvjm05un0000bl7ddebn4lfi",
+  "status": "ok",
+  "errors": []
+ },
+ {
+  "name": "x4-boite",
+  "url": "/crm/real-estate/inbox",
+  "final": "/crm/real-estate/inbox",
+  "status": "ok",
+  "errors": []
+ }
+]
