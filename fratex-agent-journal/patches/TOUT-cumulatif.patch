@@ -4348,7 +4348,7 @@ index 0000000..4a253ec
 +	return { id: lead.id };
 +}
 diff --git a/apps/api/src/real-estate/real-estate.contracts.ts b/apps/api/src/real-estate/real-estate.contracts.ts
-index 035f19d..6c25ade 100644
+index 035f19d..f8b4a24 100644
 --- a/apps/api/src/real-estate/real-estate.contracts.ts
 +++ b/apps/api/src/real-estate/real-estate.contracts.ts
 @@ -1,4 +1,10 @@
@@ -4362,15 +4362,16 @@ index 035f19d..6c25ade 100644
  
  export const leadStatusEnum = z.enum([
  	"NEW",
-@@ -52,6 +58,7 @@ export const leadListItemOutput = z.object({
+@@ -52,6 +58,8 @@ export const leadListItemOutput = z.object({
  	firstContactedAt: z.date().nullable(),
  	lastInteractedAt: z.date().nullable(),
  	createdAt: z.date(),
 +	source: z.string().nullable(),
++	fromMeta: z.boolean().optional(),
  });
  
  export const listLeadsOutput = z.object({
-@@ -65,36 +72,125 @@ export const getLeadInput = z.object({
+@@ -65,36 +73,125 @@ export const getLeadInput = z.object({
  	agencyId: z.string().optional(),
  });
  
@@ -4505,7 +4506,7 @@ index 035f19d..6c25ade 100644
  	deliveries: z.array(
  		z.object({
  			id: z.string(),
-@@ -106,6 +202,64 @@ export const leadDetailOutput = z.object({
+@@ -106,6 +203,64 @@ export const leadDetailOutput = z.object({
  	),
  });
  
@@ -4570,7 +4571,7 @@ index 035f19d..6c25ade 100644
  export const updateLeadStatusInput = z.object({
  	agencyId: z.string().optional(),
  	id: z.string().min(1),
-@@ -134,6 +288,14 @@ export const agencyClientsInput = z.object({
+@@ -134,6 +289,14 @@ export const agencyClientsInput = z.object({
  	agencyId: z.string().optional(),
  });
  
@@ -4585,7 +4586,7 @@ index 035f19d..6c25ade 100644
  export const clientListItemOutput = z.object({
  	id: z.string(),
  	agencyId: z.string(),
-@@ -142,8 +304,19 @@ export const clientListItemOutput = z.object({
+@@ -142,8 +305,19 @@ export const clientListItemOutput = z.object({
  	phone: z.string().nullable(),
  	status: z.enum(["ACTIVE", "PAUSED", "CHURNED"]),
  	targetZones: z.array(z.string()),
@@ -4605,7 +4606,7 @@ index 035f19d..6c25ade 100644
  });
  
  export const agencyClientsOutput = z.object({
-@@ -154,14 +327,12 @@ export const createClientInput = z.object({
+@@ -154,14 +328,12 @@ export const createClientInput = z.object({
  	agencyId: z.string().optional(),
  	name: z.string().min(2).max(120),
  	email: z.string().email(),
@@ -4622,7 +4623,7 @@ index 035f19d..6c25ade 100644
  	calendarLink: z.string().url().optional(),
  	timezone: z.string().default("America/Toronto"),
  });
-@@ -176,9 +347,38 @@ export const clientDetailOutput = z.object({
+@@ -176,9 +348,38 @@ export const clientDetailOutput = z.object({
  	targetZones: z.array(z.string()),
  });
  
@@ -4661,7 +4662,7 @@ index 035f19d..6c25ade 100644
  });
  
  export const realtorPortalStatsOutput = z.object({
-@@ -189,15 +389,45 @@ export const realtorPortalStatsOutput = z.object({
+@@ -189,15 +390,45 @@ export const realtorPortalStatsOutput = z.object({
  		email: z.string(),
  		phone: z.string().nullable(),
  		targetZones: z.array(z.string()),
@@ -4707,7 +4708,7 @@ index 035f19d..6c25ade 100644
  		hoursSavedPerWeek: z.null(),
  		projectedCommission: z.null(),
  	}),
-@@ -298,6 +528,140 @@ export const connectionsStatusOutput = z.object({
+@@ -298,6 +529,140 @@ export const connectionsStatusOutput = z.object({
  	microsoft: z.object({
  		connected: z.boolean(),
  	}),
@@ -4848,7 +4849,7 @@ index 035f19d..6c25ade 100644
  });
  
  export type ListLeadsInput = z.infer<typeof listLeadsInput>;
-@@ -308,6 +672,18 @@ export type CreateClientInput = z.infer<typeof createClientInput>;
+@@ -308,6 +673,18 @@ export type CreateClientInput = z.infer<typeof createClientInput>;
  export type RealtorPortalInput = z.infer<typeof realtorPortalInput>;
  export type AnalyzeListingInput = z.infer<typeof analyzeListingInput>;
  export type SyncDualCrmInput = z.infer<typeof syncDualCrmInput>;
@@ -4867,7 +4868,7 @@ index 035f19d..6c25ade 100644
  
  export const agencyScopeInput = z.object({ agencyId: z.string().optional() });
  export const agenciesOutput = z.object({
-@@ -371,3 +747,17 @@ export const configureCalendarInput = z.object({
+@@ -371,3 +748,17 @@ export const configureCalendarInput = z.object({
  	slotDuration: z.number().int().min(15).max(120),
  });
  export const configurationOutput = z.object({ configured: z.boolean() });
@@ -5062,7 +5063,7 @@ index d1fa90e..2283426 100644
 +	}
  }
 diff --git a/apps/api/src/real-estate/real-estate.service.ts b/apps/api/src/real-estate/real-estate.service.ts
-index 1f2ae58..2ef37fa 100644
+index 1f2ae58..0e28f2e 100644
 --- a/apps/api/src/real-estate/real-estate.service.ts
 +++ b/apps/api/src/real-estate/real-estate.service.ts
 @@ -21,13 +21,23 @@ import { z } from "zod";
@@ -5089,7 +5090,7 @@ index 1f2ae58..2ef37fa 100644
  	UpdateLeadStatusInput,
  } from "./real-estate.contracts";
  import {
-@@ -38,7 +48,31 @@ import {
+@@ -38,11 +48,36 @@ import {
  	sendMessageInput,
  	setAutomationInput,
  } from "./real-estate.contracts";
@@ -5121,7 +5122,12 @@ index 1f2ae58..2ef37fa 100644
  
  const leadItem = (lead: LeadModel & { client: { name: string } | null }) => ({
  	...lead,
-@@ -150,15 +184,30 @@ export class RealEstateService {
+ 	clientName: lead.client?.name ?? null,
++	fromMeta: Boolean(lead.metaLeadgenId || lead.metaFormId || lead.campaignId),
+ });
+ 
+ @Injectable()
+@@ -150,15 +185,30 @@ export class RealEstateService {
  			},
  			include: {
  				client: { select: { name: true } },
@@ -5153,7 +5159,7 @@ index 1f2ae58..2ef37fa 100644
  			this.db.message.findMany({
  				where: { agencyId: scope.agencyId, conversation: { leadId: lead.id } },
  				orderBy: [{ sentAt: "asc" }, { id: "asc" }],
-@@ -183,16 +232,31 @@ export class RealEstateService {
+@@ -183,16 +233,31 @@ export class RealEstateService {
  					createdAt: true,
  				},
  			}),
@@ -5185,7 +5191,7 @@ index 1f2ae58..2ef37fa 100644
  		};
  	}
  	async updateStatus(userId: string, input: UpdateLeadStatusInput) {
-@@ -242,17 +306,8 @@ export class RealEstateService {
+@@ -242,17 +307,8 @@ export class RealEstateService {
  	}
  	async listClients(userId: string, agencyId?: string) {
  		const scope = await this.access(userId, agencyId);
@@ -5204,7 +5210,7 @@ index 1f2ae58..2ef37fa 100644
  		};
  	}
  	async createClient(userId: string, input: CreateClientInput) {
-@@ -283,87 +338,49 @@ export class RealEstateService {
+@@ -283,87 +339,49 @@ export class RealEstateService {
  		const agency = await this.db.agency.findUniqueOrThrow({
  			where: { id: scope.agencyId },
  		});
@@ -5332,7 +5338,7 @@ index 1f2ae58..2ef37fa 100644
  	}
  	async analyzeListing(userId: string, input: AnalyzeListingInput) {
  		await this.access(userId, input.agencyId);
-@@ -665,9 +682,70 @@ export class RealEstateService {
+@@ -665,9 +683,70 @@ export class RealEstateService {
  		});
  		return { configured: true };
  	}
@@ -5404,7 +5410,7 @@ index 1f2ae58..2ef37fa 100644
  			await Promise.all([
  				this.db.metaAdAccount.findMany({
  					where: { agencyId: scope.agencyId },
-@@ -686,6 +764,9 @@ export class RealEstateService {
+@@ -686,6 +765,9 @@ export class RealEstateService {
  				this.db.realtorCalendar.count({
  					where: { agencyId: scope.agencyId, clientId: scope.clientId },
  				}),
@@ -5414,7 +5420,7 @@ index 1f2ae58..2ef37fa 100644
  			]);
  		const origin = process.env.API_URL ?? "http://localhost:3001";
  		const local = process.env.LLM_PROVIDER === "openai-compatible";
-@@ -720,6 +801,11 @@ export class RealEstateService {
+@@ -720,6 +802,11 @@ export class RealEstateService {
  			posthog: { configured: false, host: null },
  			google: { connected: calendar > 0 },
  			microsoft: { connected: false },
@@ -7600,7 +7606,7 @@ index 0000000..8982f98
 +}
 diff --git a/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx b/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx
 new file mode 100644
-index 0000000..2146746
+index 0000000..98be40b
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx
 @@ -0,0 +1,265 @@
@@ -7654,7 +7660,7 @@ index 0000000..2146746
 +						],
 +						since: "2026-10-22 14:05",
 +						lastReply:
-+							"Je suis libre jeudi après-midi pour une visite, est-ce que c'est possible ?",
++							"Je suis libre jeudi après-midi pour une visite, est-ce que c'est possible?",
 +						realtor: "Alexandre Fratini",
 +						fiche: fiche("l1"),
 +					},
@@ -10352,19 +10358,17 @@ index 0000000..3afe251
 +	return <AgencyControl scope={scope} />;
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx b/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
-index 7fa521c..aad3c56 100644
+index 7fa521c..4b47f37 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
-@@ -1,189 +1,355 @@
+@@ -1,189 +1,371 @@
  "use client";
 +
  import { Button } from "@crm/ui/components/button";
 -import { CrmExportForm } from "@crm/ui/components/crm-export-form";
 -import { LeadConversationThread } from "@crm/ui/components/lead-conversation-thread";
- import {
--	InboxEntry,
--	InboxLayout,
--	RealEstateWorkspace,
++import { ContactChannels } from "@crm/ui/components/contact-channels";
++import {
 +	InboxComposer,
 +	type InboxConversation,
 +	type InboxCounts,
@@ -10378,7 +10382,10 @@ index 7fa521c..aad3c56 100644
 +	InboxThreadHeader,
 +	smsBlockedReason,
 +} from "@crm/ui/components/inbox";
-+import {
+ import {
+-	InboxEntry,
+-	InboxLayout,
+-	RealEstateWorkspace,
  	WorkspaceLoading,
  	WorkspaceNotice,
 +	WorkspaceToolbar,
@@ -10715,18 +10722,6 @@ index 7fa521c..aad3c56 100644
 -									<WorkspaceNotice
 -										key={appointment.id}
 -										title={`${appointment.title} : ${appointment.status} · ${new Date(appointment.startTime).toLocaleString("fr-CA")}`}
--									/>
--								))}
--								{["OWNER", "ADMIN"].includes(
--									scope.query.data?.agencies.find(
--										(agency) => agency.id === lead.agencyId,
--									)?.role ?? "",
--								) && (
--									<CrmExportForm
--										key={`export:${lead.id}`}
--										onExport={async (input) => {
--											const result = await exportCrm.mutateAsync({
--												...input,
 +								onRetry={() => {
 +									void detail.refetch();
 +								}}
@@ -10742,6 +10737,32 @@ index 7fa521c..aad3c56 100644
 +								onBack={() => {
 +									void setLeadId(null);
 +								}}
++								channels={
++									<ContactChannels
++										firstName={lead.firstName}
++										phone={lead.phone}
++										email={lead.email}
++										fromMeta={lead.fromMeta}
++										onSms={() => {
++											document
++												.querySelector<HTMLTextAreaElement>(
++													'[data-slot="sms-composer"]',
++												)
++												?.focus();
++										}}
+ 									/>
+-								))}
+-								{["OWNER", "ADMIN"].includes(
+-									scope.query.data?.agencies.find(
+-										(agency) => agency.id === lead.agencyId,
+-									)?.role ?? "",
+-								) && (
+-									<CrmExportForm
+-										key={`export:${lead.id}`}
+-										onExport={async (input) => {
+-											const result = await exportCrm.mutateAsync({
+-												...input,
++								}
 +								profileLink={
 +									<Button asChild variant="outline" size="sm">
 +										<Link href={ficheHref(lead.id)}>Voir la fiche</Link>
@@ -12952,10 +12973,25 @@ index 6584a94..216f15c 100644
  							? `${effectiveId} · ${contextHint(effective.contextWindowTokens)}${
  									priceHint(effective) ? ` · ${priceHint(effective)}` : ""
 diff --git a/apps/app/app/(app)/[slug]/settings/api-keys/api-keys-table.tsx b/apps/app/app/(app)/[slug]/settings/api-keys/api-keys-table.tsx
-index a6737ee..f92f1d8 100644
+index a6737ee..ae175c6 100644
 --- a/apps/app/app/(app)/[slug]/settings/api-keys/api-keys-table.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/api-keys/api-keys-table.tsx
-@@ -39,19 +39,19 @@ function columns(
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import Locked from "@carbon/icons-react/es/Locked";
+ import TrashCan from "@carbon/icons-react/es/TrashCan";
+ import {
+ 	AlertDialog,
+@@ -15,6 +16,7 @@ import {
+ import { Badge } from "@crm/ui/components/badge";
+ import { Button } from "@crm/ui/components/button";
+ import { DataTable, type DataTableColumn } from "@crm/ui/components/data-table";
++import { EmptyState } from "@crm/ui/components/empty-state";
+ import { Icon } from "@crm/ui/components/icon";
+ import { useMutation, useQuery } from "@tanstack/react-query";
+ import { toast } from "sonner";
+@@ -39,19 +41,19 @@ function columns(
  	return [
  		{
  			id: "name",
@@ -12978,7 +13014,7 @@ index a6737ee..f92f1d8 100644
  			width: "w-[20%]",
  			hideBelow: "sm",
  			cell: (row) => (
-@@ -60,7 +60,7 @@ function columns(
+@@ -60,7 +62,7 @@ function columns(
  		},
  		{
  			id: "createdAt",
@@ -12987,7 +13023,7 @@ index a6737ee..f92f1d8 100644
  			sortable: true,
  			width: "w-[16%]",
  			hideBelow: "md",
-@@ -72,8 +72,8 @@ function columns(
+@@ -72,8 +74,8 @@ function columns(
  		},
  		{
  			id: "lastRequest",
@@ -12998,7 +13034,7 @@ index a6737ee..f92f1d8 100644
  			sortable: true,
  			width: "w-[16%]",
  			hideBelow: "lg",
-@@ -82,14 +82,14 @@ function columns(
+@@ -82,14 +84,14 @@ function columns(
  					{row.lastRequest ? (
  						<LocalRelativeTime date={row.lastRequest} />
  					) : (
@@ -13015,7 +13051,7 @@ index a6737ee..f92f1d8 100644
  			sortable: true,
  			width: "w-[14%]",
  			hideBelow: "lg",
-@@ -105,7 +105,7 @@ function columns(
+@@ -105,7 +107,7 @@ function columns(
  						<LocalRelativeTime date={row.expiresAt} />
  					</span>
  				) : (
@@ -13024,7 +13060,7 @@ index a6737ee..f92f1d8 100644
  				),
  		},
  		{
-@@ -121,7 +121,7 @@ function columns(
+@@ -121,7 +123,7 @@ function columns(
  						<Button variant="ghost" size="icon" disabled={pending}>
  							<Icon icon={TrashCan} />
  							<span className="sr-only">
@@ -13033,7 +13069,7 @@ index a6737ee..f92f1d8 100644
  							</span>
  						</Button>
  					</AlertDialogTrigger>
-@@ -129,21 +129,21 @@ function columns(
+@@ -129,21 +131,21 @@ function columns(
  					<AlertDialogContent>
  						<AlertDialogHeader>
  							<AlertDialogTitle>
@@ -13060,7 +13096,7 @@ index a6737ee..f92f1d8 100644
  							</AlertDialogAction>
  						</AlertDialogFooter>
  					</AlertDialogContent>
-@@ -170,7 +170,7 @@ export function ApiKeysTable() {
+@@ -170,7 +172,7 @@ export function ApiKeysTable() {
  					await query.setPage(query.page - 1);
  				}
  				await cache.apiKeys();
@@ -13069,7 +13105,7 @@ index a6737ee..f92f1d8 100644
  			},
  			onError: (error) => toast.error(error.message),
  		}),
-@@ -179,7 +179,7 @@ export function ApiKeysTable() {
+@@ -179,7 +181,7 @@ export function ApiKeysTable() {
  	return (
  		<DataTable
  			query={query}
@@ -13078,12 +13114,20 @@ index a6737ee..f92f1d8 100644
  			columns={columns(
  				(apiKey) => revoke.mutate({ id: apiKey.id }),
  				revoke.isPending,
-@@ -188,7 +188,7 @@ export function ApiKeysTable() {
+@@ -188,7 +190,15 @@ export function ApiKeysTable() {
  			total={apiKeys.data?.total ?? 0}
  			getRowId={(row) => row.id}
  			loading={apiKeys.isFetching}
 -			empty="No API keys yet."
-+			empty="Aucune clé API pour l'instant."
++			empty={
++				<EmptyState
++					compact
++					icon={Locked}
++					title="Aucune clé API"
++					description="Créez une clé avec « Nouvelle clé API » pour connecter un autre outil à Fratex. Elle n'est affichée qu'une seule fois."
++					className="border-0 bg-transparent"
++				/>
++			}
  		/>
  	);
  }
@@ -16585,10 +16629,25 @@ index 52b3d5c..51e256c 100644
  				</PageShellHeading>
  
 diff --git a/apps/app/app/(app)/[slug]/settings/sso/sso-table.tsx b/apps/app/app/(app)/[slug]/settings/sso/sso-table.tsx
-index 010a7f5..175386b 100644
+index 010a7f5..d1e61e9 100644
 --- a/apps/app/app/(app)/[slug]/settings/sso/sso-table.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/sso/sso-table.tsx
-@@ -35,7 +35,7 @@ function columns(
+@@ -1,5 +1,6 @@
+ "use client";
+ 
++import Locked from "@carbon/icons-react/es/Locked";
+ import TrashCan from "@carbon/icons-react/es/TrashCan";
+ import {
+ 	AlertDialog,
+@@ -14,6 +15,7 @@ import {
+ } from "@crm/ui/components/alert-dialog";
+ import { Button } from "@crm/ui/components/button";
+ import { DataTable, type DataTableColumn } from "@crm/ui/components/data-table";
++import { EmptyState } from "@crm/ui/components/empty-state";
+ import { Icon } from "@crm/ui/components/icon";
+ import { useMutation, useQuery } from "@tanstack/react-query";
+ import { toast } from "sonner";
+@@ -35,7 +37,7 @@ function columns(
  	return [
  		{
  			id: "providerId",
@@ -16597,7 +16656,7 @@ index 010a7f5..175386b 100644
  			sortable: true,
  			hideable: false,
  			width: "w-[30%]",
-@@ -51,7 +51,7 @@ function columns(
+@@ -51,7 +53,7 @@ function columns(
  		},
  		{
  			id: "domain",
@@ -16606,7 +16665,7 @@ index 010a7f5..175386b 100644
  			sortable: true,
  			width: "w-[22%]",
  			hideBelow: "sm",
-@@ -63,7 +63,7 @@ function columns(
+@@ -63,7 +65,7 @@ function columns(
  		},
  		{
  			id: "issuer",
@@ -16615,7 +16674,7 @@ index 010a7f5..175386b 100644
  			sortable: true,
  			width: "w-[22%]",
  			hideBelow: "md",
-@@ -73,13 +73,13 @@ function columns(
+@@ -73,13 +75,13 @@ function columns(
  		},
  		{
  			id: "callbackURL",
@@ -16631,7 +16690,7 @@ index 010a7f5..175386b 100644
  				</span>
  			),
  		},
-@@ -96,26 +96,26 @@ function columns(
+@@ -96,26 +98,26 @@ function columns(
  						<AlertDialogTrigger asChild>
  							<Button variant="ghost" size="icon" disabled={pending}>
  								<Icon icon={TrashCan} />
@@ -16664,7 +16723,7 @@ index 010a7f5..175386b 100644
  								</AlertDialogAction>
  							</AlertDialogFooter>
  						</AlertDialogContent>
-@@ -140,7 +140,7 @@ export function SsoTable() {
+@@ -140,7 +142,7 @@ export function SsoTable() {
  		trpc.sso.remove.mutationOptions({
  			onSuccess: async () => {
  				await cache.sso();
@@ -16673,7 +16732,7 @@ index 010a7f5..175386b 100644
  			},
  			onError: (error) => toast.error(error.message),
  		}),
-@@ -149,7 +149,9 @@ export function SsoTable() {
+@@ -149,7 +151,9 @@ export function SsoTable() {
  	return (
  		<DataTable
  			query={query}
@@ -16684,12 +16743,20 @@ index 010a7f5..175386b 100644
  			columns={columns(
  				settings.data?.canConfigure ?? false,
  				(provider) => remove.mutate({ providerId: provider.providerId }),
-@@ -159,7 +161,7 @@ export function SsoTable() {
+@@ -159,7 +163,15 @@ export function SsoTable() {
  			total={providers.data?.total ?? 0}
  			getRowId={(row) => row.providerId}
  			loading={providers.isFetching}
 -			empty="No identity provider yet — everyone signs in with Google."
-+			empty="Aucun fournisseur d'identité pour l'instant : tout le monde se connecte avec Google."
++			empty={
++				<EmptyState
++					compact
++					icon={Locked}
++					title="Aucun fournisseur d'identité"
++					description="Tout le monde se connecte avec Google ou Microsoft. Ajoutez un fournisseur pour permettre la connexion unique de votre équipe."
++					className="border-0 bg-transparent"
++				/>
++			}
  		/>
  	);
  }
@@ -17494,7 +17561,7 @@ index 9ced037..af58c9d 100644
  			</CardContent>
 diff --git a/apps/app/app/(app)/[slug]/support/page.tsx b/apps/app/app/(app)/[slug]/support/page.tsx
 new file mode 100644
-index 0000000..4bf1f7f
+index 0000000..68fb09a
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/support/page.tsx
 @@ -0,0 +1,39 @@
@@ -17523,7 +17590,7 @@ index 0000000..4bf1f7f
 +				<PageShellHeading>
 +					<PageShellTitle info={PAGE_HELP.support}>Support</PageShellTitle>
 +					<PageShellDescription>
-+						Un problème, une question ou une idée ? Dites-le-nous en quelques
++						Un problème, une question ou une idée? Dites-le-nous en quelques
 +						secondes.
 +					</PageShellDescription>
 +				</PageShellHeading>
@@ -18922,7 +18989,7 @@ index b2e3626..e4e6c4e 100644
  		access: manifest.access,
  	};
 diff --git a/apps/app/components/agent-builder/agent-builder-home.tsx b/apps/app/components/agent-builder/agent-builder-home.tsx
-index 0f4ac4c..1595993 100644
+index 0f4ac4c..2268f34 100644
 --- a/apps/app/components/agent-builder/agent-builder-home.tsx
 +++ b/apps/app/components/agent-builder/agent-builder-home.tsx
 @@ -2,6 +2,7 @@
@@ -18938,10 +19005,10 @@ index 0f4ac4c..1595993 100644
  import { AgentComposer, type BuilderComposerPrompt } from "./agent-composer";
  
 +const QUICK_QUESTIONS = [
-+	"Quels prospects attendent une réponse ?",
++	"Quels prospects attendent une réponse?",
 +	"Résume la fiche de mon prospect le plus avancé",
-+	"Quels sont mes rendez-vous cette semaine ?",
-+	"Comment se passe mon mois ?",
++	"Quels sont mes rendez-vous cette semaine?",
++	"Comment se passe mon mois?",
 +];
 +
  const SUGGESTIONS = [
@@ -27145,7 +27212,7 @@ index 7315b5f..2f1d51f 100644
  const CONTACT_LINKS: SocialLink<ContactLinks>[] = [
 diff --git a/apps/app/lib/support-config.ts b/apps/app/lib/support-config.ts
 new file mode 100644
-index 0000000..631726d
+index 0000000..a1d0239
 --- /dev/null
 +++ b/apps/app/lib/support-config.ts
 @@ -0,0 +1,33 @@
@@ -27172,12 +27239,12 @@ index 0000000..631726d
 +			"L'assistant ne peut réserver que dans l'agenda Google du courtier. Ouvrez Courtiers, choisissez le courtier, puis connectez son agenda. Sans agenda, l'assistant propose le lien de réservation de la fiche du courtier.",
 +	},
 +	{
-+		question: "Comment reprendre la main sur une conversation ?",
++		question: "Comment reprendre la main sur une conversation?",
 +		answer:
 +			"Ouvrez la Boîte de réception, choisissez la conversation et cliquez sur Reprendre la main. L'assistant se met en pause pour ce prospect. Le bouton Rendre à l'assistant lui redonne la conversation.",
 +	},
 +	{
-+		question: "Comment ajouter un courtier ?",
++		question: "Comment ajouter un courtier?",
 +		answer:
 +			"Allez à Courtiers, puis Ajouter un courtier. Remplissez l'identité, les secteurs et les outils, puis connectez son formulaire Meta, son agenda et son numéro SMS.",
 +	},
@@ -27628,6 +27695,41 @@ index 0000000..991e112
 +		expect(audienceOf(["OWNER"])).toBe("staff");
 +		expect(audienceOf(["MARKETER"])).toBe("staff");
 +		expect(audienceOf([])).toBe("staff");
++	});
++});
+diff --git a/apps/app/test/contact-channels.spec.ts b/apps/app/test/contact-channels.spec.ts
+new file mode 100644
+index 0000000..e4eb59e
+--- /dev/null
++++ b/apps/app/test/contact-channels.spec.ts
+@@ -0,0 +1,29 @@
++import { describe, expect, it } from "bun:test";
++import {
++	mailtoLink,
++	phoneDigits,
++	telLink,
++	whatsappLink,
++} from "@crm/ui/lib/contact-channels";
++
++describe("contact channel links", () => {
++	it("keeps only the digits of a phone number for WhatsApp", () => {
++		expect(phoneDigits("+1 (514) 555-0301")).toBe("15145550301");
++	});
++
++	it("builds a WhatsApp link with an encoded greeting", () => {
++		const link = whatsappLink("+15145550301", "Karim");
++
++		expect(link.startsWith("https://wa.me/15145550301?text=")).toBe(true);
++		expect(decodeURIComponent(link.split("text=")[1] ?? "")).toContain(
++			"Bonjour Karim",
++		);
++	});
++
++	it("builds call and email links", () => {
++		expect(telLink("+15145550301")).toBe("tel:+15145550301");
++		expect(mailtoLink("karim@example.ca")).toBe(
++			"mailto:karim@example.ca?subject=Votre%20projet%20immobilier",
++		);
 +	});
 +});
 diff --git a/apps/app/test/day.spec.ts b/apps/app/test/day.spec.ts
@@ -30323,6 +30425,107 @@ index 1ee6686..616e75f 100644
  			{failed && (
  				<WorkspaceNotice title="Copie impossible. Sélectionnez l’adresse." />
  			)}
+diff --git a/packages/ui/src/components/contact-channels.tsx b/packages/ui/src/components/contact-channels.tsx
+new file mode 100644
+index 0000000..1e57007
+--- /dev/null
++++ b/packages/ui/src/components/contact-channels.tsx
+@@ -0,0 +1,95 @@
++"use client";
++
++import Chat from "@carbon/icons-react/es/Chat";
++import Email from "@carbon/icons-react/es/Email";
++import ChatLaunch from "@carbon/icons-react/es/ChatLaunch";
++import Phone from "@carbon/icons-react/es/Phone";
++import {
++	CONTACT_CHANNELS,
++	mailtoLink,
++	telLink,
++	whatsappLink,
++} from "../lib/contact-channels";
++import MetaLogo from "./brand-logos/meta";
++import { Button } from "./button";
++import { type CarbonIcon, Icon } from "./icon";
++import { InfoHint } from "./real-estate-visuals";
++
++type Channel = {
++	id: string;
++	label: string;
++	icon: CarbonIcon;
++	href?: string;
++	external?: boolean;
++	onClick?: () => void;
++};
++
++export function ContactChannels({
++	firstName,
++	phone,
++	email,
++	fromMeta,
++	onSms,
++}: {
++	firstName: string;
++	phone: string;
++	email?: string | null;
++	fromMeta?: boolean;
++	onSms?: () => void;
++}) {
++	const channels: Channel[] = [
++		{ id: "call", label: "Appeler", icon: Phone, href: telLink(phone) },
++		...(onSms ? [{ id: "sms", label: "SMS", icon: Chat, onClick: onSms }] : []),
++		...(email ? [{ id: "email", label: "Courriel", icon: Email, href: mailtoLink(email) }] : []),
++		{
++			id: "whatsapp",
++			label: "WhatsApp",
++			icon: ChatLaunch,
++			href: whatsappLink(phone, firstName),
++			external: true,
++		},
++		...(fromMeta
++			? [
++					{
++						id: "meta",
++						label: "Messenger",
++						icon: MetaLogo,
++						href: CONTACT_CHANNELS.metaInboxUrl,
++						external: true,
++					},
++				]
++			: []),
++	];
++	return (
++		<div className="flex w-full flex-wrap items-center gap-1.5" role="group" aria-label={`Contacter ${firstName}`}>
++			{channels.map((channel) => (
++				<Button
++					key={channel.id}
++					variant="outline"
++					size="sm"
++					asChild={Boolean(channel.href)}
++					onClick={channel.onClick}
++					title={channel.label}
++					translate="no"
++				>
++					{channel.href ? (
++						<a
++							href={channel.href}
++							{...(channel.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
++							aria-label={`${channel.label} ${firstName}`}
++						>
++							<Icon icon={channel.icon} className="size-3.5" />
++							<span className="max-sm:sr-only">{channel.label}</span>
++						</a>
++					) : (
++						<>
++							<Icon icon={channel.icon} className="size-3.5" />
++							<span className="max-sm:sr-only">{channel.label}</span>
++						</>
++					)}
++				</Button>
++			))}
++			<InfoHint label="Contacter par un autre canal">{CONTACT_CHANNELS.notice}</InfoHint>
++		</div>
++	);
++}
 diff --git a/packages/ui/src/components/contact-link.tsx b/packages/ui/src/components/contact-link.tsx
 new file mode 100644
 index 0000000..02bbf16
@@ -30745,10 +30948,10 @@ index 0000000..c850df9
 +}
 diff --git a/packages/ui/src/components/inbox.tsx b/packages/ui/src/components/inbox.tsx
 new file mode 100644
-index 0000000..d69ccd6
+index 0000000..9288ec1
 --- /dev/null
 +++ b/packages/ui/src/components/inbox.tsx
-@@ -0,0 +1,779 @@
+@@ -0,0 +1,783 @@
 +"use client";
 +
 +import ArrowDown from "@carbon/icons-react/es/ArrowDown";
@@ -31177,6 +31380,7 @@ index 0000000..d69ccd6
 +	humanTakeover,
 +	profileLink,
 +	takeoverAction,
++	channels,
 +	onBack,
 +}: {
 +	name: string;
@@ -31185,6 +31389,7 @@ index 0000000..d69ccd6
 +	humanTakeover: boolean;
 +	profileLink?: ReactNode;
 +	takeoverAction?: ReactNode;
++	channels?: ReactNode;
 +	onBack?: () => void;
 +}) {
 +	return (
@@ -31218,6 +31423,7 @@ index 0000000..d69ccd6
 +					{takeoverAction}
 +				</div>
 +			)}
++			{channels}
 +		</header>
 +	);
 +}
@@ -31465,6 +31671,7 @@ index 0000000..d69ccd6
 +			</label>
 +			<Textarea
 +				id={fieldId}
++				data-slot="sms-composer"
 +				value={text}
 +				maxLength={maxLength}
 +				rows={2}
@@ -32815,7 +33022,7 @@ index 4c24cc7..f268b88 100644
          </>
        )}
 diff --git a/packages/ui/src/components/pipeline-kanban.tsx b/packages/ui/src/components/pipeline-kanban.tsx
-index 851b4f1..622f56e 100644
+index 851b4f1..b88783f 100644
 --- a/packages/ui/src/components/pipeline-kanban.tsx
 +++ b/packages/ui/src/components/pipeline-kanban.tsx
 @@ -1,9 +1,16 @@
@@ -32926,7 +33133,7 @@ index 851b4f1..622f56e 100644
 -											</Badge>
 -										</div>
 +		<TooltipProvider>
-+			<div className="flex h-full w-full gap-3 overflow-x-auto pb-3">
++			<div className="flex h-full w-full snap-x snap-mandatory gap-3 overflow-x-auto pb-3 max-md:items-start md:snap-none">
 +				{columns.map((col, columnIndex) => {
 +					const columnLeads = leadsByStatus.get(col.status) || [];
  
@@ -32937,7 +33144,7 @@ index 851b4f1..622f56e 100644
 +						<div
 +							key={col.status}
 +							className={cn(
-+								"flex w-72 shrink-0 flex-col rounded-lg border bg-muted/40 p-2.5",
++								"flex w-72 shrink-0 snap-start flex-col rounded-lg border bg-muted/40 p-2.5 max-md:w-[85vw]",
 +								REVEAL,
 +							)}
 +							style={staggerStyle(columnIndex)}
@@ -34141,7 +34348,7 @@ index 0000000..d18f9ae
 +	);
 +}
 diff --git a/packages/ui/src/components/real-estate-lead-table.tsx b/packages/ui/src/components/real-estate-lead-table.tsx
-index 1a1fea0..21c5b51 100644
+index 1a1fea0..e79c184 100644
 --- a/packages/ui/src/components/real-estate-lead-table.tsx
 +++ b/packages/ui/src/components/real-estate-lead-table.tsx
 @@ -1,6 +1,17 @@
@@ -34345,7 +34552,7 @@ index 1a1fea0..21c5b51 100644
 +						{showRealtor && (
 +							<TableHead className="max-lg:hidden">Courtier</TableHead>
 +						)}
-+						<TableHead className="text-right">Dernière activité</TableHead>
++						<TableHead className="text-right max-md:hidden">Dernière activité</TableHead>
  					</TableRow>
 -				))}
 -			</TableBody>
@@ -34399,7 +34606,7 @@ index 1a1fea0..21c5b51 100644
 +									)}
 +								</TableCell>
 +							)}
-+							<TableCell className="text-right text-muted-foreground tabular-nums">
++							<TableCell className="text-right text-muted-foreground tabular-nums max-md:hidden">
 +								{lead.lastInteractedAt
 +									? formatShortStamp(lead.lastInteractedAt, now)
 +									: "—"}
@@ -36559,7 +36766,7 @@ index a679e4a..703c1ac 100644
 +}
 diff --git a/packages/ui/src/components/support-panel.tsx b/packages/ui/src/components/support-panel.tsx
 new file mode 100644
-index 0000000..5201eac
+index 0000000..8d70389
 --- /dev/null
 +++ b/packages/ui/src/components/support-panel.tsx
 @@ -0,0 +1,65 @@
@@ -36620,7 +36827,7 @@ index 0000000..5201eac
 +						</CardContent>
 +					</Card>
 +					<p className="text-sm text-muted-foreground">
-+						Vous préférez le courriel ? Écrivez à <ContactLink kind="email" value={email} className="text-foreground underline" />.
++						Vous préférez le courriel? Écrivez à <ContactLink kind="email" value={email} className="text-foreground underline" />.
 +					</p>
 +				</div>
 +			</div>
@@ -36630,7 +36837,7 @@ index 0000000..5201eac
 +}
 diff --git a/packages/ui/src/components/support-request-form.tsx b/packages/ui/src/components/support-request-form.tsx
 new file mode 100644
-index 0000000..dfdf45b
+index 0000000..554c2ce
 --- /dev/null
 +++ b/packages/ui/src/components/support-request-form.tsx
 @@ -0,0 +1,147 @@
@@ -36661,7 +36868,7 @@ index 0000000..dfdf45b
 +		label: "Signaler un problème",
 +		hint: "Quelque chose ne marche pas",
 +		icon: Warning,
-+		question: "Que s'est-il passé ?",
++		question: "Que s'est-il passé?",
 +		placeholder:
 +			"Ex. : j'ai cliqué sur Envoyer dans la boîte de réception et le SMS est resté en attente.",
 +	},
@@ -36670,15 +36877,15 @@ index 0000000..dfdf45b
 +		label: "Poser une question",
 +		hint: "Je ne sais pas comment faire",
 +		icon: Help,
-+		question: "Quelle est votre question ?",
-+		placeholder: "Ex. : comment connecter l'agenda Google d'un courtier ?",
++		question: "Quelle est votre question?",
++		placeholder: "Ex. : comment connecter l'agenda Google d'un courtier?",
 +	},
 +	{
 +		id: "IDEA",
 +		label: "Proposer une idée",
 +		hint: "Une amélioration utile",
 +		icon: Idea,
-+		question: "Quelle amélioration proposez-vous ?",
++		question: "Quelle amélioration proposez-vous?",
 +		placeholder:
 +			"Ex. : exporter la liste des rendez-vous de la semaine en PDF pour le courtier.",
 +	},
@@ -37293,7 +37500,7 @@ index 0000000..90c08db
 +}
 diff --git a/packages/ui/src/components/translate-menu.tsx b/packages/ui/src/components/translate-menu.tsx
 new file mode 100644
-index 0000000..9afbe05
+index 0000000..3818458
 --- /dev/null
 +++ b/packages/ui/src/components/translate-menu.tsx
 @@ -0,0 +1,101 @@
@@ -37387,7 +37594,7 @@ index 0000000..9afbe05
 +		<AlertDialog open={open} onOpenChange={(next) => !next && onCancel()}>
 +			<AlertDialogContent>
 +				<AlertDialogHeader>
-+					<AlertDialogTitle>Traduire avec Google ?</AlertDialogTitle>
++					<AlertDialogTitle>Traduire avec Google?</AlertDialogTitle>
 +					<AlertDialogDescription>{notice}</AlertDialogDescription>
 +				</AlertDialogHeader>
 +				<AlertDialogFooter>
@@ -37397,6 +37604,36 @@ index 0000000..9afbe05
 +			</AlertDialogContent>
 +		</AlertDialog>
 +	);
++}
+diff --git a/packages/ui/src/lib/contact-channels.ts b/packages/ui/src/lib/contact-channels.ts
+new file mode 100644
+index 0000000..dfa49bd
+--- /dev/null
++++ b/packages/ui/src/lib/contact-channels.ts
+@@ -0,0 +1,24 @@
++export const CONTACT_CHANNELS = {
++	whatsappBase: "https://wa.me",
++	metaInboxUrl: "https://business.facebook.com/latest/inbox/all",
++	emailSubject: "Votre projet immobilier",
++	notice:
++		"L'appel, le courriel, WhatsApp et Meta s'ouvrent dans leur application. Ces échanges ne sont pas enregistrés dans la fiche : seuls les SMS envoyés ici le sont.",
++} as const;
++
++export function phoneDigits(phone: string): string {
++	return phone.replace(/\D/g, "");
++}
++
++export function whatsappLink(phone: string, firstName: string): string {
++	const text = `Bonjour ${firstName}, c'est au sujet de votre projet immobilier.`;
++	return `${CONTACT_CHANNELS.whatsappBase}/${phoneDigits(phone)}?text=${encodeURIComponent(text)}`;
++}
++
++export function mailtoLink(email: string): string {
++	return `mailto:${email}?subject=${encodeURIComponent(CONTACT_CHANNELS.emailSubject)}`;
++}
++
++export function telLink(phone: string): string {
++	return `tel:${phone}`;
 +}
 diff --git a/packages/ui/src/lib/format.ts b/packages/ui/src/lib/format.ts
 index de4a95c..cd28751 100644

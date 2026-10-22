@@ -1,0 +1,26 @@
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const [, , cookie, out] = process.argv;
+(async () => {
+  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const c = await b.newContext({ viewport: { width: 1440, height: 800 }, locale: "fr-CA", timezoneId: "America/Toronto" });
+  await c.addCookies([{ name: "crm.session_token", value: cookie, domain: "localhost", path: "/" }]);
+  const p = await c.newPage();
+  const errors = [];
+  p.on("pageerror", (e) => errors.push(e.message.slice(0, 200)));
+  p.on("console", (m) => m.type() === "error" && errors.push("console: " + m.text().slice(0, 160)));
+  await p.goto("http://localhost:3000/crm/real-estate/leads", { waitUntil: "networkidle" });
+  await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+  await p.keyboard.press("Control+k");
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: `${out}/ctrlk-1.png` });
+  await p.keyboard.type("kar");
+  await p.waitForTimeout(1500);
+  await p.screenshot({ path: `${out}/ctrlk-2.png` });
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(400);
+  await p.getByRole("button", { name: /Équipe : / }).click();
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: `${out}/presence.png` });
+  console.log("erreurs:", errors.length ? errors : "aucune");
+  await b.close();
+})();

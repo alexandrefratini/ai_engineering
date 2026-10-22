@@ -128,4 +128,80 @@ for (const deal of deals) {
 		await db.deal.update({ where: { id: deal.id }, data: { name } });
 }
 
+const TEAM: Record<string, { name: string; email: string }> = {
+	"ada@trycomp.ai": { name: "Camille Bouchard", email: "demo-camille@fratex.ca" },
+	"marcus@trycomp.ai": { name: "Mathieu Lavoie", email: "demo-mathieu@fratex.ca" },
+	"priya@trycomp.ai": { name: "Éloïse Pelletier", email: "demo-eloise@fratex.ca" },
+};
+
+const SEEN_HOURS_AGO = [2, 5, 26];
+
+for (const [index, [email, next]] of Object.entries(TEAM).entries())
+	await db.user.updateMany({
+		where: { email },
+		data: {
+			...next,
+			lastSeenAt: new Date(
+				Date.now() - (SEEN_HOURS_AGO[index] ?? 24) * 60 * 60 * 1000,
+			),
+		},
+	});
+
+const USD_PER_UNIT: Record<string, number> = {
+	USD: 1,
+	EUR: 1.09,
+	GBP: 1.27,
+	CAD: 0.73,
+	AUD: 0.66,
+	JPY: 0.0067,
+};
+
+const cadPerUnit = (currency: string) => {
+	const usd = USD_PER_UNIT[currency];
+	return usd === undefined ? null : usd / (USD_PER_UNIT.CAD ?? 1);
+};
+
+await db.appSetting.updateMany({ data: { reportingCurrency: "CAD" } });
+
+for (const currency of Object.keys(USD_PER_UNIT)) {
+	if (currency === "CAD") continue;
+	const exact = cadPerUnit(currency);
+	if (exact === null) continue;
+	const rate = Number(exact.toFixed(5));
+	await db.exchangeRate.upsert({
+		where: {
+			baseCurrency_quoteCurrency_source: {
+				baseCurrency: "CAD",
+				quoteCurrency: currency,
+				source: "FETCHED",
+			},
+		},
+		create: {
+			baseCurrency: "CAD",
+			quoteCurrency: currency,
+			rate,
+			asOf: new Date(Date.now() - 24 * 60 * 60 * 1000),
+			source: "FETCHED",
+			provider: "seed",
+		},
+		update: { rate },
+	});
+}
+
+for (const deal of await db.deal.findMany({
+	select: { id: true, amount: true, currency: true },
+})) {
+	const exact = cadPerUnit(deal.currency ?? "CAD");
+	if (exact === null || deal.amount === null) continue;
+	const rate = Number(exact.toFixed(5));
+	await db.deal.update({
+		where: { id: deal.id },
+		data: {
+			baseAmount: Number((Number(deal.amount) * rate).toFixed(2)),
+			baseCurrency: "CAD",
+			fxRate: rate,
+		},
+	});
+}
+
 console.log("Données de démonstration du CRM traduites.");
