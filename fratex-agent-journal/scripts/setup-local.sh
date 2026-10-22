@@ -18,6 +18,7 @@ cd "$REPO"
 if [ ! -f .env ]; then
 	cp .env.example .env
 	sed -i "s|^BETTER_AUTH_SECRET=\"\"|BETTER_AUTH_SECRET=\"$(openssl rand -base64 32)\"|" .env
+	grep -q "^ALLOWED_SIGN_IN=\"[^\"]" .env || { sed -i "/^ALLOWED_SIGN_IN=/d" .env; echo "ALLOWED_SIGN_IN=\"fratex.ca\"" >> .env; }
 fi
 bun install
 (cd packages/db && set -a && . ../../.env && set +a && bunx prisma migrate deploy && bunx prisma generate)
