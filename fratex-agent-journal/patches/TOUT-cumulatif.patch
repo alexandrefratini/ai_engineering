@@ -3745,10 +3745,10 @@ index 0000000..c7319ab
 +}
 diff --git a/apps/api/src/real-estate/real-estate-portal.ts b/apps/api/src/real-estate/real-estate-portal.ts
 new file mode 100644
-index 0000000..6f76083
+index 0000000..ff18c3e
 --- /dev/null
 +++ b/apps/api/src/real-estate/real-estate-portal.ts
-@@ -0,0 +1,268 @@
+@@ -0,0 +1,274 @@
 +import type { Db, LeadModel } from "@crm/db";
 +import type { RealtorPortalInput } from "./real-estate.contracts";
 +import {
@@ -3857,6 +3857,8 @@ index 0000000..6f76083
 +				intent: true,
 +				source: true,
 +				metaLeadgenId: true,
++				metaFormId: true,
++				campaignId: true,
 +				budgetMax: true,
 +				attributions: { where: { agencyId }, select: { eventType: true } },
 +				appointments: {
@@ -3976,7 +3978,11 @@ index 0000000..6f76083
 +		),
 +		sources: breakdown(
 +			leads.map(
-+				(lead) => lead.source ?? (lead.metaLeadgenId ? "META" : "UNKNOWN"),
++				(lead) =>
++					lead.source ??
++					(lead.metaLeadgenId || lead.metaFormId || lead.campaignId
++						? "META"
++						: "UNKNOWN"),
 +			),
 +			REAL_ESTATE_LABELS.sources,
 +		),
@@ -7051,15 +7057,25 @@ index 1f5aa61..925a71d 100644
  export default function TeamAgentPage({
  	params,
 diff --git a/apps/app/app/(app)/[slug]/(agent-builder)/agents/page.tsx b/apps/app/app/(app)/[slug]/(agent-builder)/agents/page.tsx
-index 8edbb7e..0dec359 100644
+index 8edbb7e..42b4b4d 100644
 --- a/apps/app/app/(app)/[slug]/(agent-builder)/agents/page.tsx
 +++ b/apps/app/app/(app)/[slug]/(agent-builder)/agents/page.tsx
-@@ -20,9 +20,10 @@ export default function AgentsPage() {
+@@ -10,6 +10,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+ 
+@@ -20,9 +21,12 @@ export default function AgentsPage() {
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Team agents</PageShellTitle>
-+					<PageShellTitle>Agents de l'équipe</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.agents}>
++						Agents de l'équipe
++					</PageShellTitle>
  					<PageShellDescription>
 -						Durable automations created from private agent-builder chats.
 +						Automatisations durables créées à partir de conversations privées
@@ -7106,10 +7122,10 @@ index 0000000..8982f98
 +}
 diff --git a/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx b/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx
 new file mode 100644
-index 0000000..9367150
+index 0000000..2146746
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/(agent-builder)/chat/preview-results/view.tsx
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,265 @@
 +"use client";
 +
 +import type { EveMessage } from "eve/react";
@@ -7140,55 +7156,223 @@ index 0000000..9367150
 +	id: "preview-1",
 +	role: "assistant",
 +	parts: [
-+		done("list_prospects_needing_attention", {}, {
-+			timeZone: "America/Toronto",
-+			total: 23,
-+			counts: { unread: 9, humanTakeover: 2, neverContacted: 12 },
-+			returned: 3,
-+			prospects: [
-+				{ id: "l1", name: "Marie Tremblay", phone: "+15145550100", status: "Qualification", reasons: ["Message non lu", "Reprise humaine (Le courtier a pris la main)"], since: "2026-10-22 14:05", lastReply: "Je suis libre jeudi après-midi pour une visite, est-ce que c'est possible ?", realtor: "Alexandre Fratini", fiche: fiche("l1") },
-+				{ id: "l2", name: "Luc Gagnon", phone: "+15145550101", status: "Nouveau", reasons: ["Jamais contacté"], since: "2026-10-21 09:00", lastReply: null, realtor: null, fiche: fiche("l2") },
-+				{ id: "l3", name: "Sophie Roy", phone: "+15145550102", status: "À relancer", reasons: ["Message non lu"], since: "2026-10-20 18:40", lastReply: "Merci", realtor: "Marie Côté", fiche: fiche("l3") },
-+			],
-+		}, 1),
-+		done("search_prospects", { query: "Roy" }, {
-+			total: 1, returned: 1,
-+			prospects: [{ id: "l3", name: "Sophie Roy", phone: "+15145550102", email: "sophie@example.com", status: "RDV fixé", realtor: "Marie Côté", received: "2026-10-20 08:30", lastActivity: "2026-10-22 10:00", fiche: fiche("l3") }],
-+		}, 2),
-+		done("read_prospect", { leadId: "l1" }, {
-+			id: "l1", name: "Marie Tremblay", phone: "+15145550100", email: null, status: "Qualifié", realtor: "Alexandre Fratini",
-+			received: "2026-10-18 10:15", lastActivity: "2026-10-22 14:05", score: 78,
-+			criteria: [
-+				{ criterion: "Budget", value: "600 000 $ – 700 000 $", status: "confirmé", quote: "Entre 600 et 700 mille" },
-+				{ criterion: "Secteur", value: "Laval", status: "suggestion non confirmée", quote: null },
-+			],
-+			toConfirm: ["Financement", "Échéance"],
-+			appointments: [{ id: "a1", title: "Visite", start: "2026-10-23 10:00", end: "2026-10-23 11:00", status: "Planifié", realtor: "Alexandre Fratini" }],
-+			consent: { sms: "Consentement SMS confirmé", since: null },
-+			fiche: fiche("l1"),
-+		}, 3),
-+		done("list_appointments", { range: "upcoming", days: 7 }, {
-+			range: "À venir", days: 7, total: 3, returned: 3,
-+			appointments: [
-+				{ id: "a1", prospect: "Marie Tremblay", start: "2026-10-22 14:00", end: "2026-10-22 15:00", status: "Confirmé", title: "Visite du 123 rue Principale", realtor: "Alexandre Fratini", fiche: fiche("l1") },
-+				{ id: "a2", prospect: "Luc Gagnon", start: "2026-10-23 09:30", end: "2026-10-23 10:00", status: "Planifié", title: "Appel de qualification", realtor: "Marie Côté", fiche: fiche("l2") },
-+				{ id: "a3", prospect: "Sophie Roy", start: "2026-10-24 16:00", end: "2026-10-24 17:00", status: "Absent", title: null, realtor: "Marie Côté", fiche: fiche("l3") },
-+			],
-+		}, 4),
-+		done("realtor_performance", { period: "30D" }, {
-+			period: { code: "30D", label: "30 derniers jours", from: "2026-09-22", to: "2026-10-22" },
-+			...figures,
-+			byRealtor: [
-+				{ clientId: "c1", realtor: "Marie Côté", ...figures },
-+				{ clientId: null, realtor: "Non assigné", ...figures, medianFirstResponseMinutes: null, conversionPct: null },
-+			],
-+		}, 5),
-+		done("realtor_performance", { period: "MONTH" }, {
-+			period: { code: "MONTH", label: "Ce mois-ci", from: "2026-10-01", to: "2026-10-22" },
-+			...figures, leadsReceived: 0, contacted: 0, medianFirstResponseMinutes: null, respondedWithinFiveMinutesPct: null, qualified: 0, conversionPct: null, appointmentsBooked: 0, appointmentsHeld: 0,
-+		}, 6),
-+		{ type: "tool-qualify_lead", toolCallId: "call-7", state: "output-available", input: {}, output: { applied: true } },
-+		{ type: "tool-search_prospects", toolCallId: "call-8", state: "input-available", input: { query: "Roy" } },
++		done(
++			"list_prospects_needing_attention",
++			{},
++			{
++				timeZone: "America/Toronto",
++				total: 23,
++				counts: { unread: 9, humanTakeover: 2, neverContacted: 12 },
++				returned: 3,
++				prospects: [
++					{
++						id: "l1",
++						name: "Marie Tremblay",
++						phone: "+15145550100",
++						status: "Qualification",
++						reasons: [
++							"Message non lu",
++							"Reprise humaine (Le courtier a pris la main)",
++						],
++						since: "2026-10-22 14:05",
++						lastReply:
++							"Je suis libre jeudi après-midi pour une visite, est-ce que c'est possible ?",
++						realtor: "Alexandre Fratini",
++						fiche: fiche("l1"),
++					},
++					{
++						id: "l2",
++						name: "Luc Gagnon",
++						phone: "+15145550101",
++						status: "Nouveau",
++						reasons: ["Jamais contacté"],
++						since: "2026-10-21 09:00",
++						lastReply: null,
++						realtor: null,
++						fiche: fiche("l2"),
++					},
++					{
++						id: "l3",
++						name: "Sophie Roy",
++						phone: "+15145550102",
++						status: "À relancer",
++						reasons: ["Message non lu"],
++						since: "2026-10-20 18:40",
++						lastReply: "Merci",
++						realtor: "Marie Côté",
++						fiche: fiche("l3"),
++					},
++				],
++			},
++			1,
++		),
++		done(
++			"search_prospects",
++			{ query: "Roy" },
++			{
++				total: 1,
++				returned: 1,
++				prospects: [
++					{
++						id: "l3",
++						name: "Sophie Roy",
++						phone: "+15145550102",
++						email: "sophie@example.com",
++						status: "RDV fixé",
++						realtor: "Marie Côté",
++						received: "2026-10-20 08:30",
++						lastActivity: "2026-10-22 10:00",
++						fiche: fiche("l3"),
++					},
++				],
++			},
++			2,
++		),
++		done(
++			"read_prospect",
++			{ leadId: "l1" },
++			{
++				id: "l1",
++				name: "Marie Tremblay",
++				phone: "+15145550100",
++				email: null,
++				status: "Qualifié",
++				realtor: "Alexandre Fratini",
++				received: "2026-10-18 10:15",
++				lastActivity: "2026-10-22 14:05",
++				score: 78,
++				criteria: [
++					{
++						criterion: "Budget",
++						value: "600 000 $ – 700 000 $",
++						status: "confirmé",
++						quote: "Entre 600 et 700 mille",
++					},
++					{
++						criterion: "Secteur",
++						value: "Laval",
++						status: "suggestion non confirmée",
++						quote: null,
++					},
++				],
++				toConfirm: ["Financement", "Échéance"],
++				appointments: [
++					{
++						id: "a1",
++						title: "Visite",
++						start: "2026-10-23 10:00",
++						end: "2026-10-23 11:00",
++						status: "Planifié",
++						realtor: "Alexandre Fratini",
++					},
++				],
++				consent: { sms: "Consentement SMS confirmé", since: null },
++				fiche: fiche("l1"),
++			},
++			3,
++		),
++		done(
++			"list_appointments",
++			{ range: "upcoming", days: 7 },
++			{
++				range: "À venir",
++				days: 7,
++				total: 3,
++				returned: 3,
++				appointments: [
++					{
++						id: "a1",
++						prospect: "Marie Tremblay",
++						start: "2026-10-22 14:00",
++						end: "2026-10-22 15:00",
++						status: "Confirmé",
++						title: "Visite du 123 rue Principale",
++						realtor: "Alexandre Fratini",
++						fiche: fiche("l1"),
++					},
++					{
++						id: "a2",
++						prospect: "Luc Gagnon",
++						start: "2026-10-23 09:30",
++						end: "2026-10-23 10:00",
++						status: "Planifié",
++						title: "Appel de qualification",
++						realtor: "Marie Côté",
++						fiche: fiche("l2"),
++					},
++					{
++						id: "a3",
++						prospect: "Sophie Roy",
++						start: "2026-10-24 16:00",
++						end: "2026-10-24 17:00",
++						status: "Absent",
++						title: null,
++						realtor: "Marie Côté",
++						fiche: fiche("l3"),
++					},
++				],
++			},
++			4,
++		),
++		done(
++			"realtor_performance",
++			{ period: "30D" },
++			{
++				period: {
++					code: "30D",
++					label: "30 derniers jours",
++					from: "2026-09-22",
++					to: "2026-10-22",
++				},
++				...figures,
++				byRealtor: [
++					{ clientId: "c1", realtor: "Marie Côté", ...figures },
++					{
++						clientId: null,
++						realtor: "Non assigné",
++						...figures,
++						medianFirstResponseMinutes: null,
++						conversionPct: null,
++					},
++				],
++			},
++			5,
++		),
++		done(
++			"realtor_performance",
++			{ period: "MONTH" },
++			{
++				period: {
++					code: "MONTH",
++					label: "Ce mois-ci",
++					from: "2026-10-01",
++					to: "2026-10-22",
++				},
++				...figures,
++				leadsReceived: 0,
++				contacted: 0,
++				medianFirstResponseMinutes: null,
++				respondedWithinFiveMinutesPct: null,
++				qualified: 0,
++				conversionPct: null,
++				appointmentsBooked: 0,
++				appointmentsHeld: 0,
++			},
++			6,
++		),
++		{
++			type: "tool-qualify_lead",
++			toolCallId: "call-7",
++			state: "output-available",
++			input: {},
++			output: { applied: true },
++		},
++		{
++			type: "tool-search_prospects",
++			toolCallId: "call-8",
++			state: "input-available",
++			input: { query: "Roy" },
++		},
 +		{
 +			type: "text",
 +			text: "Voici le détail : [Marie Tremblay](/real-estate/leads/l1?agencyId=agency-1) attend une réponse. Voir aussi [Luc](/crm/real-estate/leads/l2?agencyId=agency-1) et [le site](https://example.com).",
@@ -7205,6 +7389,138 @@ index 0000000..9367150
 +				answeredQuestionIds={new Set()}
 +			/>
 +		</main>
++	);
++}
+diff --git a/apps/app/app/(app)/[slug]/account/account-view.tsx b/apps/app/app/(app)/[slug]/account/account-view.tsx
+new file mode 100644
+index 0000000..f38c167
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/account/account-view.tsx
+@@ -0,0 +1,71 @@
++"use client";
++
++import Asleep from "@carbon/icons-react/es/Asleep";
++import Light from "@carbon/icons-react/es/Light";
++import Logout from "@carbon/icons-react/es/Logout";
++import { AccountPanel } from "@crm/ui/components/account-panel";
++import { Button } from "@crm/ui/components/button";
++import { Icon } from "@crm/ui/components/icon";
++import { useQuery } from "@tanstack/react-query";
++import { useTheme } from "next-themes";
++import { toast } from "sonner";
++import { signOutAndRedirect } from "@/lib/sign-out";
++import { useTRPC } from "@/lib/trpc/client";
++import { useAudience } from "@/lib/use-audience";
++import { workspaceLabel } from "@/lib/workspace-label";
++
++export function AccountView({
++	user,
++}: {
++	user: { name: string; email: string; image: string | null };
++}) {
++	const trpc = useTRPC();
++	const audience = useAudience();
++	const workspace = useQuery(trpc.workspace.get.queryOptions());
++	const { resolvedTheme, setTheme } = useTheme();
++	const dark = resolvedTheme === "dark";
++
++	return (
++		<AccountPanel
++			name={user.name}
++			email={user.email}
++			image={user.image}
++			rows={[
++				{
++					label: "Espace de travail",
++					value: workspaceLabel(workspace.data?.name),
++				},
++				{
++					label: "Profil",
++					value: audience === "staff" ? "Équipe Fratex" : "Courtier",
++				},
++				{ label: "Langue", value: "Français (Canada)" },
++				{
++					label: "Fuseau horaire et devise",
++					value: "Heure de l'Est, dollar canadien",
++				},
++			]}
++		>
++			<Button
++				variant="outline"
++				onClick={() => {
++					setTheme(dark ? "light" : "dark");
++				}}
++			>
++				<Icon icon={dark ? Light : Asleep} />
++				{dark ? "Mode clair" : "Mode sombre"}
++			</Button>
++			<Button
++				variant="outline"
++				onClick={() => {
++					signOutAndRedirect().catch(() =>
++						toast.error("Impossible de se déconnecter."),
++					);
++				}}
++			>
++				<Icon icon={Logout} />
++				Se déconnecter
++			</Button>
++		</AccountPanel>
++	);
++}
+diff --git a/apps/app/app/(app)/[slug]/account/page.tsx b/apps/app/app/(app)/[slug]/account/page.tsx
+new file mode 100644
+index 0000000..42cafd7
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/account/page.tsx
+@@ -0,0 +1,49 @@
++import type { Metadata } from "next";
++import { Suspense } from "react";
++import {
++	PageShell,
++	PageShellContent,
++	PageShellDescription,
++	PageShellHeader,
++	PageShellHeading,
++	PageShellLoading,
++	PageShellTitle,
++} from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
++import { requireSession } from "@/lib/session";
++import { AccountView } from "./account-view";
++
++export const metadata: Metadata = {
++	title: "Mon compte",
++};
++
++export default function AccountPage() {
++	return (
++		<PageShell>
++			<PageShellHeader>
++				<PageShellHeading>
++					<PageShellTitle info={PAGE_HELP.account}>Mon compte</PageShellTitle>
++					<PageShellDescription>
++						Vos informations de connexion et votre affichage.
++					</PageShellDescription>
++				</PageShellHeading>
++			</PageShellHeader>
++
++			<PageShellContent>
++				<Suspense fallback={<PageShellLoading />}>
++					<Account />
++				</Suspense>
++			</PageShellContent>
++		</PageShell>
++	);
++}
++
++async function Account() {
++	const { user } = await requireSession();
++
++	return (
++		<AccountView
++			user={{ name: user.name, email: user.email, image: user.image ?? null }}
++		/>
 +	);
 +}
 diff --git a/apps/app/app/(app)/[slug]/companies/companies-bulk-actions.tsx b/apps/app/app/(app)/[slug]/companies/companies-bulk-actions.tsx
@@ -7617,7 +7933,7 @@ index 59405fa..12d0094 100644
  				</SheetFooter>
  			</SheetContent>
 diff --git a/apps/app/app/(app)/[slug]/companies/page.tsx b/apps/app/app/(app)/[slug]/companies/page.tsx
-index 95f0f24..bb160fb 100644
+index 95f0f24..a1a1548 100644
 --- a/apps/app/app/(app)/[slug]/companies/page.tsx
 +++ b/apps/app/app/(app)/[slug]/companies/page.tsx
 @@ -1,5 +1,6 @@
@@ -7627,7 +7943,15 @@ index 95f0f24..bb160fb 100644
  import {
  	PageShell,
  	PageShellActions,
-@@ -18,7 +19,7 @@ import { CompaniesTable } from "./companies-table";
+@@ -10,6 +11,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -18,7 +20,7 @@ import { CompaniesTable } from "./companies-table";
  import { CreateCompanySheet } from "./create-company-sheet";
  
  export const metadata: Metadata = {
@@ -7636,12 +7960,14 @@ index 95f0f24..bb160fb 100644
  };
  
  export default function CompaniesPage({
-@@ -28,12 +29,15 @@ export default function CompaniesPage({
+@@ -28,12 +30,17 @@ export default function CompaniesPage({
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Companies</PageShellTitle>
-+					<PageShellTitle>Entreprises</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.companies}>
++						Entreprises
++					</PageShellTitle>
  					<PageShellDescription>
 -						Every account in the pipeline.
 +						Tous les comptes du pipeline.
@@ -7809,10 +8135,18 @@ index 5fae7fb..36d0139 100644
  			</DropdownMenuGroup>
  		</BulkActionsMenu>
 diff --git a/apps/app/app/(app)/[slug]/contacts/contacts-table.tsx b/apps/app/app/(app)/[slug]/contacts/contacts-table.tsx
-index 1847de0..c0d1a33 100644
+index 1847de0..c8aa6b4 100644
 --- a/apps/app/app/(app)/[slug]/contacts/contacts-table.tsx
 +++ b/apps/app/app/(app)/[slug]/contacts/contacts-table.tsx
-@@ -35,7 +35,7 @@ type ContactRow = RouterOutputs["contacts"]["list"]["rows"][number];
+@@ -2,6 +2,7 @@
+ 
+ import Archive from "@carbon/icons-react/es/Archive";
+ import { Button } from "@crm/ui/components/button";
++import { ContactLink } from "@crm/ui/components/contact-link";
+ import {
+ 	DataTable,
+ 	type DataTableColumn,
+@@ -35,7 +36,7 @@ type ContactRow = RouterOutputs["contacts"]["list"]["rows"][number];
  const COLUMNS: DataTableColumn<ContactRow>[] = [
  	{
  		id: "name",
@@ -7821,7 +8155,7 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		hideable: false,
  		width: "w-[22%]",
-@@ -53,7 +53,7 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+@@ -53,7 +54,7 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
  	},
  	{
  		id: "title",
@@ -7830,7 +8164,7 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		width: "w-[20%]",
  		hideBelow: "lg",
-@@ -66,7 +66,7 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+@@ -66,27 +67,31 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
  	},
  	{
  		id: "email",
@@ -7839,7 +8173,17 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		width: "w-[24%]",
  		hideBelow: "md",
-@@ -79,14 +79,14 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+ 		cell: (row) =>
+ 			row.email ? (
+-				<span className="truncate text-muted-foreground">{row.email}</span>
++				<ContactLink
++					kind="email"
++					value={row.email}
++					className="truncate text-muted-foreground"
++				/>
+ 			) : (
+ 				<EmptyCellValue />
+ 			),
  	},
  	{
  		id: "company",
@@ -7856,7 +8200,7 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		width: "w-[16%]",
  		hideBelow: "md",
-@@ -94,8 +94,8 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+@@ -94,8 +99,8 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
  	},
  	{
  		id: "createdAt",
@@ -7867,7 +8211,7 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		align: "right",
  		width: "w-[10%]",
-@@ -108,7 +108,7 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+@@ -108,7 +113,7 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
  	},
  	{
  		id: "lastActivity",
@@ -7876,7 +8220,7 @@ index 1847de0..c0d1a33 100644
  		sortable: true,
  		align: "right",
  		width: "w-[12%]",
-@@ -127,8 +127,8 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
+@@ -127,8 +132,8 @@ const COLUMNS: DataTableColumn<ContactRow>[] = [
  
  const ARCHIVED_COLUMN: DataTableColumn<ContactRow> = {
  	id: "archivedAt",
@@ -7887,7 +8231,7 @@ index 1847de0..c0d1a33 100644
  	sortable: true,
  	align: "right",
  	width: "w-[12%]",
-@@ -196,9 +196,9 @@ export function ContactsTable() {
+@@ -196,9 +201,9 @@ export function ContactsTable() {
  	const facets: DataTableFacet[] = [
  		{
  			id: "owner",
@@ -7899,7 +8243,7 @@ index 1847de0..c0d1a33 100644
  				...(users.data ?? []).map((user) => ({
  					value: user.id,
  					label: user.name,
-@@ -207,16 +207,18 @@ export function ContactsTable() {
+@@ -207,16 +212,18 @@ export function ContactsTable() {
  		},
  		{
  			id: "company",
@@ -7921,7 +8265,7 @@ index 1847de0..c0d1a33 100644
  				...(companies.data ?? []).map((company) => ({
  					value: company.id,
  					label: company.name,
-@@ -225,28 +227,28 @@ export function ContactsTable() {
+@@ -225,28 +232,28 @@ export function ContactsTable() {
  		},
  		{
  			id: "title",
@@ -7954,7 +8298,7 @@ index 1847de0..c0d1a33 100644
  			options: ACTIVITY_FACET_OPTIONS.filter(
  				(option) => (facetCounts?.activity?.[option.value] ?? 0) > 0,
  			),
-@@ -266,7 +268,7 @@ export function ContactsTable() {
+@@ -266,7 +273,7 @@ export function ContactsTable() {
  	return (
  		<DataTable
  			query={query}
@@ -7963,7 +8307,7 @@ index 1847de0..c0d1a33 100644
  			actions={
  				<>
  					<SavedViewsMenu entity="CONTACT" table={table} />
-@@ -277,7 +279,7 @@ export function ContactsTable() {
+@@ -277,7 +284,7 @@ export function ContactsTable() {
  						onClick={() => toggleArchived(!input.archived)}
  					>
  						<Archive data-icon="inline-start" />
@@ -7972,7 +8316,7 @@ index 1847de0..c0d1a33 100644
  					</Button>
  				</>
  			}
-@@ -303,8 +305,8 @@ export function ContactsTable() {
+@@ -303,8 +310,8 @@ export function ContactsTable() {
  			onRowClick={(row) => openRecord({ kind: "contact", id: row.id })}
  			empty={
  				input.archived
@@ -8105,14 +8449,24 @@ index adbe905..0dcc275 100644
  				</SheetFooter>
  			</SheetContent>
 diff --git a/apps/app/app/(app)/[slug]/contacts/page.tsx b/apps/app/app/(app)/[slug]/contacts/page.tsx
-index f5717e6..ff015de 100644
+index f5717e6..a573b4a 100644
 --- a/apps/app/app/(app)/[slug]/contacts/page.tsx
 +++ b/apps/app/app/(app)/[slug]/contacts/page.tsx
-@@ -29,7 +29,9 @@ export default function ContactsPage({
+@@ -10,6 +10,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -28,8 +29,10 @@ export default function ContactsPage({
+ 		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
- 					<PageShellTitle>Contacts</PageShellTitle>
+-					<PageShellTitle>Contacts</PageShellTitle>
 -					<PageShellDescription>Everyone in the pipeline.</PageShellDescription>
++					<PageShellTitle info={PAGE_HELP.contacts}>Contacts</PageShellTitle>
 +					<PageShellDescription>
 +						Toutes les personnes du pipeline.
 +					</PageShellDescription>
@@ -8790,10 +9144,18 @@ index 0fb19cc..e98befc 100644
  						) : null}
  					</span>
 diff --git a/apps/app/app/(app)/[slug]/deals/page.tsx b/apps/app/app/(app)/[slug]/deals/page.tsx
-index f1d7ab4..2f92116 100644
+index f1d7ab4..84400e3 100644
 --- a/apps/app/app/(app)/[slug]/deals/page.tsx
 +++ b/apps/app/app/(app)/[slug]/deals/page.tsx
-@@ -18,7 +18,7 @@ import { dealsSearchParams } from "./deals-search-params";
+@@ -10,6 +10,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -18,7 +19,7 @@ import { dealsSearchParams } from "./deals-search-params";
  import { DealsTable } from "./deals-table";
  
  export const metadata: Metadata = {
@@ -8802,12 +9164,12 @@ index f1d7ab4..2f92116 100644
  };
  
  export default function DealsPage({
-@@ -28,9 +28,9 @@ export default function DealsPage({
+@@ -28,9 +29,9 @@ export default function DealsPage({
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Deals</PageShellTitle>
-+					<PageShellTitle>Affaires</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.deals}>Affaires</PageShellTitle>
  					<PageShellDescription>
 -						The pipeline, and everything that has already closed.
 +						Le pipeline et tout ce qui est déjà clôturé.
@@ -8855,12 +9217,13 @@ index 0000000..4fb3fab
 +	);
 +}
 diff --git a/apps/app/app/(app)/[slug]/overview-greeting.tsx b/apps/app/app/(app)/[slug]/overview-greeting.tsx
-index ff92369..1b8eca3 100644
+index ff92369..42d8bb0 100644
 --- a/apps/app/app/(app)/[slug]/overview-greeting.tsx
 +++ b/apps/app/app/(app)/[slug]/overview-greeting.tsx
-@@ -1,35 +1,21 @@
+@@ -1,35 +1,22 @@
 -"use client";
 +import { PageShellTitle } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
 +import { requireSession } from "@/lib/session";
  
 -import { useQueryState } from "nuqs";
@@ -8901,7 +9264,7 @@ index ff92369..1b8eca3 100644
 -					: "What the team has closed, what is still in play, and what needs you today."}
 -			</PageShellDescription>
 -		</>
-+		<PageShellTitle>
++		<PageShellTitle info={PAGE_HELP.home}>
 +			{firstName ? `Bon retour, ${firstName}` : "Bon retour"}
 +		</PageShellTitle>
  	);
@@ -9026,7 +9389,7 @@ index 36af21d..a594d95 100644
  
  export const loadOverviewSearchParams = createLoader(overviewParsers);
 diff --git a/apps/app/app/(app)/[slug]/page.tsx b/apps/app/app/(app)/[slug]/page.tsx
-index feaf601..757045e 100644
+index feaf601..3cb3077 100644
 --- a/apps/app/app/(app)/[slug]/page.tsx
 +++ b/apps/app/app/(app)/[slug]/page.tsx
 @@ -11,6 +11,7 @@ import { requireSession } from "@/lib/session";
@@ -9056,7 +9419,8 @@ index feaf601..757045e 100644
 +						<OverviewDescription />
 +					</Suspense>
  				</PageShellHeading>
- 				<PageShellActions>
+-				<PageShellActions>
++				<PageShellActions className="max-md:col-span-full max-md:col-start-1 max-md:row-start-3 max-md:justify-self-start">
  					<Suspense fallback={<OverviewScopeToggleFallback />}>
 +						<OverviewViewToggle />
  						<OverviewScopeToggle />
@@ -9211,7 +9575,7 @@ index 0000000..3afe251
 +	return <AgencyControl scope={scope} />;
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx b/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
-index 7fa521c..fa38f44 100644
+index 7fa521c..aad3c56 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/inbox/inbox-view.tsx
 @@ -1,189 +1,355 @@
@@ -9639,7 +10003,7 @@ index 7fa521c..fa38f44 100644
 +								}
 +							/>
 +							<InboxThread
-+								key={lead.id}
++								key={`thread:${lead.id}`}
 +								leadName={`${lead.firstName} ${lead.lastName ?? ""}`.trim()}
 +								now={now}
 +								messages={[
@@ -9649,7 +10013,7 @@ index 7fa521c..fa38f44 100644
 +								emails={detail.data.emails}
 +							/>
 +							<InboxComposer
-+								key={lead.id}
++								key={`composer:${lead.id}`}
 +								leadName={`${lead.firstName} ${lead.lastName ?? ""}`.trim()}
 +								email={lead.email}
 +								paused={paused}
@@ -10195,14 +10559,17 @@ index 0000000..32ab6bb
 +	return <LeadDetailView leadId={leadId} />;
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/leads/leads-view.tsx b/apps/app/app/(app)/[slug]/real-estate/leads/leads-view.tsx
-index 85f3415..14d01f6 100644
+index 85f3415..1ae3420 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/leads/leads-view.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/leads/leads-view.tsx
-@@ -1,9 +1,12 @@
+@@ -1,9 +1,15 @@
  "use client";
 +
++import Search from "@carbon/icons-react/es/Search";
++import UserMultiple from "@carbon/icons-react/es/UserMultiple";
  import { Button } from "@crm/ui/components/button";
 -import type { LeadStatus } from "@crm/ui/components/lead-status-badge";
++import { EmptyState } from "@crm/ui/components/empty-state";
 +import {
 +	LEAD_STATUS_OPTIONS,
 +	type LeadStatus,
@@ -10213,7 +10580,7 @@ index 85f3415..14d01f6 100644
  	WorkspaceLoading,
  	WorkspaceNotice,
  	WorkspaceSearch,
-@@ -11,9 +14,15 @@ import {
+@@ -11,9 +17,15 @@ import {
  	WorkspaceToolbar,
  } from "@crm/ui/components/real-estate-workspace";
  import Link from "next/link";
@@ -10230,7 +10597,7 @@ index 85f3415..14d01f6 100644
  
  const STATUSES = [
  	"NEW",
-@@ -26,7 +35,14 @@ const STATUSES = [
+@@ -26,7 +38,14 @@ const STATUSES = [
  	"LOST",
  	"INVALID",
  ] as const;
@@ -10245,7 +10612,7 @@ index 85f3415..14d01f6 100644
  	const scope = useAgency();
  	const [search, setSearch] = useQueryState(
  		"search",
-@@ -40,68 +56,92 @@ export function LeadsView() {
+@@ -40,68 +59,126 @@ export function LeadsView() {
  		search: search.trim() || undefined,
  		status: status ?? undefined,
  	});
@@ -10302,25 +10669,6 @@ index 85f3415..14d01f6 100644
 -								<Button asChild variant="ghost">
 -									<Link href={`inbox?agencyId=${scope.agencyId}&leadId=${id}`}>
 -										Ouvrir
--									</Link>
--								</Button>
--							)}
--						/>
--					) : (
--						<WorkspaceNotice title="Aucun prospect correspondant" />
--					)}
--					{query.hasNextPage && (
--						<Button
--							variant="outline"
--							disabled={query.isFetchingNextPage}
--							onClick={() => {
--								void query.fetchNextPage();
--							}}
--						>
--							Charger la suite
--						</Button>
--					)}
--				</>
 +		<div className="flex min-w-0 flex-1 flex-col gap-4">
 +			<WorkspaceToolbar>
 +				<AgencySlot scope={scope} />
@@ -10380,8 +10728,59 @@ index 85f3415..14d01f6 100644
 +							</Link>
 +						)}
 +					/>
++				) : search.trim() || status ? (
++					<EmptyState
++						icon={Search}
++						title="Aucun prospect ne correspond"
++						description="Aucun prospect ne répond à cette recherche ou à ce statut. Essayez un autre nom, un autre numéro ou affichez tous les statuts."
++						action={
++							<Button
++								variant="outline"
++								onClick={() => {
++									void setSearch("");
++									void setStatus(null);
++								}}
++							>
++								Effacer les filtres
++							</Button>
++						}
++					/>
 +				) : (
-+					<WorkspaceNotice title="Aucun prospect correspondant" />
++					<EmptyState
++						icon={UserMultiple}
++						title="Aucun prospect pour l'instant"
++						description={
++							audience === "staff"
++								? "Les prospects arrivent de vos publicités Meta ou d'un ajout manuel. L'assistant leur écrit en moins de 2 minutes."
++								: "Les prospects qui vous sont attribués apparaîtront ici dès leur arrivée. Vous serez prévenu pour chaque nouveau prospect."
++						}
++						action={
++							audience === "staff" ? (
++								<Button variant="outline" asChild>
++									<Link href={href("/settings/connections")}>
++										Vérifier les connexions
+ 									</Link>
+ 								</Button>
+-							)}
+-						/>
+-					) : (
+-						<WorkspaceNotice title="Aucun prospect correspondant" />
+-					)}
+-					{query.hasNextPage && (
+-						<Button
+-							variant="outline"
+-							disabled={query.isFetchingNextPage}
+-							onClick={() => {
+-								void query.fetchNextPage();
+-							}}
+-						>
+-							Charger la suite
+-						</Button>
+-					)}
+-				</>
++							) : undefined
++						}
++					/>
 +				))}
 +			{query.hasNextPage && (
 +				<Button
@@ -10451,12 +10850,14 @@ index 0000000..c7877f2
 +	);
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/leads/page.tsx b/apps/app/app/(app)/[slug]/real-estate/leads/page.tsx
-index 9d61cd9..f56e887 100644
+index 9d61cd9..786b6fd 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/leads/page.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/leads/page.tsx
-@@ -10,12 +10,10 @@ import {
+@@ -9,13 +9,12 @@ import {
+ 	PageShellLoading,
  	PageShellTitle,
  } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
  import { requireSession } from "@/lib/session";
 -import { HydrateClient } from "@/lib/trpc/hydrate";
 -import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -10468,12 +10869,12 @@ index 9d61cd9..f56e887 100644
  };
  
  export default function LeadsPage() {
-@@ -23,10 +21,10 @@ export default function LeadsPage() {
+@@ -23,10 +22,10 @@ export default function LeadsPage() {
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Prospects Immobiliers</PageShellTitle>
-+					<PageShellTitle>Prospects</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.leads}>Prospects</PageShellTitle>
  					<PageShellDescription>
 -						Tous les leads capturés depuis Meta Ads avec qualification SDR et
 -						routage courtier.
@@ -10482,7 +10883,7 @@ index 9d61cd9..f56e887 100644
  					</PageShellDescription>
  				</PageShellHeading>
  			</PageShellHeader>
-@@ -42,16 +40,5 @@ export default function LeadsPage() {
+@@ -42,16 +41,5 @@ export default function LeadsPage() {
  
  async function LeadsDataLoader() {
  	await requireSession();
@@ -10501,12 +10902,14 @@ index 9d61cd9..f56e887 100644
 +	return <LeadsView />;
  }
 diff --git a/apps/app/app/(app)/[slug]/real-estate/pipeline/page.tsx b/apps/app/app/(app)/[slug]/real-estate/pipeline/page.tsx
-index 7450ef2..1eb1913 100644
+index 7450ef2..5ff9e5a 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/pipeline/page.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/pipeline/page.tsx
-@@ -10,12 +10,10 @@ import {
+@@ -9,13 +9,12 @@ import {
+ 	PageShellLoading,
  	PageShellTitle,
  } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
  import { requireSession } from "@/lib/session";
 -import { HydrateClient } from "@/lib/trpc/hydrate";
 -import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -10518,12 +10921,12 @@ index 7450ef2..1eb1913 100644
  };
  
  export default function PipelinePage() {
-@@ -23,10 +21,10 @@ export default function PipelinePage() {
+@@ -23,10 +22,10 @@ export default function PipelinePage() {
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Pipeline Immobilier &amp; SDR IA</PageShellTitle>
-+					<PageShellTitle>Pipeline</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.pipeline}>Pipeline</PageShellTitle>
  					<PageShellDescription>
 -						Suivi en temps réel des prospects Meta Ads, qualifications et
 -						rendez-vous fixés.
@@ -10532,7 +10935,7 @@ index 7450ef2..1eb1913 100644
  					</PageShellDescription>
  				</PageShellHeading>
  			</PageShellHeader>
-@@ -42,19 +40,5 @@ export default function PipelinePage() {
+@@ -42,19 +41,5 @@ export default function PipelinePage() {
  
  async function PipelineDataLoader() {
  	await requireSession();
@@ -10554,13 +10957,15 @@ index 7450ef2..1eb1913 100644
 +	return <PipelineView />;
  }
 diff --git a/apps/app/app/(app)/[slug]/real-estate/pipeline/pipeline-view.tsx b/apps/app/app/(app)/[slug]/real-estate/pipeline/pipeline-view.tsx
-index 75d5646..d64b9ef 100644
+index 75d5646..7239c2d 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/pipeline/pipeline-view.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/pipeline/pipeline-view.tsx
-@@ -1,20 +1,28 @@
+@@ -1,20 +1,33 @@
  "use client";
 +
++import Events from "@carbon/icons-react/es/Events";
  import { Button } from "@crm/ui/components/button";
++import { EmptyState } from "@crm/ui/components/empty-state";
  import { PipelineKanban } from "@crm/ui/components/pipeline-kanban";
 +import { MetricGrid, MetricTile } from "@crm/ui/components/real-estate-visuals";
  import {
@@ -10571,9 +10976,11 @@ index 75d5646..d64b9ef 100644
  } from "@crm/ui/components/real-estate-workspace";
 +import { formatRate } from "@crm/ui/lib/real-estate";
  import { useQuery } from "@tanstack/react-query";
++import Link from "next/link";
  import { useRouter } from "next/navigation";
  import { useTRPC } from "@/lib/trpc/client";
 -import { AgencyControl, useAgency } from "../use-agency";
++import { useAudience } from "@/lib/use-audience";
 +import { useWorkspaceUrl } from "@/lib/use-workspace-url";
 +import { AgencySlot } from "../agency-slot";
 +import { describeError } from "../lead-errors";
@@ -10585,10 +10992,11 @@ index 75d5646..d64b9ef 100644
  	const trpc = useTRPC();
  	const router = useRouter();
 +	const href = useWorkspaceUrl();
++	const audience = useAudience();
  	const scope = useAgency();
  	const query = useLeads(scope.agencyId);
  	const summary = useQuery(
-@@ -35,20 +43,51 @@ export function PipelineView() {
+@@ -35,20 +48,51 @@ export function PipelineView() {
  					? new Date(lead.lastInteractedAt).toISOString()
  					: null,
  			})) ?? [];
@@ -10646,7 +11054,7 @@ index 75d5646..d64b9ef 100644
  						/>
  					)}
  					{query.isPending ? (
-@@ -56,7 +95,10 @@ export function PipelineView() {
+@@ -56,32 +100,53 @@ export function PipelineView() {
  					) : query.error ? (
  						<WorkspaceNotice
  							title="Pipeline indisponible"
@@ -10658,7 +11066,23 @@ index 75d5646..d64b9ef 100644
  							onRetry={() => {
  								void query.refetch();
  							}}
-@@ -65,23 +107,26 @@ export function PipelineView() {
+ 						/>
++					) : leads.length === 0 ? (
++						<EmptyState
++							icon={Events}
++							title="Le pipeline est vide"
++							description="Chaque prospect y apparaît selon son étape, de Nouveau à Rendez-vous réalisé. Les premiers arrivent avec vos publicités Meta."
++							action={
++								audience === "staff" ? (
++									<Button variant="outline" asChild>
++										<Link href={href("/settings/connections")}>
++											Vérifier les connexions
++										</Link>
++									</Button>
++								) : undefined
++							}
++						/>
+ 					) : (
  						<PipelineKanban
  							leads={leads}
  							onSelectLead={(id) =>
@@ -10699,12 +11123,14 @@ index 75d5646..d64b9ef 100644
  	);
  }
 diff --git a/apps/app/app/(app)/[slug]/real-estate/portal/page.tsx b/apps/app/app/(app)/[slug]/real-estate/portal/page.tsx
-index 299aa2c..01977bb 100644
+index 299aa2c..4806ccb 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/portal/page.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/portal/page.tsx
-@@ -10,12 +10,10 @@ import {
+@@ -9,13 +9,12 @@ import {
+ 	PageShellLoading,
  	PageShellTitle,
  } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
  import { requireSession } from "@/lib/session";
 -import { HydrateClient } from "@/lib/trpc/hydrate";
 -import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
@@ -10716,12 +11142,14 @@ index 299aa2c..01977bb 100644
  };
  
  export default function RealtorPortalPage() {
-@@ -23,9 +21,10 @@ export default function RealtorPortalPage() {
+@@ -23,9 +22,12 @@ export default function RealtorPortalPage() {
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Espace Partenaire Courtier</PageShellTitle>
-+					<PageShellTitle>Portail courtier</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.portal}>
++						Portail courtier
++					</PageShellTitle>
  					<PageShellDescription>
 -						Métriques enregistrées et demandes d’intervention humaine.
 +						Les résultats réels de l'assistant pour un courtier : prospects
@@ -10729,7 +11157,7 @@ index 299aa2c..01977bb 100644
  					</PageShellDescription>
  				</PageShellHeading>
  			</PageShellHeader>
-@@ -41,14 +40,6 @@ export default function RealtorPortalPage() {
+@@ -41,14 +43,6 @@ export default function RealtorPortalPage() {
  
  async function PortalDataLoader() {
  	await requireSession();
@@ -10872,10 +11300,10 @@ index a9556d0..31e8f12 100644
  }
 diff --git a/apps/app/app/(app)/[slug]/real-estate/realtors/new/page.tsx b/apps/app/app/(app)/[slug]/real-estate/realtors/new/page.tsx
 new file mode 100644
-index 0000000..c5acb64
+index 0000000..f1d55fa
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/real-estate/realtors/new/page.tsx
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,53 @@
 +import type { Metadata } from "next";
 +import { Suspense } from "react";
 +import {
@@ -10887,6 +11315,7 @@ index 0000000..c5acb64
 +	PageShellLoading,
 +	PageShellTitle,
 +} from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
 +import { requireSession } from "@/lib/session";
 +import { RealtorOnboarding } from "../realtor-onboarding";
 +
@@ -10901,7 +11330,9 @@ index 0000000..c5acb64
 +		<PageShell className="min-h-0">
 +			<PageShellHeader>
 +				<PageShellHeading>
-+					<PageShellTitle>Nouveau courtier</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.newRealtor}>
++						Nouveau courtier
++					</PageShellTitle>
 +					<PageShellDescription>
 +						Trois minutes pour créer son profil. Les connexions (Meta, agenda,
 +						SMS) se font ensuite, étape par étape.
@@ -10928,10 +11359,10 @@ index 0000000..c5acb64
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/realtors/page.tsx b/apps/app/app/(app)/[slug]/real-estate/realtors/page.tsx
 new file mode 100644
-index 0000000..3bb3466
+index 0000000..678fd8e
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/real-estate/realtors/page.tsx
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,71 @@
 +import { Button } from "@crm/ui/components/button";
 +import type { Metadata } from "next";
 +import Link from "next/link";
@@ -10946,6 +11377,7 @@ index 0000000..3bb3466
 +	PageShellLoading,
 +	PageShellTitle,
 +} from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
 +import { requireSession } from "@/lib/session";
 +import { workspaceUrl } from "@/lib/workspace-url";
 +import { RealtorsView } from "./realtors-view";
@@ -10961,7 +11393,7 @@ index 0000000..3bb3466
 +		<PageShell className="min-h-0">
 +			<PageShellHeader>
 +				<PageShellHeading>
-+					<PageShellTitle>Courtiers</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.realtors}>Courtiers</PageShellTitle>
 +					<PageShellDescription>
 +						Les courtiers servis par l'agence, leurs résultats et ce qu'il reste
 +						à configurer pour que l'assistant travaille pour eux.
@@ -11122,13 +11554,15 @@ index 0000000..f2ee290
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/realtors/realtors-view.tsx b/apps/app/app/(app)/[slug]/real-estate/realtors/realtors-view.tsx
 new file mode 100644
-index 0000000..d1d416b
+index 0000000..779f306
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/real-estate/realtors/realtors-view.tsx
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,102 @@
 +"use client";
 +
++import IdManagement from "@carbon/icons-react/es/IdManagement";
 +import { Button } from "@crm/ui/components/button";
++import { EmptyState } from "@crm/ui/components/empty-state";
 +import {
 +	WorkspaceLoading,
 +	WorkspaceNotice,
@@ -11170,7 +11604,18 @@ index 0000000..d1d416b
 +						}}
 +					/>
 +				) : clients.data.clients.length === 0 ? (
-+					<WorkspaceNotice title="Aucun courtier. Ajoutez le premier pour recevoir des prospects." />
++					<EmptyState
++						icon={IdManagement}
++						title="Aucun courtier pour l'instant"
++						description="Ajoutez un courtier pour qu'il reçoive ses prospects, son portail et ses rendez-vous. Comptez environ cinq minutes."
++						action={
++							<Button asChild>
++								<Link href={href("/real-estate/realtors/new")}>
++									Ajouter un courtier
++								</Link>
++							</Button>
++						}
++					/>
 +				) : (
 +					<>
 +						<RealtorRosterSummary realtors={clients.data.clients} />
@@ -11262,10 +11707,15 @@ index 0000000..e250ec2
 +	return now;
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/valuation/page.tsx b/apps/app/app/(app)/[slug]/real-estate/valuation/page.tsx
-index f40c7eb..d371fd8 100644
+index f40c7eb..3391318 100644
 --- a/apps/app/app/(app)/[slug]/real-estate/valuation/page.tsx
 +++ b/apps/app/app/(app)/[slug]/real-estate/valuation/page.tsx
-@@ -13,7 +13,7 @@ import { requireSession } from "@/lib/session";
+@@ -9,11 +9,12 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
  import { ValuationView } from "./valuation-view";
  
  export const metadata: Metadata = {
@@ -11274,12 +11724,14 @@ index f40c7eb..d371fd8 100644
  };
  
  export default function PropertyValuationPage() {
-@@ -21,10 +21,10 @@ export default function PropertyValuationPage() {
+@@ -21,10 +22,12 @@ export default function PropertyValuationPage() {
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Estimateur & Multi-Offres Centris</PageShellTitle>
-+					<PageShellTitle>Estimateur et offres</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.valuation}>
++						Estimateur et offres
++					</PageShellTitle>
  					<PageShellDescription>
 -						Analyse automatique de fiches de propriétés, calcul de commissions
 -						et simulation de 3 offres prêtes à envoyer aux clients.
@@ -11979,10 +12431,18 @@ index 1baa59c..e715146 100644
  			</DialogContent>
  		</Dialog>
 diff --git a/apps/app/app/(app)/[slug]/settings/api-keys/page.tsx b/apps/app/app/(app)/[slug]/settings/api-keys/page.tsx
-index 9503fda..f4342a0 100644
+index 9503fda..c854373 100644
 --- a/apps/app/app/(app)/[slug]/settings/api-keys/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/api-keys/page.tsx
-@@ -18,7 +18,7 @@ import { ApiKeysTable } from "./api-keys-table";
+@@ -10,6 +10,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -18,7 +19,7 @@ import { ApiKeysTable } from "./api-keys-table";
  import { CreateApiKeySheet } from "./create-api-key-sheet";
  
  export const metadata: Metadata = {
@@ -11991,12 +12451,12 @@ index 9503fda..f4342a0 100644
  };
  
  export default function ApiKeysSettingsPage({
-@@ -28,10 +28,11 @@ export default function ApiKeysSettingsPage({
+@@ -28,10 +29,11 @@ export default function ApiKeysSettingsPage({
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>API Keys</PageShellTitle>
-+					<PageShellTitle>Clés API</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.apiKeys}>Clés API</PageShellTitle>
  					<PageShellDescription>
 -						Personal keys for calling the CRM API. Each one acts as you —
 -						anything it can read or change is exactly what you can.
@@ -13019,10 +13479,10 @@ index 6be4afa..4cd21e2 100644
  						</Button>
  					</div>
 diff --git a/apps/app/app/(app)/[slug]/settings/connections/page.tsx b/apps/app/app/(app)/[slug]/settings/connections/page.tsx
-index 4696797..f2cfb44 100644
+index 4696797..e286f1c 100644
 --- a/apps/app/app/(app)/[slug]/settings/connections/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/connections/page.tsx
-@@ -1,10 +1,11 @@
+@@ -1,19 +1,23 @@
 -import GeminiLogo from "@crm/ui/components/brand-logos/gemini";
  import GoogleLogo from "@crm/ui/components/brand-logos/google";
 -import MetaLogo from "@crm/ui/components/brand-logos/meta";
@@ -13034,10 +13494,12 @@ index 4696797..f2cfb44 100644
 +	type ConnectionItem,
 +	ConnectionList,
 +} from "@crm/ui/components/connection-list";
++import { InfoHint } from "@crm/ui/components/real-estate-visuals";
  import { Spinner } from "@crm/ui/components/spinner";
  import type { Metadata } from "next";
  import Link from "next/link";
-@@ -12,8 +13,9 @@ import { Suspense } from "react";
+ import { Suspense } from "react";
++import { PAGE_HELP } from "@/lib/page-help";
  import { requireSession } from "@/lib/session";
  import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
  import { AddConnectionDialog } from "./add-connection-dialog";
@@ -13048,7 +13510,7 @@ index 4696797..f2cfb44 100644
  
  export default function ConnectionsSettingsPage(
  	props: PageProps<"/[slug]/settings/connections">,
-@@ -38,231 +40,113 @@ async function ConnectionsSettingsPageContent({
+@@ -38,231 +42,117 @@ async function ConnectionsSettingsPageContent({
  		queryClient.fetchQuery(trpc.microsoft.status.queryOptions()),
  		queryClient.fetchQuery(trpc.slack.status.queryOptions()),
  	]);
@@ -13206,15 +13668,17 @@ index 4696797..f2cfb44 100644
 -					<div className="flex flex-col gap-2 px-(--spacing-block-inline)">
 -						<h1 className="font-medium text-2xl tracking-tight">
 -							Nothing is connected yet
--						</h1>
++			<div className="mx-auto flex w-full max-w-(--container-page) flex-col gap-4">
++				<header className="flex items-start justify-between gap-4">
++					<div className="flex flex-col gap-1">
++						<h1 className="flex items-center gap-2 font-medium text-2xl tracking-tight">
++							Connexions
++							<InfoHint label="Connexions">{PAGE_HELP.connections}</InfoHint>
+ 						</h1>
 -						<p className="text-muted-foreground text-sm leading-relaxed">
 -							Right now every deal, contact and note has to be typed in by hand.
 -							Connect a tool and the CRM starts filling itself in from the work
 -							your team already does.
-+			<div className="mx-auto flex w-full max-w-(--container-page) flex-col gap-4">
-+				<header className="flex items-start justify-between gap-4">
-+					<div className="flex flex-col gap-1">
-+						<h1 className="font-medium text-2xl tracking-tight">Connexions</h1>
 +						<p className="max-w-2xl text-muted-foreground text-sm">
 +							Les outils qui apportent les prospects à Fratex et ce que
 +							l'assistant a le droit d'envoyer en votre nom.
@@ -13260,6 +13724,7 @@ index 4696797..f2cfb44 100644
 +				<ConnectionList
 +					index={1}
 +					title="Outils de l'équipe"
++					info="Slack, courriel et autres outils branchés à l'espace de travail. Ils sont facultatifs : la chaîne de prospection fonctionne sans eux."
 +					description="Facultatifs. Ils complètent la fiche du prospect avec vos courriels et alertent l'équipe."
 +					items={team}
 +				/>
@@ -13645,10 +14110,10 @@ index c5b50af..158da2c 100644
  }
 diff --git a/apps/app/app/(app)/[slug]/settings/connections/sdr-connections-overview.tsx b/apps/app/app/(app)/[slug]/settings/connections/sdr-connections-overview.tsx
 new file mode 100644
-index 0000000..2da334a
+index 0000000..660dbac
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/settings/connections/sdr-connections-overview.tsx
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,147 @@
 +"use client";
 +
 +import GeminiLogo from "@crm/ui/components/brand-logos/gemini";
@@ -13789,6 +14254,7 @@ index 0000000..2da334a
 +				index={0}
 +				progress
 +				title="Chaîne de prospection"
++				info="Publicité Meta, SMS Twilio, agenda Google et assistant IA : les quatre maillons de la chaîne. Un maillon vert est entièrement prêt. Ouvrez un maillon rouge pour terminer sa configuration."
 +				description="Les quatre maillons qui transforment une publicité en rendez-vous. Tant qu'un maillon manque, l'assistant ne peut pas travailler seul."
 +				items={items}
 +			/>
@@ -14807,10 +15273,17 @@ index 5d29eda..c444aec 100644
  								</TableCell>
  							</SimpleTableRow>
 diff --git a/apps/app/app/(app)/[slug]/settings/currencies/page.tsx b/apps/app/app/(app)/[slug]/settings/currencies/page.tsx
-index 3fdba12..fbefb4f 100644
+index 3fdba12..82c42a5 100644
 --- a/apps/app/app/(app)/[slug]/settings/currencies/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/currencies/page.tsx
-@@ -15,7 +15,7 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -9,13 +9,14 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
  import { CurrencySettings } from "./currency-settings";
  
  export const metadata: Metadata = {
@@ -14819,12 +15292,12 @@ index 3fdba12..fbefb4f 100644
  };
  
  export default function CurrenciesSettingsPage() {
-@@ -23,10 +23,10 @@ export default function CurrenciesSettingsPage() {
+@@ -23,10 +24,10 @@ export default function CurrenciesSettingsPage() {
  		<PageShell>
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Currencies</PageShellTitle>
-+					<PageShellTitle>Devises</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.currencies}>Devises</PageShellTitle>
  					<PageShellDescription>
 -						What your numbers are reported in, and how the other currencies get
 -						there.
@@ -14834,10 +15307,18 @@ index 3fdba12..fbefb4f 100644
  				</PageShellHeading>
  			</PageShellHeader>
 diff --git a/apps/app/app/(app)/[slug]/settings/members/members-table.tsx b/apps/app/app/(app)/[slug]/settings/members/members-table.tsx
-index 023bdfb..17d542c 100644
+index 023bdfb..1a87fde 100644
 --- a/apps/app/app/(app)/[slug]/settings/members/members-table.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/members/members-table.tsx
-@@ -26,9 +26,9 @@ import type { RouterOutputs } from "@/lib/trpc/types";
+@@ -2,6 +2,7 @@
+ 
+ import OverflowMenuHorizontal from "@carbon/icons-react/es/OverflowMenuHorizontal";
+ import { Button } from "@crm/ui/components/button";
++import { ContactLink } from "@crm/ui/components/contact-link";
+ import {
+ 	DataTable,
+ 	type DataTableColumn,
+@@ -26,9 +27,9 @@ import type { RouterOutputs } from "@/lib/trpc/types";
  import { membersSearchParams } from "./members-search-params";
  
  const ROLE_LABEL = {
@@ -14850,7 +15331,7 @@ index 023bdfb..17d542c 100644
  } as const;
  
  type Role = keyof typeof ROLE_LABEL;
-@@ -43,7 +43,7 @@ function columns(
+@@ -43,7 +44,7 @@ function columns(
  	return [
  		{
  			id: "name",
@@ -14859,7 +15340,7 @@ index 023bdfb..17d542c 100644
  			sortable: true,
  			hideable: false,
  			width: "w-[34%]",
-@@ -57,14 +57,14 @@ function columns(
+@@ -57,24 +58,28 @@ function columns(
  					/>
  					<span className="truncate font-medium">{row.name}</span>
  					{row.isViewer ? (
@@ -14876,7 +15357,14 @@ index 023bdfb..17d542c 100644
  			sortable: true,
  			width: "w-[32%]",
  			hideBelow: "md",
-@@ -74,7 +74,7 @@ function columns(
+ 			cell: (row) => (
+-				<span className="truncate text-muted-foreground">{row.email}</span>
++				<ContactLink
++					kind="email"
++					value={row.email}
++					className="truncate text-muted-foreground"
++				/>
+ 			),
  		},
  		{
  			id: "role",
@@ -14885,7 +15373,7 @@ index 023bdfb..17d542c 100644
  			sortable: true,
  			width: "w-[14%]",
  			cell: (row) => (
-@@ -83,8 +83,8 @@ function columns(
+@@ -83,8 +88,8 @@ function columns(
  		},
  		{
  			id: "joinedAt",
@@ -14896,7 +15384,7 @@ index 023bdfb..17d542c 100644
  			sortable: true,
  			align: "right",
  			width: "w-[14%]",
-@@ -108,7 +108,7 @@ function columns(
+@@ -108,7 +113,7 @@ function columns(
  						<DropdownMenuTrigger asChild>
  							<Button variant="ghost" size="icon" disabled={pending}>
  								<Icon icon={OverflowMenuHorizontal} />
@@ -14905,7 +15393,7 @@ index 023bdfb..17d542c 100644
  							</Button>
  						</DropdownMenuTrigger>
  
-@@ -147,7 +147,7 @@ export function MembersTable() {
+@@ -147,7 +152,7 @@ export function MembersTable() {
  		trpc.workspace.setMemberRole.mutationOptions({
  			onSuccess: async () => {
  				await cache.workspace();
@@ -14914,7 +15402,7 @@ index 023bdfb..17d542c 100644
  			},
  			onError: (error) => toast.error(error.message),
  		}),
-@@ -158,7 +158,7 @@ export function MembersTable() {
+@@ -158,7 +163,7 @@ export function MembersTable() {
  	const facets: DataTableFacet[] = [
  		{
  			id: "role",
@@ -14923,7 +15411,7 @@ index 023bdfb..17d542c 100644
  			options: (Object.keys(ROLE_LABEL) as Role[]).flatMap((role) =>
  				(facetCounts?.role?.[role] ?? 0) > 0
  					? [{ value: role, label: ROLE_LABEL[role] }]
-@@ -170,7 +170,7 @@ export function MembersTable() {
+@@ -170,7 +175,7 @@ export function MembersTable() {
  	return (
  		<DataTable
  			query={query}
@@ -14932,7 +15420,7 @@ index 023bdfb..17d542c 100644
  			columns={columns(
  				workspace.data?.canChangeRoles ?? false,
  				(member, role) => setRole.mutate({ memberId: member.id, role }),
-@@ -182,7 +182,7 @@ export function MembersTable() {
+@@ -182,7 +187,7 @@ export function MembersTable() {
  			facets={facets}
  			getRowId={(row) => row.id}
  			loading={members.isFetching}
@@ -14942,10 +15430,18 @@ index 023bdfb..17d542c 100644
  	);
  }
 diff --git a/apps/app/app/(app)/[slug]/settings/members/page.tsx b/apps/app/app/(app)/[slug]/settings/members/page.tsx
-index b8bcfdd..b99a7a1 100644
+index b8bcfdd..74f150f 100644
 --- a/apps/app/app/(app)/[slug]/settings/members/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/members/page.tsx
-@@ -16,7 +16,7 @@ import { membersSearchParams } from "./members-search-params";
+@@ -9,6 +9,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -16,7 +17,7 @@ import { membersSearchParams } from "./members-search-params";
  import { MembersTable } from "./members-table";
  
  export const metadata: Metadata = {
@@ -14954,12 +15450,12 @@ index b8bcfdd..b99a7a1 100644
  };
  
  export default function MembersSettingsPage({
-@@ -26,9 +26,9 @@ export default function MembersSettingsPage({
+@@ -26,9 +27,9 @@ export default function MembersSettingsPage({
  		<PageShell className="min-h-0">
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Members</PageShellTitle>
-+					<PageShellTitle>Membres</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.members}>Membres</PageShellTitle>
  					<PageShellDescription>
 -						Everyone who has access to your CRM.
 +						Toutes les personnes qui ont accès à votre espace Fratex.
@@ -14967,10 +15463,18 @@ index b8bcfdd..b99a7a1 100644
  				</PageShellHeading>
  			</PageShellHeader>
 diff --git a/apps/app/app/(app)/[slug]/settings/page.tsx b/apps/app/app/(app)/[slug]/settings/page.tsx
-index 284c9f0..972f7d5 100644
+index 284c9f0..d8361d8 100644
 --- a/apps/app/app/(app)/[slug]/settings/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/page.tsx
-@@ -18,7 +18,7 @@ import { ResearchKey } from "./research-key";
+@@ -9,6 +9,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -18,7 +19,7 @@ import { ResearchKey } from "./research-key";
  import { WorkspaceForm } from "./workspace-form";
  
  export const metadata: Metadata = {
@@ -14979,12 +15483,12 @@ index 284c9f0..972f7d5 100644
  };
  
  export default function GeneralSettingsPage() {
-@@ -26,9 +26,10 @@ export default function GeneralSettingsPage() {
+@@ -26,9 +27,10 @@ export default function GeneralSettingsPage() {
  		<PageShell>
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>General</PageShellTitle>
-+					<PageShellTitle>Général</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.settings}>Général</PageShellTitle>
  					<PageShellDescription>
 -						Who you are, and the model the research agent thinks with.
 +						Qui vous êtes, et le modèle avec lequel l'agent de recherche
@@ -15277,12 +15781,23 @@ index f16e4d4..11ff698 100644
  				</SheetFooter>
  			</SheetContent>
 diff --git a/apps/app/app/(app)/[slug]/settings/sso/page.tsx b/apps/app/app/(app)/[slug]/settings/sso/page.tsx
-index 52b3d5c..0513844 100644
+index 52b3d5c..51e256c 100644
 --- a/apps/app/app/(app)/[slug]/settings/sso/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/sso/page.tsx
-@@ -30,8 +30,9 @@ export default function SsoSettingsPage({
+@@ -10,6 +10,7 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -28,10 +29,11 @@ export default function SsoSettingsPage({
+ 		<PageShell className="min-h-0">
+ 			<PageShellHeader>
  				<PageShellHeading>
- 					<PageShellTitle>SSO</PageShellTitle>
+-					<PageShellTitle>SSO</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.sso}>SSO</PageShellTitle>
  					<PageShellDescription>
 -						Let your people sign in through your own identity provider. While
 -						one is configured, the sign-in page offers it instead of Google.
@@ -15537,10 +16052,17 @@ index e69cc93..da2cd20 100644
  				</form>
  			</PopoverContent>
 diff --git a/apps/app/app/(app)/[slug]/settings/tracking/page.tsx b/apps/app/app/(app)/[slug]/settings/tracking/page.tsx
-index 85abe83..e219600 100644
+index 85abe83..22dcb99 100644
 --- a/apps/app/app/(app)/[slug]/settings/tracking/page.tsx
 +++ b/apps/app/app/(app)/[slug]/settings/tracking/page.tsx
-@@ -15,7 +15,7 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -9,13 +9,14 @@ import {
+ 	PageShellLoading,
+ 	PageShellTitle,
+ } from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
+ import { requireSession } from "@/lib/session";
+ import { HydrateClient } from "@/lib/trpc/hydrate";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
  import { TrackingSections } from "./tracking-sections";
  
  export const metadata: Metadata = {
@@ -15549,12 +16071,14 @@ index 85abe83..e219600 100644
  };
  
  export default function TrackingSettingsPage() {
-@@ -23,10 +23,10 @@ export default function TrackingSettingsPage() {
+@@ -23,10 +24,12 @@ export default function TrackingSettingsPage() {
  		<PageShell>
  			<PageShellHeader>
  				<PageShellHeading>
 -					<PageShellTitle>Tracking &amp; Analytics</PageShellTitle>
-+					<PageShellTitle>Suivi et analyses</PageShellTitle>
++					<PageShellTitle info={PAGE_HELP.tracking}>
++						Suivi et analyses
++					</PageShellTitle>
  					<PageShellDescription>
 -						Track website visitors and automatically add contacts when a form is
 -						submitted.
@@ -16191,6 +16715,55 @@ index 9ced037..af58c9d 100644
  					</p>
  				)}
  			</CardContent>
+diff --git a/apps/app/app/(app)/[slug]/support/page.tsx b/apps/app/app/(app)/[slug]/support/page.tsx
+new file mode 100644
+index 0000000..961df41
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/support/page.tsx
+@@ -0,0 +1,43 @@
++import { SupportPanel } from "@crm/ui/components/support-panel";
++import type { Metadata } from "next";
++import {
++	PageShell,
++	PageShellContent,
++	PageShellDescription,
++	PageShellHeader,
++	PageShellHeading,
++	PageShellTitle,
++} from "@/components/page-shell";
++import { PAGE_HELP } from "@/lib/page-help";
++import {
++	SUPPORT_ANSWERS,
++	SUPPORT_CHECKLIST,
++	SUPPORT_EMAIL,
++} from "@/lib/support-config";
++
++export const metadata: Metadata = {
++	title: "Support",
++};
++
++export default function SupportPage() {
++	return (
++		<PageShell>
++			<PageShellHeader>
++				<PageShellHeading>
++					<PageShellTitle info={PAGE_HELP.support}>Support</PageShellTitle>
++					<PageShellDescription>
++						Un blocage ? Commencez par les réponses rapides, puis écrivez-nous.
++					</PageShellDescription>
++				</PageShellHeading>
++			</PageShellHeader>
++
++			<PageShellContent>
++				<SupportPanel
++					email={SUPPORT_EMAIL}
++					checklist={SUPPORT_CHECKLIST}
++					answers={SUPPORT_ANSWERS}
++				/>
++			</PageShellContent>
++		</PageShell>
++	);
++}
 diff --git a/apps/app/app/(landing)/agenda-connecte/page.tsx b/apps/app/app/(landing)/agenda-connecte/page.tsx
 new file mode 100644
 index 0000000..eee1221
@@ -16275,7 +16848,7 @@ index 0000000..eee1221
 +	);
 +}
 diff --git a/apps/app/app/(landing)/grant-access/grant-access.tsx b/apps/app/app/(landing)/grant-access/grant-access.tsx
-index 9f5ee1f..59e489b 100644
+index 9f5ee1f..b83c7ed 100644
 --- a/apps/app/app/(landing)/grant-access/grant-access.tsx
 +++ b/apps/app/app/(landing)/grant-access/grant-access.tsx
 @@ -23,12 +23,12 @@ type ProviderGrant = {
@@ -16311,12 +16884,14 @@ index 9f5ee1f..59e489b 100644
  					</Button>
  				);
  			})}
-@@ -91,12 +91,12 @@ export function GrantAccess({
+@@ -91,12 +91,14 @@ export function GrantAccess({
  			<Button
  				className="w-full"
  				onClick={() => {
 -					signOutAndRedirect().catch(() => toast.error("Could not sign out."));
-+					signOutAndRedirect().catch(() => toast.error("Impossible de se déconnecter."));
++					signOutAndRedirect().catch(() =>
++						toast.error("Impossible de se déconnecter."),
++					);
  				}}
  				type="button"
  				variant="ghost"
@@ -16375,7 +16950,7 @@ index 39d306d..3f98282 100644
  		</AuthShell>
  	);
 diff --git a/apps/app/app/(landing)/onboarding/onboarding-form.tsx b/apps/app/app/(landing)/onboarding/onboarding-form.tsx
-index 7f813db..cf846e5 100644
+index 7f813db..3ac0221 100644
 --- a/apps/app/app/(landing)/onboarding/onboarding-form.tsx
 +++ b/apps/app/app/(landing)/onboarding/onboarding-form.tsx
 @@ -60,7 +60,7 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
@@ -16387,16 +16962,18 @@ index 7f813db..cf846e5 100644
  					<Input
  						id={nameId}
  						name="name"
-@@ -78,7 +78,7 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
+@@ -78,7 +78,9 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
  				</Field>
  
  				<Field>
 -					<FieldLabel htmlFor={slugId}>Workspace URL</FieldLabel>
-+					<FieldLabel htmlFor={slugId}>Adresse de l'espace de travail</FieldLabel>
++					<FieldLabel htmlFor={slugId}>
++						Adresse de l'espace de travail
++					</FieldLabel>
  					<InputGroup>
  						<InputGroupAddon>
  							<InputGroupText>/</InputGroupText>
-@@ -103,12 +103,12 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
+@@ -103,12 +105,12 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
  						/>
  					</InputGroup>
  					<FieldDescription>
@@ -16411,7 +16988,7 @@ index 7f813db..cf846e5 100644
  					<InputGroup>
  						<InputGroupAddon>
  							<InputGroupText>https://</InputGroupText>
-@@ -116,7 +116,7 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
+@@ -116,7 +118,7 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
  						<InputGroupInput
  							id={websiteId}
  							name="website"
@@ -16420,7 +16997,7 @@ index 7f813db..cf846e5 100644
  							autoComplete="off"
  							autoCapitalize="off"
  							autoCorrect="off"
-@@ -126,14 +126,15 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
+@@ -126,14 +128,15 @@ export function OnboardingForm({ placeholder }: { placeholder: string }) {
  						/>
  					</InputGroup>
  					<FieldDescription>
@@ -16471,10 +17048,16 @@ index c6133f3..ea141aa 100644
  	);
  }
 diff --git a/apps/app/app/(landing)/onboarding/realtor/page.tsx b/apps/app/app/(landing)/onboarding/realtor/page.tsx
-index c2c77a9..0778427 100644
+index c2c77a9..f26bb89 100644
 --- a/apps/app/app/(landing)/onboarding/realtor/page.tsx
 +++ b/apps/app/app/(landing)/onboarding/realtor/page.tsx
-@@ -4,9 +4,9 @@ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+@@ -1,12 +1,15 @@
++import Logo from "@crm/ui/components/logo";
+ import type { Metadata } from "next";
++import Link from "next/link";
+ import { requireSession } from "@/lib/session";
+ import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
++import { workspaceUrl } from "@/lib/workspace-url";
  import { RealtorOnboardingView } from "./realtor-onboarding-view";
  
  export const metadata: Metadata = {
@@ -16486,9 +17069,11 @@ index c2c77a9..0778427 100644
  };
  
  export const instant = false;
-@@ -17,21 +17,21 @@ export default async function RealtorOnboardingPage() {
+@@ -16,22 +19,45 @@ export default async function RealtorOnboardingPage() {
+ 	const workspace = await getServerQueryClient().fetchQuery(
  		getServerTrpc().workspace.get.queryOptions(),
  	);
++	const slug = workspace?.slug ?? "workspace";
  	return (
 -		<div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
 -			<div className="mb-6 flex flex-col items-center gap-2 text-center">
@@ -16503,10 +17088,32 @@ index c2c77a9..0778427 100644
 -					pour recevoir des rendez-vous qualifiés.
 -				</p>
 -			</div>
-+		<div className="flex min-h-screen flex-col items-center bg-background px-4 py-10">
++		<div className="flex min-h-screen flex-col items-center bg-background px-4 py-6">
 +			<div className="flex w-full max-w-3xl flex-col gap-6">
++				<nav className="flex items-center justify-between gap-3 border-b pb-4 text-sm">
++					<Link
++						href={workspaceUrl(slug)}
++						className="flex items-center gap-2 font-medium"
++					>
++						<Logo className="size-5 text-primary" />
++						Fratex Agent
++					</Link>
++					<span className="flex items-center gap-4">
++						<Link
++							href={workspaceUrl(slug, "/real-estate/realtors")}
++							className="text-muted-foreground transition-colors hover:text-foreground"
++						>
++							← Retour aux courtiers
++						</Link>
++						<Link
++							href={workspaceUrl(slug)}
++							className="text-muted-foreground transition-colors hover:text-foreground"
++						>
++							Ouvrir l'application
++						</Link>
++					</span>
++				</nav>
 +				<div className="flex flex-col gap-1.5">
-+					<span className="text-xs font-medium text-primary">Fratex Agent</span>
 +					<h1 className="font-medium text-2xl tracking-tight text-foreground">
 +						Ajouter un courtier
 +					</h1>
@@ -16517,7 +17124,7 @@ index c2c77a9..0778427 100644
 +				</div>
  
 -			<RealtorOnboardingView slug={workspace?.slug ?? "workspace"} />
-+				<RealtorOnboardingView slug={workspace?.slug ?? "workspace"} />
++				<RealtorOnboardingView slug={slug} />
 +			</div>
  		</div>
  	);
@@ -16732,19 +17339,21 @@ index 882f89c..94b9ef5 100644
  
  	async function handleClick() {
 diff --git a/apps/app/app/(landing)/sign-in/sso-sign-in.tsx b/apps/app/app/(landing)/sign-in/sso-sign-in.tsx
-index 6235927..895b08c 100644
+index 6235927..c01c961 100644
 --- a/apps/app/app/(landing)/sign-in/sso-sign-in.tsx
 +++ b/apps/app/app/(landing)/sign-in/sso-sign-in.tsx
-@@ -26,7 +26,7 @@ export function SsoSignIn({ providers }: { providers: SsoProvider[] }) {
+@@ -26,7 +26,9 @@ export function SsoSignIn({ providers }: { providers: SsoProvider[] }) {
  		});
  
  		if (error) {
 -			toast.error(error.message ?? "Could not reach the sign-in service.");
-+			toast.error(error.message ?? "Impossible de joindre le service de connexion.");
++			toast.error(
++				error.message ?? "Impossible de joindre le service de connexion.",
++			);
  			setPending(null);
  		}
  	}
-@@ -45,7 +45,7 @@ export function SsoSignIn({ providers }: { providers: SsoProvider[] }) {
+@@ -45,7 +47,7 @@ export function SsoSignIn({ providers }: { providers: SsoProvider[] }) {
  					{pending === provider.providerId ? (
  						<Spinner data-icon="inline-start" />
  					) : null}
@@ -19853,10 +20462,10 @@ index 807d15b..7fdccfb 100644
  			</DropdownMenuContent>
  		</DropdownMenu>
 diff --git a/apps/app/components/app-icon-rail.tsx b/apps/app/components/app-icon-rail.tsx
-index 87d9521..cd936fb 100644
+index 87d9521..f8ac254 100644
 --- a/apps/app/components/app-icon-rail.tsx
 +++ b/apps/app/components/app-icon-rail.tsx
-@@ -1,13 +1,16 @@
+@@ -1,13 +1,18 @@
  "use client";
  
 +import Analytics from "@carbon/icons-react/es/Analytics";
@@ -19868,15 +20477,17 @@ index 87d9521..cd936fb 100644
  import Events from "@carbon/icons-react/es/Events";
 -import Partnership from "@carbon/icons-react/es/Partnership";
 +import Forum from "@carbon/icons-react/es/Forum";
++import Help from "@carbon/icons-react/es/Help";
 +import Home from "@carbon/icons-react/es/Home";
 +import IdManagement from "@carbon/icons-react/es/IdManagement";
 +import Portfolio from "@carbon/icons-react/es/Portfolio";
  import Settings from "@carbon/icons-react/es/Settings";
++import User from "@carbon/icons-react/es/User";
 +import UserAvatar from "@carbon/icons-react/es/UserAvatar";
  import UserMultiple from "@carbon/icons-react/es/UserMultiple";
  import { Button } from "@crm/ui/components/button";
  import type { CarbonIcon } from "@crm/ui/components/icon";
-@@ -27,77 +30,127 @@ import {
+@@ -27,77 +32,141 @@ import {
  import { cn } from "@crm/ui/lib/utils";
  import Link from "next/link";
  import { usePathname } from "next/navigation";
@@ -19892,7 +20503,7 @@ index 87d9521..cd936fb 100644
  	title: string;
  	href: string;
  	icon: CarbonIcon;
-+	group: "real-estate" | "crm" | "system";
++	group: "real-estate" | "crm" | "footer";
 +	staffOnly?: boolean;
  	iconClassName?: string;
  	match: "exact" | "prefix";
@@ -19920,36 +20531,36 @@ index 87d9521..cd936fb 100644
  		href: "/real-estate/leads",
  		icon: UserMultiple,
 +		group: "real-estate",
-+		match: "prefix",
-+	},
-+	{
-+		title: "Pipeline",
-+		href: "/real-estate/pipeline",
-+		icon: Events,
-+		group: "real-estate",
  		match: "prefix",
 -		related: ["/real-estate/leads"],
  	},
  	{
 -		title: "Inbox SMS",
++		title: "Pipeline",
++		href: "/real-estate/pipeline",
++		icon: Events,
++		group: "real-estate",
++		match: "prefix",
++	},
++	{
 +		title: "Boîte de réception",
  		href: "/real-estate/inbox",
 -		icon: Chat,
 +		icon: Forum,
 +		group: "real-estate",
- 		match: "prefix",
--		related: ["/real-estate/inbox"],
- 	},
- 	{
--		title: "Portail Courtier",
++		match: "prefix",
++	},
++	{
 +		title: "Courtiers",
 +		href: "/real-estate/realtors",
 +		icon: IdManagement,
 +		group: "real-estate",
 +		staffOnly: true,
-+		match: "prefix",
-+	},
-+	{
+ 		match: "prefix",
+-		related: ["/real-estate/inbox"],
+ 	},
+ 	{
+-		title: "Portail Courtier",
 +		title: "Portail courtier",
  		href: "/real-estate/portal",
 -		icon: Partnership,
@@ -20006,10 +20617,24 @@ index 87d9521..cd936fb 100644
 +		match: "prefix",
 +	},
 +	{
++		title: "Mon compte",
++		href: "/account",
++		icon: User,
++		group: "footer",
++		match: "prefix",
++	},
++	{
++		title: "Support",
++		href: "/support",
++		icon: Help,
++		group: "footer",
++		match: "prefix",
++	},
++	{
 +		title: "Paramètres",
 +		href: "/settings",
 +		icon: Settings,
-+		group: "system",
++		group: "footer",
  		match: "prefix",
  	},
 -	{ title: "Companies", href: "/companies", icon: Building, match: "prefix" },
@@ -20027,7 +20652,7 @@ index 87d9521..cd936fb 100644
  function isActive(item: RailItem, pathname: string): boolean {
  	return (
  		pathname === item.href ||
-@@ -106,6 +159,10 @@ function isActive(item: RailItem, pathname: string): boolean {
+@@ -106,6 +175,10 @@ function isActive(item: RailItem, pathname: string): boolean {
  	);
  }
  
@@ -20038,7 +20663,7 @@ index 87d9521..cd936fb 100644
  function RailLink({
  	item,
  	active,
-@@ -152,7 +209,7 @@ function MobileRailLink({
+@@ -152,7 +225,7 @@ function MobileRailLink({
  	onNavigate,
  	onPrefetch,
  }: {
@@ -20047,7 +20672,7 @@ index 87d9521..cd936fb 100644
  	active: boolean;
  	onNavigate: () => void;
  	onPrefetch: () => void;
-@@ -175,7 +232,7 @@ function MobileRailLink({
+@@ -175,7 +248,7 @@ function MobileRailLink({
  				aria-current={active ? "page" : undefined}
  				onClick={onNavigate}
  				transitionTypes={[
@@ -20056,7 +20681,7 @@ index 87d9521..cd936fb 100644
  				]}
  			>
  				<Icon icon={item.icon} className={item.iconClassName} />
-@@ -225,21 +282,23 @@ function MobileRailIconLink({
+@@ -225,21 +298,26 @@ function MobileRailIconLink({
  export function AppIconRailFallback() {
  	return (
  		<nav
@@ -20078,6 +20703,9 @@ index 87d9521..cd936fb 100644
 -				</Button>
 +			{ITEMS.map((item, index) => (
 +				<Fragment key={item.href}>
++					{item.group === "footer" && ITEMS[index - 1]?.group !== "footer" && (
++						<div className="mt-auto" />
++					)}
 +					{startsGroup(ITEMS, index) && <RailDivider />}
 +					<Button
 +						variant="ghost"
@@ -20092,7 +20720,7 @@ index 87d9521..cd936fb 100644
  			))}
  		</nav>
  	);
-@@ -250,34 +309,39 @@ export function AppIconRail() {
+@@ -250,34 +328,43 @@ export function AppIconRail() {
  	const workspaceUrl = useWorkspaceUrl();
  	const { open, setOpen } = useMobileNav();
  	const prefetchSection = usePrefetchSection();
@@ -20138,6 +20766,10 @@ index 87d9521..cd936fb 100644
 -					/>
 +				{items.map((item, index) => (
 +					<Fragment key={item.href}>
++						{item.group === "footer" &&
++							items[index - 1]?.group !== "footer" && (
++								<div className="mt-auto" />
++							)}
 +						{startsGroup(items, index) && <RailDivider />}
 +						<RailLink
 +							item={item}
@@ -20148,7 +20780,7 @@ index 87d9521..cd936fb 100644
  				))}
  			</nav>
  
-@@ -289,29 +353,31 @@ export function AppIconRail() {
+@@ -289,29 +376,35 @@ export function AppIconRail() {
  						className="w-5/6 max-w-sm flex-row gap-0 p-0"
  					>
  						<SheetHeader className="sr-only">
@@ -20180,6 +20812,10 @@ index 87d9521..cd936fb 100644
 -								/>
 +							{items.map((item, index) => (
 +								<Fragment key={item.href}>
++									{item.group === "footer" &&
++										items[index - 1]?.group !== "footer" && (
++											<div className="mt-auto" />
++										)}
 +									{startsGroup(items, index) && <RailDivider />}
 +									<MobileRailIconLink
 +										item={item}
@@ -20191,7 +20827,7 @@ index 87d9521..cd936fb 100644
  							))}
  						</nav>
  						<AgentBuilderSidebar
-@@ -325,17 +391,21 @@ export function AppIconRail() {
+@@ -325,17 +418,25 @@ export function AppIconRail() {
  							<SheetTitle>Navigation</SheetTitle>
  						</SheetHeader>
  						<nav
@@ -20209,6 +20845,10 @@ index 87d9521..cd936fb 100644
 -								/>
 +							{items.map((item, index) => (
 +								<Fragment key={item.href}>
++									{item.group === "footer" &&
++										items[index - 1]?.group !== "footer" && (
++											<div className="mt-auto" />
++										)}
 +									{startsGroup(items, index) && (
 +										<div className="my-1 h-px bg-border" />
 +									)}
@@ -23235,10 +23875,15 @@ index 22f9fcd..8433c03 100644
  	return formatter;
  }
 diff --git a/apps/app/components/page-shell.tsx b/apps/app/components/page-shell.tsx
-index 90e1642..e3587e1 100644
+index 90e1642..092fc41 100644
 --- a/apps/app/components/page-shell.tsx
 +++ b/apps/app/components/page-shell.tsx
-@@ -14,14 +14,14 @@ function PageShell({
+@@ -1,3 +1,4 @@
++import { InfoHint } from "@crm/ui/components/real-estate-visuals";
+ import { Skeleton } from "@crm/ui/components/skeleton";
+ import { Spinner } from "@crm/ui/components/spinner";
+ import { cn } from "@crm/ui/lib/utils";
+@@ -14,14 +15,14 @@ function PageShell({
  			<main
  				data-slot="page-shell-scroll"
  				className={cn(
@@ -23255,7 +23900,7 @@ index 90e1642..e3587e1 100644
  						className,
  					)}
  					{...props}
-@@ -40,7 +40,7 @@ function PageShellHeader({
+@@ -40,7 +41,7 @@ function PageShellHeader({
  		<header
  			data-slot="page-shell-header"
  			className={cn(
@@ -23264,16 +23909,42 @@ index 90e1642..e3587e1 100644
  				className,
  			)}
  			{...props}
-@@ -70,7 +70,7 @@ function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
+@@ -65,16 +66,31 @@ function PageShellHeading({
+ 	);
+ }
+ 
+-function PageShellTitle({ className, ...props }: React.ComponentProps<"h1">) {
++function PageShellTitle({
++	className,
++	info,
++	children,
++	...props
++}: React.ComponentProps<"h1"> & { info?: string }) {
+ 	return (
  		<h1
  			data-slot="page-shell-title"
  			className={cn(
 -				"col-start-1 row-start-1 min-w-0 self-center text-balance font-medium text-2xl tracking-tight md:text-3xl",
 +				"col-start-1 row-start-1 min-w-0 self-center text-balance font-medium text-xl tracking-tight md:text-2xl",
++				info && "flex items-center gap-2",
  				className,
  			)}
  			{...props}
-@@ -119,7 +119,7 @@ function PageShellContent({
+-		/>
++		>
++			{info ? <span className="min-w-0">{children}</span> : children}
++			{info ? (
++				<InfoHint
++					label={typeof children === "string" ? children : "cette page"}
++				>
++					{info}
++				</InfoHint>
++			) : null}
++		</h1>
+ 	);
+ }
+ 
+@@ -119,7 +135,7 @@ function PageShellContent({
  		<div
  			data-slot="page-shell-content"
  			className={cn(
@@ -23282,7 +23953,7 @@ index 90e1642..e3587e1 100644
  				className,
  			)}
  			{...props}
-@@ -140,7 +140,7 @@ function PageShellLoading() {
+@@ -140,7 +156,7 @@ function PageShellLoading() {
  function PageShellFallback() {
  	return (
  		<PageShell aria-busy="true">
@@ -23291,7 +23962,7 @@ index 90e1642..e3587e1 100644
  				<div className="flex flex-col gap-3">
  					<Skeleton className="h-8 w-48 max-w-full" />
  					<Skeleton className="h-4 w-72 max-w-full" />
-@@ -152,7 +152,7 @@ function PageShellFallback() {
+@@ -152,7 +168,7 @@ function PageShellFallback() {
  				</div>
  			</div>
  			<span role="status" className="sr-only">
@@ -23301,7 +23972,7 @@ index 90e1642..e3587e1 100644
  		</PageShell>
  	);
 diff --git a/apps/app/components/slack/channel-picker.tsx b/apps/app/components/slack/channel-picker.tsx
-index dc2ed4b..7b03973 100644
+index dc2ed4b..b02166d 100644
 --- a/apps/app/components/slack/channel-picker.tsx
 +++ b/apps/app/components/slack/channel-picker.tsx
 @@ -56,7 +56,7 @@ export function ChannelPicker({
@@ -23331,12 +24002,14 @@ index dc2ed4b..7b03973 100644
  								</Button>
  							) : null}
  						</span>
-@@ -123,13 +123,13 @@ export function ChannelPicker({
+@@ -123,13 +123,15 @@ export function ChannelPicker({
  
  function describe(channel: PickerChannel, canInviteItself: boolean): string {
  	const people =
 -		channel.memberCount === null ? "" : ` · ${channel.memberCount} people`;
-+		channel.memberCount === null ? "" : ` · ${channel.memberCount} personne${channel.memberCount > 1 ? "s" : ""}`;
++		channel.memberCount === null
++			? ""
++			: ` · ${channel.memberCount} personne${channel.memberCount > 1 ? "s" : ""}`;
  
 -	if (channel.isMember) return `Comp AI is in${people}`;
 -	if (!channel.classified) return `Not read from Slack yet${people}`;
@@ -24814,11 +25487,11 @@ index 4cdc3dd..a84a714 100644
  
 diff --git a/apps/app/lib/navigation.ts b/apps/app/lib/navigation.ts
 new file mode 100644
-index 0000000..402d0b5
+index 0000000..f1c6da7
 --- /dev/null
 +++ b/apps/app/lib/navigation.ts
-@@ -0,0 +1,238 @@
-+export type NavGroup = "Immobilier" | "CRM" | "Paramètres";
+@@ -0,0 +1,260 @@
++export type NavGroup = "Immobilier" | "CRM" | "Compte" | "Paramètres";
 +
 +export type NavPage = {
 +	label: string;
@@ -24831,7 +25504,12 @@ index 0000000..402d0b5
 +
 +export type NavAudience = "staff" | "realtor";
 +
-+export const NAV_GROUPS: NavGroup[] = ["Immobilier", "CRM", "Paramètres"];
++export const NAV_GROUPS: NavGroup[] = [
++	"Immobilier",
++	"CRM",
++	"Compte",
++	"Paramètres",
++];
 +
 +export const NAV_PAGES: NavPage[] = [
 +	{
@@ -24926,6 +25604,21 @@ index 0000000..402d0b5
 +		staffOnly: true,
 +	},
 +	{
++		label: "Mon compte",
++		description:
++			"Vos informations de connexion, le mode sombre et la déconnexion",
++		href: "/account",
++		group: "Compte",
++		keywords: ["profil", "compte", "déconnexion", "thème", "mode sombre"],
++	},
++	{
++		label: "Support",
++		description: "Réponses rapides et façon de joindre l'équipe Fratex",
++		href: "/support",
++		group: "Compte",
++		keywords: ["aide", "contact", "problème", "assistance", "help"],
++	},
++	{
 +		label: "Paramètres généraux",
 +		description: "Nom de l'espace, assistant IA et conservation des données",
 +		href: "/settings",
@@ -24996,6 +25689,8 @@ index 0000000..402d0b5
 +	companies: "Entreprises",
 +	deals: "Affaires",
 +	settings: "Paramètres",
++	account: "Mon compte",
++	support: "Support",
 +	connections: "Connexions",
 +	members: "Membres",
 +	tracking: "Suivi et analyses",
@@ -25094,6 +25789,56 @@ index ea82737..49bd165 100644
 -
 -	return configured ? "settled" : "required";
 -}
+diff --git a/apps/app/lib/page-help.ts b/apps/app/lib/page-help.ts
+new file mode 100644
+index 0000000..12baa56
+--- /dev/null
++++ b/apps/app/lib/page-help.ts
+@@ -0,0 +1,44 @@
++export const PAGE_HELP = {
++	home: "Votre journée en un coup d'œil : ce qui attend une action de votre part, les rendez-vous des 48 prochaines heures et la répartition de vos prospects par étape. Les chiffres viennent des prospects et messages enregistrés, jamais d'estimations.",
++	leads:
++		"Tous vos prospects au même endroit, qu'ils viennent d'une publicité Meta, d'une référence, d'un appel ou d'une visite libre. Un clic ouvre la fiche. Utilisez « Nouveau prospect » pour en ajouter un à la main.",
++	pipeline:
++		"Vos prospects classés par étape, de « Nouveau » à « RDV réalisé ». Chaque carte ouvre la fiche. Les étapes se changent depuis la fiche du prospect.",
++	inbox:
++		"Toutes les conversations avec vos prospects (SMS, courriels) dans une seule liste. « Reprise humaine » signale les prospects où l'assistant a laissé la main à l'équipe. Ouvrir une conversation la marque comme lue.",
++	portal:
++		"Ce que l'assistant a réellement accompli pour un courtier : rapidité de réponse, rendez-vous obtenus, budgets confirmés. Chaque chiffre est calculé à partir des données enregistrées. Aucune commission hypothétique.",
++	valuation:
++		"Prépare une offre d'achat : mise de fonds minimale, assurance prêt hypothécaire (SCHL), taxe de bienvenue et mensualité, avec trois offres comparées. C'est un calcul d'aide à la décision, pas une évaluation de la valeur marchande.",
++	realtors:
++		"Les courtiers servis par l'agence et ce qu'il reste à configurer pour que l'assistant travaille pour eux : formulaire Meta, agenda Google et numéro SMS.",
++	newRealtor:
++		"Crée le profil d'un courtier : coordonnées, secteurs, types de propriété et outils. Les connexions (Meta, agenda, SMS) se font ensuite, étape par étape.",
++	connections:
++		"Les outils qui apportent les prospects à Fratex et ce que l'assistant a le droit d'envoyer en votre nom. Tant qu'un maillon de la chaîne de prospection manque, l'assistant ne peut pas travailler seul.",
++	settings:
++		"Le nom de votre espace de travail, la clé de recherche d'entreprises et la durée de conservation des fiches archivées.",
++	members:
++		"Les personnes qui ont accès à Fratex. Un propriétaire ou un administrateur peut changer les rôles.",
++	tracking:
++		"Mesure les visites sur votre site pour les relier aux prospects. Copiez le script, puis vérifiez l'installation.",
++	currencies:
++		"Devise de rapport (CAD par défaut) et taux de change utilisés pour totaliser les affaires en plusieurs devises.",
++	apiKeys:
++		"Clés pour connecter d'autres outils à Fratex. Une clé n'est affichée qu'une seule fois à sa création : copiez-la tout de suite.",
++	sso: "Connexion unique avec le fournisseur d'identité de votre entreprise. Sans SSO, seule la connexion Google ou Microsoft est disponible.",
++	contacts:
++		"Toutes les personnes de votre CRM générique, avec leur entreprise et leur responsable. Distinct des prospects immobiliers.",
++	companies:
++		"Les entreprises de votre CRM générique, avec leurs affaires ouvertes et leur dernier contact.",
++	deals:
++		"Les affaires du CRM générique avec leur étape et leur montant. Les montants dans une autre devise sont convertis en CAD quand un taux existe.",
++	agents:
++		"Les agents de l'équipe : des assistants IA qui exécutent une tâche répétitive (résumé, relance, alerte). Un agent déployé est visible par toute l'équipe.",
++	account:
++		"Vos informations de connexion et vos préférences d'affichage. Ces données viennent de votre compte Google ou Microsoft : pour les changer, modifiez-les chez votre fournisseur.",
++	support:
++		"Les réponses aux situations les plus fréquentes et le moyen de joindre l'équipe Fratex. Joignez le courtier ou le prospect concerné pour aller plus vite.",
++} as const;
++
++export type PageHelpKey = keyof typeof PAGE_HELP;
 diff --git a/apps/app/lib/presence-config.ts b/apps/app/lib/presence-config.ts
 new file mode 100644
 index 0000000..94484de
@@ -25118,6 +25863,19 @@ index db9d288..587a903 100644
  	},
  } as const;
  
+diff --git a/apps/app/lib/sign-out.ts b/apps/app/lib/sign-out.ts
+index 53a4f5b..41392e9 100644
+--- a/apps/app/lib/sign-out.ts
++++ b/apps/app/lib/sign-out.ts
+@@ -7,7 +7,7 @@ export async function signOutAndRedirect() {
+ 	const { error } = await signOut();
+ 
+ 	if (error) {
+-		toast.error(error.message ?? "Could not sign out.");
++		toast.error(error.message ?? "Impossible de se déconnecter.");
+ 		return;
+ 	}
+ 
 diff --git a/apps/app/lib/social-links.ts b/apps/app/lib/social-links.ts
 index 7315b5f..2f1d51f 100644
 --- a/apps/app/lib/social-links.ts
@@ -25133,6 +25891,49 @@ index 7315b5f..2f1d51f 100644
  ];
  
  const CONTACT_LINKS: SocialLink<ContactLinks>[] = [
+diff --git a/apps/app/lib/support-config.ts b/apps/app/lib/support-config.ts
+new file mode 100644
+index 0000000..da0a67d
+--- /dev/null
++++ b/apps/app/lib/support-config.ts
+@@ -0,0 +1,37 @@
++import type { ReactNode } from "react";
++
++export const SUPPORT_EMAIL = "support@fratex.ca";
++
++export const SUPPORT_CHECKLIST = [
++	"La page où vous étiez et ce que vous avez fait juste avant.",
++	"Le nom du courtier ou du prospect concerné (jamais son mot de passe).",
++	"Une capture d'écran du message d'erreur, s'il y en a un.",
++];
++
++export const SUPPORT_ANSWERS: { question: string; answer: ReactNode }[] = [
++	{
++		question: "L'assistant n'écrit pas au prospect",
++		answer:
++			"Vérifiez trois choses : le prospect a donné son consentement aux SMS (fiche du prospect, Suivi et consentement), un numéro Twilio est connecté (Paramètres, Connexions) et l'assistant n'est pas en pause sur cette conversation (Boîte de réception, bouton Reprendre).",
++	},
++	{
++		question: "Aucun prospect n'arrive de Meta",
++		answer:
++			"Ouvrez Paramètres, Connexions, puis Meta Lead Ads. Le compte publicitaire et le formulaire du courtier doivent tous deux être reliés. Un prospect n'arrive qu'après l'envoi du formulaire dans la publicité.",
++	},
++	{
++		question: "Le prospect n'a pas de rendez-vous",
++		answer:
++			"L'assistant ne peut réserver que dans l'agenda Google du courtier. Ouvrez Courtiers, choisissez le courtier, puis connectez son agenda. Sans agenda, l'assistant propose le lien de réservation de la fiche du courtier.",
++	},
++	{
++		question: "Comment reprendre la main sur une conversation ?",
++		answer:
++			"Ouvrez la Boîte de réception, choisissez la conversation et cliquez sur Reprendre la main. L'assistant se met en pause pour ce prospect. Le même bouton lui redonne la conversation.",
++	},
++	{
++		question: "Comment ajouter un courtier ?",
++		answer:
++			"Allez à Courtiers, puis Ajouter un courtier. Remplissez l'identité, les secteurs et les outils, puis connectez son formulaire Meta, son agenda et son numéro SMS.",
++	},
++];
 diff --git a/apps/app/lib/use-audience.ts b/apps/app/lib/use-audience.ts
 new file mode 100644
 index 0000000..70727e7
@@ -25246,16 +26047,16 @@ index 4d16716..8275777 100644
  
  function sendTo(path: string, request: NextRequest): NextResponse {
 diff --git a/apps/app/public/apple-touch-icon.png b/apps/app/public/apple-touch-icon.png
-index 145bc40..ed8046b 100644
+index 145bc40..5a18126 100644
 Binary files a/apps/app/public/apple-touch-icon.png and b/apps/app/public/apple-touch-icon.png differ
 diff --git a/apps/app/public/favicon-96x96.png b/apps/app/public/favicon-96x96.png
-index 20a5bd2..98ee42f 100644
+index 20a5bd2..6d0e755 100644
 Binary files a/apps/app/public/favicon-96x96.png and b/apps/app/public/favicon-96x96.png differ
 diff --git a/apps/app/public/favicon.ico b/apps/app/public/favicon.ico
-index 712b975..bfe8458 100644
+index 712b975..9ed6d9d 100644
 Binary files a/apps/app/public/favicon.ico and b/apps/app/public/favicon.ico differ
 diff --git a/apps/app/public/favicon.svg b/apps/app/public/favicon.svg
-index 4b7f78c..2ae2691 100644
+index 4b7f78c..24c4563 100644
 --- a/apps/app/public/favicon.svg
 +++ b/apps/app/public/favicon.svg
 @@ -1,3 +1 @@
@@ -25263,9 +26064,9 @@ index 4b7f78c..2ae2691 100644
 -<path d="M41 13.3327L39.3682 12.16L28.5853 4.41866C28.2368 4.16845 27.7675 4.16844 27.419 4.41863L2.41685 22.3661C2.15517 22.5539 2 22.8563 2 23.1784V32.8194C2 33.1415 2.15515 33.4439 2.41681 33.6317L27.4189 51.5813C27.7675 51.8315 28.2368 51.8315 28.5854 51.5812L53.5833 33.6317C53.8449 33.4439 54 33.1415 54 32.8194V23.1784C54 22.8563 53.8448 22.5539 53.5832 22.3661L41 13.3327ZM27.419 9.11825C27.7675 8.86804 28.2368 8.86802 28.5854 9.11822L34.9638 13.6969C35.5198 14.096 35.5195 14.9232 34.9633 15.322L31.9378 17.4913C31.7156 17.6504 31.4167 17.6502 31.1947 17.4908L28.5853 15.6178C28.2368 15.3676 27.7675 15.3676 27.419 15.6178L18.7338 21.8529C18.178 22.2519 18.178 23.0787 18.7339 23.4776L21.1661 25.2235L24.4382 27.5755L27.4188 29.7149C27.7674 29.9651 28.2368 29.965 28.5854 29.7146L37.2698 23.4751C37.8251 23.0761 37.8252 22.25 37.2699 21.8509L35.2116 20.3717C35.0294 20.2407 35.0296 19.9695 35.2121 19.8389L38.7873 17.2754C39.1358 17.0255 39.6049 17.0257 39.9532 17.2758L46.3287 21.8531C46.8844 22.252 46.8844 23.0786 46.3288 23.4777L43.3017 25.6513L28.5875 36.2167C28.239 36.467 27.7696 36.467 27.4211 36.2168L19.9104 30.8253L16.6382 28.4777L12.7026 25.6535L9.67725 23.48C9.12177 23.0809 9.12192 22.2544 9.67753 21.8555L27.419 9.11825Z" fill="#16171B"></path>
 -</svg></svg></g></g><defs><clipPath id="SvgjsClipPath1010"><rect width="1000" height="1000" x="0" y="0" rx="350" ry="350"></rect></clipPath></defs></svg>
 \ No newline at end of file
-+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><path fill-rule="evenodd" clip-rule="evenodd" d="M112 0h288a112 112 0 0 1 112 112v288a112 112 0 0 1-112 112H112A112 112 0 0 1 0 400V112A112 112 0 0 1 112 0Zm48 120h200v68H232v38h88v64h-88v102h-72V120Z" fill="#006B4F"/><path d="M160 120h200v68H232v38h88v64h-88v102h-72V120Z" fill="#fff"/></svg>
++<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#D83C16"/><path d="M160 120h200v68H232v38h88v64h-88v102h-72V120Z" fill="#fff"/></svg>
 diff --git a/apps/app/public/site.webmanifest b/apps/app/public/site.webmanifest
-index 60c9435..461c3a2 100644
+index 60c9435..e90c78a 100644
 --- a/apps/app/public/site.webmanifest
 +++ b/apps/app/public/site.webmanifest
 @@ -1,6 +1,6 @@
@@ -25282,15 +26083,15 @@ index 60c9435..461c3a2 100644
  		}
  	],
 -	"theme_color": "#ffffff",
-+	"theme_color": "#006B4F",
++	"theme_color": "#D83C16",
  	"background_color": "#ffffff",
  	"display": "standalone"
  }
 diff --git a/apps/app/public/web-app-manifest-192x192.png b/apps/app/public/web-app-manifest-192x192.png
-index 1cc01ee..bd83ff8 100644
+index 1cc01ee..4c19449 100644
 Binary files a/apps/app/public/web-app-manifest-192x192.png and b/apps/app/public/web-app-manifest-192x192.png differ
 diff --git a/apps/app/public/web-app-manifest-512x512.png b/apps/app/public/web-app-manifest-512x512.png
-index caae068..b2af860 100644
+index caae068..0434067 100644
 Binary files a/apps/app/public/web-app-manifest-512x512.png and b/apps/app/public/web-app-manifest-512x512.png differ
 diff --git a/apps/app/test/agent-builder.spec.ts b/apps/app/test/agent-builder.spec.ts
 index 3abbbf1..bd6f2b4 100644
@@ -25475,7 +26276,7 @@ index 551f44c..b65d14c 100644
  
 diff --git a/apps/app/test/inbox-thread.spec.tsx b/apps/app/test/inbox-thread.spec.tsx
 new file mode 100644
-index 0000000..5f6aaaa
+index 0000000..d27e6f3
 --- /dev/null
 +++ b/apps/app/test/inbox-thread.spec.tsx
 @@ -0,0 +1,350 @@
@@ -25777,7 +26578,7 @@ index 0000000..5f6aaaa
 +				emails={[]}
 +			/>,
 +		);
-+		expect(html).toContain("Aucun échange pour l&#x27;instant.");
++		expect(html).toContain("Aucun échange");
 +	});
 +
 +	it("disables the composer and explains why", () => {
@@ -26253,6 +27054,32 @@ index f44d7bc..6811dcd 100644
 -		expect(workspaceLabel("CRMSoft")).toBe("CRMSoft CRM");
  	});
  });
+diff --git a/docs/design.md b/docs/design.md
+index 43f71d0..c2342ac 100644
+--- a/docs/design.md
++++ b/docs/design.md
+@@ -15,7 +15,7 @@
+ 
+ ## Colour
+ 
+-Flat white, neutral greys, and one brand green (`#006B4F`). The greys are
++Flat white, neutral greys, and one brand red (`#D83C16`). The greys are
+ untinted on purpose: there is no scene to tint them toward, and a tinted grey
+ without a reason reads as indecision.
+ 
+@@ -24,8 +24,10 @@ for the one you cannot undo. Everything else — secondary, outline, ghost — i
+ white chip in light and a dark chip in dark. That is what keeps a rep's eye
+ landing on *go* or *stop* and skimming past the rest.
+ 
++Because `primary` and `destructive` are now both red, a destructive action must never rely on colour alone: it keeps a confirmation dialog and a different label (Supprimer, Retirer), and `success` green is reserved for states that are fully successful (connected, delivered, confirmed, 100 % complete); everything else, including in-progress and partial states, uses the brand red or neutral greys.
++
+ `--primary` and `--destructive` hold the **same value in both themes**. A brand
+ colour that changes per theme is not one colour, it is two, and both then need
+ maintaining. The single exception is `--ring`, which lightens in dark: a fill
+-carries the brand, but a ring only has to be seen, and `#006B4F` is too close to
++carries the brand, but a ring only has to be seen, and `#D83C16` is too close to
+ the dark background to register.
+\ No newline at end of file
 diff --git a/packages/auth/src/slack-connect.ts b/packages/auth/src/slack-connect.ts
 index f8fa9a6..a60b965 100644
 --- a/packages/auth/src/slack-connect.ts
@@ -26774,6 +27601,73 @@ index de9043a..f17a382 100644
  		expect(currencyName("ZZZ")).toBeNull();
  	});
  });
+diff --git a/packages/ui/src/components/account-panel.tsx b/packages/ui/src/components/account-panel.tsx
+new file mode 100644
+index 0000000..bbdd0e3
+--- /dev/null
++++ b/packages/ui/src/components/account-panel.tsx
+@@ -0,0 +1,61 @@
++import type { ReactNode } from "react";
++import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
++import { ContactLink } from "./contact-link";
++import { initialsFromName } from "../lib/format";
++
++export type AccountRow = { label: string; value: ReactNode };
++
++export function AccountPanel({
++	name,
++	email,
++	image,
++	rows,
++	children,
++}: {
++	name: string;
++	email: string;
++	image: string | null;
++	rows: AccountRow[];
++	children?: ReactNode;
++}) {
++	return (
++		<Card>
++			<CardHeader>
++				<CardTitle>Informations de connexion</CardTitle>
++				<CardDescription>
++					Elles viennent de votre fournisseur Google ou Microsoft.
++				</CardDescription>
++			</CardHeader>
++			<CardContent className="flex flex-col gap-4">
++				<div className="flex items-center gap-3">
++					<Avatar size="lg">
++						{image ? <AvatarImage src={image} alt="" /> : null}
++						<AvatarFallback>{initialsFromName(name)}</AvatarFallback>
++					</Avatar>
++					<div className="flex min-w-0 flex-col">
++						<span className="truncate font-medium">{name}</span>
++						<ContactLink
++							kind="email"
++							value={email}
++							className="truncate text-sm text-muted-foreground"
++						/>
++					</div>
++				</div>
++				<dl className="grid gap-x-6 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2">
++					{rows.map((row) => (
++						<div key={row.label} className="flex flex-col gap-0.5">
++							<dt className="text-xs text-muted-foreground">{row.label}</dt>
++							<dd className="font-medium">{row.value}</dd>
++						</div>
++					))}
++				</dl>
++				{children && (
++					<div className="flex flex-wrap items-center gap-2 border-t pt-4">
++						{children}
++					</div>
++				)}
++			</CardContent>
++		</Card>
++	);
++}
 diff --git a/packages/ui/src/components/assistant-result-cards.tsx b/packages/ui/src/components/assistant-result-cards.tsx
 new file mode 100644
 index 0000000..89464de
@@ -27310,6 +28204,33 @@ index 2b00455..5668da3 100644
  									}
  								/>
  							</span>
+diff --git a/packages/ui/src/components/avatar.tsx b/packages/ui/src/components/avatar.tsx
+index 31f89d7..5def173 100644
+--- a/packages/ui/src/components/avatar.tsx
++++ b/packages/ui/src/components/avatar.tsx
+@@ -63,7 +63,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+ 		<span
+ 			data-slot="avatar-badge"
+ 			className={cn(
+-				"absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground bg-blend-color ring-2 ring-background select-none",
++				"absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-success text-success-foreground bg-blend-color ring-2 ring-background select-none",
+ 				"group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
+ 				"group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
+ 				"group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
+diff --git a/packages/ui/src/components/badge.tsx b/packages/ui/src/components/badge.tsx
+index b5d6737..d247267 100644
+--- a/packages/ui/src/components/badge.tsx
++++ b/packages/ui/src/components/badge.tsx
+@@ -12,6 +12,9 @@ const badgeVariants = cva(
+         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+         secondary:
+           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
++        soft: "bg-primary/10 text-primary dark:bg-primary/20 [a]:hover:bg-primary/20",
++        success:
++          "bg-success/10 text-success dark:bg-success/20 [a]:hover:bg-success/20",
+         destructive:
+           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+         outline:
 diff --git a/packages/ui/src/components/brand-logos/gemini.tsx b/packages/ui/src/components/brand-logos/gemini.tsx
 index 0e4de0c..8bdff0a 100644
 --- a/packages/ui/src/components/brand-logos/gemini.tsx
@@ -27488,7 +28409,7 @@ index 0000000..a1435db
 +}
 diff --git a/packages/ui/src/components/calendar-connect-panel.tsx b/packages/ui/src/components/calendar-connect-panel.tsx
 new file mode 100644
-index 0000000..f6f1797
+index 0000000..35cd835
 --- /dev/null
 +++ b/packages/ui/src/components/calendar-connect-panel.tsx
 @@ -0,0 +1,225 @@
@@ -27622,7 +28543,7 @@ index 0000000..f6f1797
 +											aria-hidden="true"
 +											className={cn(
 +												"size-2 rounded-full",
-+												realtor.connected ? "bg-primary" : "bg-muted-foreground/40",
++												realtor.connected ? "bg-success" : "bg-muted-foreground/40",
 +											)}
 +										/>
 +										<span className={cn(!realtor.connected && "text-muted-foreground")}>
@@ -27772,17 +28693,17 @@ index a3936ef..1dc2b21 100644
  	showCloseButton = false,
 diff --git a/packages/ui/src/components/connection-list.tsx b/packages/ui/src/components/connection-list.tsx
 new file mode 100644
-index 0000000..d7baf6a
+index 0000000..38b3c7b
 --- /dev/null
 +++ b/packages/ui/src/components/connection-list.tsx
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,112 @@
 +"use client";
 +
 +import type { ReactNode } from "react";
 +import { REVEAL, staggerStyle } from "../lib/motion";
 +import { cn } from "../lib/utils";
 +import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
-+import { SegmentMeter } from "./real-estate-visuals";
++import { SegmentMeter, InfoHint } from "./real-estate-visuals";
 +import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 +
 +export type ConnectionState = "ready" | "partial" | "pending" | "missing";
@@ -27800,7 +28721,7 @@ index 0000000..d7baf6a
 +};
 +
 +const DOT: Record<ConnectionState, string> = {
-+	ready: "bg-primary",
++	ready: "bg-success",
 +	partial: "bg-primary/50",
 +	pending: "bg-primary/50",
 +	missing: "bg-muted-foreground/40",
@@ -27809,6 +28730,7 @@ index 0000000..d7baf6a
 +export function ConnectionList({
 +	title,
 +	description,
++	info,
 +	items,
 +	progress,
 +	action,
@@ -27816,6 +28738,7 @@ index 0000000..d7baf6a
 +}: {
 +	title: string;
 +	description: string;
++	info?: string;
 +	items: ConnectionItem[];
 +	progress?: boolean;
 +	action?: ReactNode;
@@ -27825,7 +28748,10 @@ index 0000000..d7baf6a
 +	return (
 +		<Card className={REVEAL} style={staggerStyle(index)}>
 +			<CardHeader>
-+				<CardTitle>{title}</CardTitle>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
 +				<CardDescription>{description}</CardDescription>
 +				{(progress || action) && (
 +					<CardAction className="flex items-center gap-3">
@@ -27961,6 +28887,46 @@ index 1ee6686..616e75f 100644
  			{failed && (
  				<WorkspaceNotice title="Copie impossible. Sélectionnez l’adresse." />
  			)}
+diff --git a/packages/ui/src/components/contact-link.tsx b/packages/ui/src/components/contact-link.tsx
+new file mode 100644
+index 0000000..d77f62b
+--- /dev/null
++++ b/packages/ui/src/components/contact-link.tsx
+@@ -0,0 +1,34 @@
++"use client";
++
++import type { MouseEvent } from "react";
++import { formatPhone } from "../lib/real-estate";
++import { cn } from "../lib/utils";
++
++export function ContactLink({
++	kind,
++	value,
++	className,
++	label,
++}: {
++	kind: "phone" | "email";
++	value: string;
++	className?: string;
++	label?: string;
++}) {
++	const phone = kind === "phone";
++	const stop = (event: MouseEvent) => event.stopPropagation();
++	return (
++		<a
++			href={phone ? `tel:${value}` : `mailto:${value}`}
++			onClick={stop}
++			title={phone ? "Appeler" : "Écrire un courriel"}
++			className={cn(
++				"rounded-xs underline-offset-4 outline-none transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/60",
++				phone && "tabular-nums",
++				className,
++			)}
++		>
++			{label ?? (phone ? formatPhone(value) : value)}
++		</a>
++	);
++}
 diff --git a/packages/ui/src/components/crm-export-form.tsx b/packages/ui/src/components/crm-export-form.tsx
 index c7bcb54..b1b0a25 100644
 --- a/packages/ui/src/components/crm-export-form.tsx
@@ -28292,18 +29258,67 @@ index 60e4a6d..715ef1b 100644
  	decorative = false,
  }: {
  	className?: string;
+diff --git a/packages/ui/src/components/empty-state.tsx b/packages/ui/src/components/empty-state.tsx
+new file mode 100644
+index 0000000..c850df9
+--- /dev/null
++++ b/packages/ui/src/components/empty-state.tsx
+@@ -0,0 +1,42 @@
++import type { ReactNode } from "react";
++import {
++	Empty,
++	EmptyContent,
++	EmptyDescription,
++	EmptyHeader,
++	EmptyMedia,
++	EmptyTitle,
++} from "./empty";
++import { type CarbonIcon, Icon } from "./icon";
++import { cn } from "../lib/utils";
++
++export function EmptyState({
++	icon,
++	title,
++	description,
++	action,
++	compact = false,
++	className,
++}: {
++	icon: CarbonIcon;
++	title: string;
++	description?: ReactNode;
++	action?: ReactNode;
++	compact?: boolean;
++	className?: string;
++}) {
++	return (
++		<Empty
++			className={cn("border bg-card/40", compact ? "py-8" : "py-14", className)}
++		>
++			<EmptyHeader>
++				<EmptyMedia variant="icon">
++					<Icon icon={icon} />
++				</EmptyMedia>
++				<EmptyTitle>{title}</EmptyTitle>
++				{description && <EmptyDescription>{description}</EmptyDescription>}
++			</EmptyHeader>
++			{action && <EmptyContent layout="row">{action}</EmptyContent>}
++		</Empty>
++	);
++}
 diff --git a/packages/ui/src/components/inbox.tsx b/packages/ui/src/components/inbox.tsx
 new file mode 100644
-index 0000000..ea3a445
+index 0000000..d69ccd6
 --- /dev/null
 +++ b/packages/ui/src/components/inbox.tsx
-@@ -0,0 +1,763 @@
+@@ -0,0 +1,779 @@
 +"use client";
 +
 +import ArrowDown from "@carbon/icons-react/es/ArrowDown";
 +import ArrowLeft from "@carbon/icons-react/es/ArrowLeft";
 +import Chat from "@carbon/icons-react/es/Chat";
 +import Email from "@carbon/icons-react/es/Email";
++import Forum from "@carbon/icons-react/es/Forum";
 +import Launch from "@carbon/icons-react/es/Launch";
 +import Search from "@carbon/icons-react/es/Search";
 +import SendAlt from "@carbon/icons-react/es/SendAlt";
@@ -28321,6 +29336,7 @@ index 0000000..ea3a445
 +import { cn } from "../lib/utils";
 +import { Bubble, BubbleContent } from "./bubble";
 +import { Button } from "./button";
++import { EmptyState } from "./empty-state";
 +import { Icon } from "./icon";
 +import { InputGroup, InputGroupAddon, InputGroupInput } from "./input-group";
 +import { Marker } from "./marker";
@@ -28335,6 +29351,7 @@ index 0000000..ea3a445
 +import { InfoHint } from "./real-estate-visuals";
 +import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 +import { Textarea } from "./textarea";
++import { ContactLink } from "./contact-link";
 +
 +export const SMS_MAX_LENGTH = 160;
 +
@@ -28425,10 +29442,19 @@ index 0000000..ea3a445
 +
 +const DELIVERED_STATUSES = new Set(["DELIVERED"]);
 +
-+const EMPTY_LIST: Record<InboxFilter, string> = {
-+	ALL: "Aucune conversation pour l'instant.",
-+	UNREAD: "Tout est lu.",
-+	HUMAN: "Aucune conversation en reprise humaine.",
++const EMPTY_LIST: Record<InboxFilter, { title: string; description: string }> = {
++	ALL: {
++		title: "Aucune conversation",
++		description: "Les échanges avec vos prospects apparaîtront ici dès le premier SMS ou courriel.",
++	},
++	UNREAD: {
++		title: "Tout est lu",
++		description: "Aucun message ne vous attend. Les nouvelles réponses des prospects s'afficheront ici.",
++	},
++	HUMAN: {
++		title: "Aucune reprise humaine",
++		description: "Quand vous prenez la main sur une conversation, elle s'affiche ici. L'assistant reste en pause pour ce prospect.",
++	},
 +};
 +
 +function time(value: InboxStamp): number {
@@ -28679,9 +29705,13 @@ index 0000000..ea3a445
 +					</div>
 +				) : conversations.length === 0 ? (
 +					!notice && (
-+						<p className="p-6 text-center text-xs text-muted-foreground">
-+							{query ? `Aucune conversation pour « ${query} ».` : EMPTY_LIST[filter]}
-+						</p>
++						<EmptyState
++							compact
++							icon={query ? Search : Forum}
++							title={query ? "Aucun résultat" : EMPTY_LIST[filter].title}
++							description={query ? `Aucune conversation pour « ${query} ».` : EMPTY_LIST[filter].description}
++							className="m-3 w-auto border-dashed bg-transparent"
++						/>
 +					)
 +				) : (
 +					<ul className="flex flex-col divide-y">
@@ -28731,14 +29761,8 @@ index 0000000..ea3a445
 +				<div className="flex min-w-0 flex-col gap-0.5">
 +					<h2 className="truncate text-sm font-medium">{name}</h2>
 +					<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-+						<a href={`tel:${phone}`} className="tabular-nums transition-colors hover:text-foreground">
-+							{formatPhone(phone)}
-+						</a>
-+						{email && (
-+							<a href={`mailto:${email}`} className="max-w-56 truncate transition-colors hover:text-foreground">
-+								{email}
-+							</a>
-+						)}
++						<ContactLink kind="phone" value={phone} />
++						{email && <ContactLink kind="email" value={email} className="max-w-56 truncate" />}
 +						<span className="flex items-center gap-1.5">
 +							<Dot className={humanTakeover ? "bg-foreground" : "bg-primary"} />
 +							{humanTakeover ? "Reprise humaine" : "Assistant IA actif"}
@@ -28826,7 +29850,7 @@ index 0000000..ea3a445
 +				<span
 +					className={cn(
 +						FAILED_STATUSES.has(status) && "text-destructive",
-+						DELIVERED_STATUSES.has(status) && "text-primary",
++						DELIVERED_STATUSES.has(status) && "text-success",
 +					)}
 +				>
 +					· {labelOf(MESSAGE_STATUS_LABELS, status)}
@@ -28917,7 +29941,13 @@ index 0000000..ea3a445
 +				<MessageScrollerViewport>
 +					<MessageScrollerContent className="gap-4 p-3 sm:p-4">
 +						{days.length === 0 ? (
-+							<p className="m-auto text-xs text-muted-foreground">Aucun échange pour l'instant.</p>
++							<EmptyState
++								compact
++								icon={Chat}
++								title="Aucun échange"
++								description="Écrivez au prospect depuis la barre ci-dessous ou laissez l'assistant faire le premier contact."
++								className="m-auto max-w-sm border-dashed bg-transparent"
++							/>
 +						) : (
 +							<div role="log" aria-label={`Conversation avec ${leadName}`} className="flex flex-col gap-4">
 +								{days.map((day) => (
@@ -29063,10 +30093,10 @@ index 0000000..ea3a445
 +}
 diff --git a/packages/ui/src/components/lead-profile.tsx b/packages/ui/src/components/lead-profile.tsx
 new file mode 100644
-index 0000000..2427d2b
+index 0000000..d2b150d
 --- /dev/null
 +++ b/packages/ui/src/components/lead-profile.tsx
-@@ -0,0 +1,815 @@
+@@ -0,0 +1,829 @@
 +"use client";
 +
 +import { type ReactNode, useState } from "react";
@@ -29098,9 +30128,10 @@ index 0000000..2427d2b
 +import { Field, FieldLabel } from "./field";
 +import { Input } from "./input";
 +import { LeadStatusBadge } from "./lead-status-badge";
-+import { LeadJourney, MetricGrid, MetricTile, ScoreRing, SegmentMeter } from "./real-estate-visuals";
++import { LeadJourney, MetricGrid, MetricTile, ScoreRing, SegmentMeter, InfoHint } from "./real-estate-visuals";
 +import { WorkspaceNotice, WorkspaceSelect } from "./real-estate-workspace";
 +import { SourcedValue, SOURCED_VALUE } from "./sourced-value";
++import { ContactLink } from "./contact-link";
 +
 +export type LeadProfileLead = {
 +	firstName: string;
@@ -29234,6 +30265,15 @@ index 0000000..2427d2b
 +	return <span className="text-sm text-muted-foreground">{children}</span>;
 +}
 +
++function PanelEmpty({ title, children }: { title: string; children: ReactNode }) {
++	return (
++		<div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed px-4 py-6 text-center">
++			<span className="text-sm font-medium">{title}</span>
++			<span className="max-w-sm text-pretty text-xs text-muted-foreground">{children}</span>
++		</div>
++	);
++}
++
 +function Dot({ className }: { className: string }) {
 +	return <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", className)} />;
 +}
@@ -29241,12 +30281,14 @@ index 0000000..2427d2b
 +export function LeadPanel({
 +	title,
 +	description,
++	info,
 +	action,
 +	index = 0,
 +	children,
 +}: {
 +	title: string;
 +	description?: string;
++	info?: ReactNode;
 +	action?: ReactNode;
 +	index?: number;
 +	children: ReactNode;
@@ -29254,7 +30296,10 @@ index 0000000..2427d2b
 +	return (
 +		<Card className={REVEAL} style={staggerStyle(index)}>
 +			<CardHeader>
-+				<CardTitle>{title}</CardTitle>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
 +				{description && <CardDescription>{description}</CardDescription>}
 +				{action && <CardAction>{action}</CardAction>}
 +			</CardHeader>
@@ -29298,14 +30343,8 @@ index 0000000..2427d2b
 +							)}
 +						</div>
 +						<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
-+							<a className="transition-colors hover:text-foreground" href={`tel:${lead.phone}`}>
-+								{formatPhone(lead.phone)}
-+							</a>
-+							{lead.email && (
-+								<a className="truncate transition-colors hover:text-foreground" href={`mailto:${lead.email}`}>
-+									{lead.email}
-+								</a>
-+							)}
++							<ContactLink kind="phone" value={lead.phone} />
++							{lead.email && <ContactLink kind="email" value={lead.email} className="truncate" />}
 +							<span>{lead.clientName ?? "Courtier non assigné"}</span>
 +						</div>
 +					</div>
@@ -29396,7 +30435,7 @@ index 0000000..2427d2b
 +	return (
 +		<LeadPanel
 +			index={index}
-+			title="Qualification"
++			title="Qualification" info="Les 7 critères que l'assistant confirme avec le prospect : projet, type, budget, secteur, échéance, financement, situation. Une valeur soulignée a été confirmée par le prospect : survolez-la pour lire sa réponse. Les autres restent à confirmer."
 +			description="Valeur soulignée : confirmée par le prospect. Survolez-la pour lire sa réponse."
 +			action={
 +				<span className="flex items-center gap-2 text-sm">
@@ -29425,7 +30464,7 @@ index 0000000..2427d2b
 +									criterion.value === null
 +										? "bg-muted-foreground/30"
 +										: criterion.quotes.length > 0
-+											? "bg-primary"
++											? "bg-success"
 +											: "bg-primary/50"
 +								}
 +							/>
@@ -29475,12 +30514,12 @@ index 0000000..2427d2b
 +	return (
 +		<LeadPanel
 +			index={index}
-+			title="Derniers messages"
++			title="Derniers messages" info="Les derniers SMS échangés avec le prospect. La conversation complète, avec les courriels, est dans la boîte de réception."
 +			description={messages.length ? `${plural(messages.length, "SMS échangé", "SMS échangés")} au total` : undefined}
 +			action={conversationLink}
 +		>
 +			{recent.length === 0 ? (
-+				<Muted>Aucun message pour l'instant.</Muted>
++				<PanelEmpty title="Aucun message">L'assistant écrit au prospect dans les 2 minutes suivant son arrivée. Les échanges s'afficheront ici.</PanelEmpty>
 +			) : (
 +				<ul className="flex flex-col divide-y text-sm">
 +					{recent.map((message) => (
@@ -29506,9 +30545,9 @@ index 0000000..2427d2b
 +
 +const OUTCOME_DOT: Record<string, string> = {
 +	SCHEDULED: "bg-primary/50",
-+	CONFIRMED: "bg-primary",
++	CONFIRMED: "bg-success",
 +	RESCHEDULED: "bg-primary/50",
-+	COMPLETED: "bg-foreground",
++	COMPLETED: "bg-success",
 +	NO_SHOW: "bg-muted-foreground/40",
 +	CANCELLED: "bg-muted-foreground/40",
 +};
@@ -29615,7 +30654,7 @@ index 0000000..2427d2b
 +	return (
 +		<LeadPanel
 +			index={index}
-+			title="Rendez-vous"
++			title="Rendez-vous" info="Rendez-vous réservés par l'assistant ou ajoutés par l'équipe. Indiquez l'issue (réalisé, absent, annulé) : le pipeline et les conversions envoyées à Meta se mettent à jour."
 +			description="Rendez-vous réservés par l'assistant ou ajoutés par l'équipe. Indiquez l'issue après la visite : elle met à jour le pipeline et les conversions Meta."
 +			action={
 +				canWrite && onCreate && !adding ? (
@@ -29628,7 +30667,7 @@ index 0000000..2427d2b
 +			<div className="flex flex-col gap-3">
 +				{adding && onCreate && <AppointmentForm onCreate={onCreate} onDone={() => setAdding(false)} />}
 +				{appointments.length === 0 ? (
-+					!adding && <Muted>Aucun rendez-vous planifié.</Muted>
++					!adding && <PanelEmpty title="Aucun rendez-vous">L'assistant en réserve un dès que le prospect est qualifié. Vous pouvez aussi en ajouter un vous-même.</PanelEmpty>
 +				) : (
 +					<ul className="flex flex-col divide-y text-sm">
 +						{appointments.map((appointment) => {
@@ -29715,11 +30754,11 @@ index 0000000..2427d2b
 +	return (
 +		<LeadPanel
 +			index={index}
-+			title="Propriétés suggérées"
++			title="Propriétés suggérées" info="Annonces proposées au prospect. Ce sont des suggestions : elles ne modifient jamais le budget ni les critères confirmés."
 +			description="Suggestions que le prospect n'a pas encore confirmées. Validez-les avec lui avant de planifier une visite."
 +		>
 +			{listings.length === 0 ? (
-+				<Muted>Aucune propriété suggérée pour l'instant.</Muted>
++				<PanelEmpty title="Aucune propriété suggérée">Liez une propriété depuis l'estimateur pour la proposer à ce prospect.</PanelEmpty>
 +			) : (
 +				<ul className="flex flex-col divide-y text-sm">
 +					{listings.map((listing) => (
@@ -29756,7 +30795,7 @@ index 0000000..2427d2b
 +export function LeadFollowUp({ lead, index }: { lead: LeadProfileLead; index?: number }) {
 +	const consent = consentSourceLabel(lead.consentSource);
 +	return (
-+		<LeadPanel index={index} title="Suivi et consentement">
++		<LeadPanel index={index} title="Suivi et consentement" info="Quand le prospect a été reçu et contacté, la preuve de son consentement aux SMS (exigée par la loi canadienne anti-pourriel) et l'état de l'assistant. Sans consentement, aucun SMS n'est envoyé.">
 +			<div className="grid gap-x-8 gap-y-2 lg:grid-cols-2">
 +				<Facts
 +					items={[
@@ -29815,9 +30854,9 @@ index 0000000..2427d2b
 +		(left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime(),
 +	);
 +	return (
-+		<LeadPanel index={index} title="Historique" description="Étapes clés du parcours, de la plus récente à la plus ancienne.">
++		<LeadPanel index={index} title="Historique" info="Les étapes clés du parcours, de la plus récente à la plus ancienne. Elles alimentent le portail du courtier." description="Étapes clés du parcours, de la plus récente à la plus ancienne.">
 +			{ordered.length === 0 ? (
-+				<Muted>Aucun événement enregistré.</Muted>
++				<PanelEmpty title="Aucun événement">Les étapes du parcours s'afficheront ici : arrivée, premier SMS, qualification, rendez-vous.</PanelEmpty>
 +			) : (
 +				<ol className="flex flex-col text-sm">
 +					{ordered.map((event, position) => (
@@ -29848,12 +30887,14 @@ index 0000000..2427d2b
 +export function LeadDisclosure({
 +	title,
 +	description,
++	info,
 +	index = 0,
 +	defaultOpen = false,
 +	children,
 +}: {
 +	title: string;
 +	description?: string;
++	info?: ReactNode;
 +	index?: number;
 +	defaultOpen?: boolean;
 +	children: ReactNode;
@@ -29863,7 +30904,10 @@ index 0000000..2427d2b
 +		<Collapsible open={open} onOpenChange={setOpen} asChild>
 +			<Card className={REVEAL} style={staggerStyle(index)}>
 +				<CardHeader>
-+					<CardTitle>{title}</CardTitle>
++					<CardTitle className="flex items-center gap-1.5">
++						{title}
++						{info && <InfoHint label={title}>{info}</InfoHint>}
++					</CardTitle>
 +					{description && <CardDescription>{description}</CardDescription>}
 +					<CardAction>
 +						<CollapsibleTrigger asChild>
@@ -29883,7 +30927,7 @@ index 0000000..2427d2b
 +	);
 +}
 diff --git a/packages/ui/src/components/lead-status-badge.tsx b/packages/ui/src/components/lead-status-badge.tsx
-index 18a841e..02cf912 100644
+index 18a841e..46cbc6d 100644
 --- a/packages/ui/src/components/lead-status-badge.tsx
 +++ b/packages/ui/src/components/lead-status-badge.tsx
 @@ -12,21 +12,37 @@ export type LeadStatus =
@@ -29906,7 +30950,7 @@ index 18a841e..02cf912 100644
 +const STATUS_VARIANTS: Record<
  	LeadStatus,
 -	{ label: string; variant: "default" | "secondary" | "destructive" | "outline" | "mono" }
-+	"default" | "secondary" | "destructive" | "outline"
++	"success" | "soft" | "secondary" | "destructive" | "outline"
  > = {
 -	NEW: { label: "Nouveau", variant: "outline" },
 -	CONTACTED: { label: "Contacté", variant: "secondary" },
@@ -29920,9 +30964,9 @@ index 18a841e..02cf912 100644
 +	NEW: "outline",
 +	CONTACTED: "secondary",
 +	QUALIFYING: "secondary",
-+	QUALIFIED: "default",
-+	APPOINTMENT_BOOKED: "default",
-+	APPOINTMENT_HELD: "default",
++	QUALIFIED: "soft",
++	APPOINTMENT_BOOKED: "soft",
++	APPOINTMENT_HELD: "success",
 +	NURTURE: "outline",
 +	LOST: "secondary",
 +	INVALID: "destructive",
@@ -29957,10 +31001,10 @@ index 18a841e..02cf912 100644
  }
 diff --git a/packages/ui/src/components/lead-tools.tsx b/packages/ui/src/components/lead-tools.tsx
 new file mode 100644
-index 0000000..2be05a9
+index 0000000..b5e71e4
 --- /dev/null
 +++ b/packages/ui/src/components/lead-tools.tsx
-@@ -0,0 +1,307 @@
+@@ -0,0 +1,310 @@
 +"use client";
 +
 +import { type ReactNode, useState } from "react";
@@ -30010,7 +31054,7 @@ index 0000000..2be05a9
 +	return (
 +		<LeadPanel
 +			index={index}
-+			title="Notes"
++			title="Notes" info="Ce que vous savez et que l'assistant ne voit pas : appel, rencontre, préférences. Visibles par l'équipe et le courtier."
 +			description="Ce que vous savez et que l'assistant ne voit pas : appel, rencontre, préférences. Visibles par l'équipe et le courtier."
 +		>
 +			<div className="flex flex-col gap-3">
@@ -30039,7 +31083,10 @@ index 0000000..2be05a9
 +					</div>
 +				)}
 +				{notes.length === 0 ? (
-+					<span className="text-sm text-muted-foreground">Aucune note pour l'instant.</span>
++					<div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed px-4 py-6 text-center">
++						<span className="text-sm font-medium">Aucune note</span>
++						<span className="max-w-sm text-pretty text-xs text-muted-foreground">Notez ce que vous savez du prospect : appel, rencontre, préférences. L'équipe et le courtier le verront.</span>
++					</div>
 +				) : (
 +					<ul className="flex flex-col divide-y">
 +						{notes.map((note, position) => (
@@ -30329,10 +31376,10 @@ index 4c24cc7..f268b88 100644
          </>
        )}
 diff --git a/packages/ui/src/components/pipeline-kanban.tsx b/packages/ui/src/components/pipeline-kanban.tsx
-index 851b4f1..377a713 100644
+index 851b4f1..622f56e 100644
 --- a/packages/ui/src/components/pipeline-kanban.tsx
 +++ b/packages/ui/src/components/pipeline-kanban.tsx
-@@ -1,9 +1,15 @@
+@@ -1,9 +1,16 @@
  "use client";
  
  import * as React from "react";
@@ -30347,11 +31394,12 @@ index 851b4f1..377a713 100644
 +	labelOf,
 +} from "../lib/real-estate";
 +import { cn } from "../lib/utils";
++import { ContactLink } from "./contact-link";
 +import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip";
  
  export type KanbanLead = {
  	id: string;
-@@ -28,15 +34,37 @@ export type KanbanColumn = {
+@@ -28,15 +35,37 @@ export type KanbanColumn = {
  const DEFAULT_COLUMNS: KanbanColumn[] = [
  	{ status: "NEW", title: "Nouveaux" },
  	{ status: "CONTACTED", title: "Contactés" },
@@ -30395,7 +31443,7 @@ index 851b4f1..377a713 100644
  export function PipelineKanban({
  	leads,
  	columns = DEFAULT_COLUMNS,
-@@ -61,76 +89,79 @@ export function PipelineKanban({
+@@ -61,76 +90,87 @@ export function PipelineKanban({
  	}, [leads, columns]);
  
  	return (
@@ -30416,11 +31464,7 @@ index 851b4f1..377a713 100644
 -								{columnLeads.length}
 -							</Badge>
 -						</div>
-+		<TooltipProvider>
-+			<div className="flex h-full w-full gap-3 overflow-x-auto pb-3">
-+				{columns.map((col, columnIndex) => {
-+					const columnLeads = leadsByStatus.get(col.status) || [];
- 
+-
 -						<div className="flex flex-1 flex-col gap-2.5 overflow-y-auto">
 -							{columnLeads.length === 0 ? (
 -								<div className="flex flex-1 items-center justify-center rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
@@ -30442,7 +31486,11 @@ index 851b4f1..377a713 100644
 -												{lead.intent}
 -											</Badge>
 -										</div>
--
++		<TooltipProvider>
++			<div className="flex h-full w-full gap-3 overflow-x-auto pb-3">
++				{columns.map((col, columnIndex) => {
++					const columnLeads = leadsByStatus.get(col.status) || [];
+ 
 -										<div className="mt-1 text-xs text-muted-foreground">
 -											{lead.phone}
 -										</div>
@@ -30475,12 +31523,17 @@ index 851b4f1..377a713 100644
 +									</div>
 +								) : (
 +									columnLeads.map((lead) => (
-+										<button
++										<div
 +											key={lead.id}
-+											type="button"
-+											onClick={() => onSelectLead?.(lead.id)}
-+											className="flex flex-col gap-1.5 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
++											className="relative rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent"
 +										>
++											<button
++												type="button"
++												aria-label={`Ouvrir la fiche de ${`${lead.firstName} ${lead.lastName ?? ""}`.trim()}`}
++												onClick={() => onSelectLead?.(lead.id)}
++												className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-ring"
++											/>
++											<div className="pointer-events-none relative flex flex-col gap-1.5">
 +											<span className="flex items-baseline justify-between gap-2">
 +												<span className="truncate text-sm font-medium text-foreground">
 +													{`${lead.firstName} ${lead.lastName ?? ""}`.trim()}
@@ -30500,9 +31553,11 @@ index 851b4f1..377a713 100644
 +													{labelOf(INTENT_LABELS, lead.intent)}
 +												</span>
 +											</span>
-+											<span className="text-xs text-muted-foreground tabular-nums">
-+												{formatPhone(lead.phone)}
-+											</span>
++											<ContactLink
++												kind="phone"
++												value={lead.phone}
++												className="pointer-events-auto w-fit text-xs text-muted-foreground"
++											/>
 +											{lead.budgetMax || lead.targetArea ? (
 +												<span className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
 +													{lead.budgetMax ? (
@@ -30513,10 +31568,6 @@ index 851b4f1..377a713 100644
 +													{lead.targetArea ? <span>{lead.targetArea}</span> : null}
  												</span>
  											) : null}
--										</div>
--									</button>
--								))
--							)}
 +											<span className="mt-1 flex items-center justify-between gap-2 border-t pt-2">
 +												<CardScore score={lead.score} />
 +												{lead.clientName ? (
@@ -30525,7 +31576,11 @@ index 851b4f1..377a713 100644
 +													</span>
 +												) : null}
 +											</span>
-+										</button>
+ 										</div>
+-									</button>
+-								))
+-							)}
++										</div>
 +									))
 +								)}
 +							</div>
@@ -30541,10 +31596,10 @@ index 851b4f1..377a713 100644
  	);
  }
 diff --git a/packages/ui/src/components/property-valuation-calculator.tsx b/packages/ui/src/components/property-valuation-calculator.tsx
-index c0df723..74a7018 100644
+index c0df723..361a424 100644
 --- a/packages/ui/src/components/property-valuation-calculator.tsx
 +++ b/packages/ui/src/components/property-valuation-calculator.tsx
-@@ -1,181 +1,645 @@
+@@ -1,181 +1,650 @@
  "use client";
 -import { useState } from "react";
 +
@@ -30638,12 +31693,14 @@ index c0df723..74a7018 100644
 +function Panel({
 +	title,
 +	description,
++	info,
 +	action,
 +	index,
 +	children,
 +}: {
 +	title: string;
 +	description?: string;
++	info?: string;
 +	action?: ReactNode;
 +	index: number;
 +	children: ReactNode;
@@ -30651,7 +31708,10 @@ index c0df723..74a7018 100644
 +	return (
 +		<Card className={cn("h-full", REVEAL)} style={staggerStyle(index)}>
 +			<CardHeader>
-+				<CardTitle>{title}</CardTitle>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
 +				{description && <CardDescription>{description}</CardDescription>}
 +				{action && <CardAction>{action}</CardAction>}
 +			</CardHeader>
@@ -31030,7 +32090,7 @@ index c0df723..74a7018 100644
 +			<div className="grid items-stretch gap-4 lg:grid-cols-2">
 +				<Panel
 +					index={0}
-+					title="Propriété"
++					title="Propriété" info="Le prix demandé sert de base aux trois offres. L'adresse et le lien de l'annonce sont facultatifs : le lien n'est pas lu, il sert seulement à lier la propriété à un prospect."
 +					description="Le prix demandé sert de base aux trois offres."
  				>
 -					<FieldGroup>
@@ -31131,7 +32191,7 @@ index c0df723..74a7018 100644
 +				</Panel>
 +				<Panel
 +					index={1}
-+					title="Financement"
++					title="Financement" info="Les mêmes conditions s'appliquent aux trois offres. Taux fixe canadien : intérêts composés deux fois par an, paiements mensuels. Sous 20 % de mise de fonds, l'assurance prêt hypothécaire (SCHL) s'ajoute au prêt."
 +					description="Les mêmes conditions s'appliquent aux trois offres."
 +				>
 +					<div className="grid gap-3 sm:grid-cols-2">
@@ -31187,7 +32247,7 @@ index c0df723..74a7018 100644
 +
 +			<Panel
 +				index={2}
-+				title="Comparer 3 offres"
++				title="Comparer 3 offres" info="Modifiez le rabais de chaque colonne : tout se recalcule à la frappe. « Fonds requis à la signature » = mise de fonds + taxe de bienvenue + taxe de 9 % sur la prime SCHL (payée comptant au Québec)."
 +				description="Modifiez le rabais de chaque colonne. Tout se recalcule à la frappe."
 +				action={
 +					<div className="flex items-center gap-2">
@@ -31311,7 +32371,7 @@ index c0df723..74a7018 100644
 +			{lead && (
 +				<Panel
 +					index={3}
-+					title="Lier à un prospect"
++					title="Lier à un prospect" info="Ajoute la propriété aux suggestions du prospect. Elle reste une suggestion tant que le prospect ne l'a pas confirmée."
 +					description="La propriété est ajoutée aux suggestions du prospect. Elle reste une suggestion tant qu'il ne l'a pas confirmée."
 +				>
 +					{lead}
@@ -31385,10 +32445,10 @@ index 1045664..eb43c13 100644
  }
 diff --git a/packages/ui/src/components/real-estate-home.tsx b/packages/ui/src/components/real-estate-home.tsx
 new file mode 100644
-index 0000000..60d00e3
+index 0000000..d18f9ae
 --- /dev/null
 +++ b/packages/ui/src/components/real-estate-home.tsx
-@@ -0,0 +1,242 @@
+@@ -0,0 +1,252 @@
 +"use client";
 +
 +import type { ReactNode } from "react";
@@ -31405,7 +32465,7 @@ index 0000000..60d00e3
 +import { Button } from "./button";
 +import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
 +import { LEAD_STATUS_OPTIONS } from "./lead-status-badge";
-+import { MetricGrid, MetricTile, Sparkline, type StageGroup, StageBreakdown } from "./real-estate-visuals";
++import { MetricGrid, MetricTile, Sparkline, type StageGroup, StageBreakdown, InfoHint } from "./real-estate-visuals";
 +
 +export type HomeToDo = {
 +	leadId: string;
@@ -31465,12 +32525,14 @@ index 0000000..60d00e3
 +function Panel({
 +	title,
 +	description,
++	info,
 +	action,
 +	index,
 +	children,
 +}: {
 +	title: string;
 +	description: string;
++	info?: string;
 +	action?: ReactNode;
 +	index: number;
 +	children: ReactNode;
@@ -31478,7 +32540,10 @@ index 0000000..60d00e3
 +	return (
 +		<Card className={REVEAL} style={staggerStyle(index)}>
 +			<CardHeader>
-+				<CardTitle>{title}</CardTitle>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
 +				<CardDescription>{description}</CardDescription>
 +				{action && <CardAction>{action}</CardAction>}
 +			</CardHeader>
@@ -31487,8 +32552,13 @@ index 0000000..60d00e3
 +	);
 +}
 +
-+function Empty({ children }: { children: ReactNode }) {
-+	return <span className="text-sm text-muted-foreground">{children}</span>;
++function Empty({ title, children }: { title?: string; children: ReactNode }) {
++	return (
++		<div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed px-4 py-6 text-center">
++			{title && <span className="text-sm font-medium">{title}</span>}
++			<span className="max-w-xs text-pretty text-xs text-muted-foreground">{children}</span>
++		</div>
++	);
 +}
 +
 +export function RealEstateHome({
@@ -31550,12 +32620,12 @@ index 0000000..60d00e3
 +
 +			<Panel
 +				index={4}
-+				title="À faire maintenant"
++				title="À faire maintenant" info="Prospects qui attendent une action de votre part : un message non lu, une reprise humaine ou un premier contact jamais fait. Du plus récent au plus ancien."
 +				description="Prospects qui attendent une action : un message non lu, une reprise humaine ou un premier contact jamais fait. Du plus récent au plus ancien. Un clic ouvre la fiche."
 +				action={inboxLink}
 +			>
 +				{data.toDo.length === 0 ? (
-+					<Empty>Rien d'urgent. L'assistant IA s'occupe du reste.</Empty>
++					<Empty title="Rien d'urgent">L'assistant IA s'occupe du reste. Les prospects qui attendent une action de votre part apparaîtront ici.</Empty>
 +				) : (
 +					<ul className="-my-1 flex flex-col divide-y">
 +						{data.toDo.map((item, index) => (
@@ -31594,11 +32664,11 @@ index 0000000..60d00e3
 +
 +			<Panel
 +				index={5}
-+				title="Rendez-vous des 48 prochaines heures"
++				title="Rendez-vous des 48 prochaines heures" info="Rendez-vous planifiés, confirmés ou reportés dans les deux prochains jours. Les rendez-vous annulés ou passés ne sont pas comptés."
 +				description="Rendez-vous planifiés, confirmés ou reportés dans les deux prochains jours. Un clic ouvre la fiche du prospect."
 +			>
 +				{data.appointments.length === 0 ? (
-+					<Empty>Aucun rendez-vous dans les 48 prochaines heures.</Empty>
++					<Empty title="Aucun rendez-vous prévu">Aucun rendez-vous dans les 48 prochaines heures. L'assistant en réserve dès qu'un prospect est qualifié.</Empty>
 +				) : (
 +					<ul className="-my-1 flex flex-col divide-y">
 +						{data.appointments.map((item) => (
@@ -31622,7 +32692,7 @@ index 0000000..60d00e3
 +
 +			<Panel
 +				index={6}
-+				title="Pipeline"
++				title="Pipeline" info="Répartition de tous vos prospects par étape. La barre est proportionnelle au total : une étape vide ne prend aucune place."
 +				description="Répartition de tous vos prospects par étape. La barre est proportionnelle au total : une étape vide ne prend aucune place. Un clic sur une étape ouvre la liste filtrée."
 +				action={pipelineLink}
 +			>
@@ -31632,10 +32702,10 @@ index 0000000..60d00e3
 +	);
 +}
 diff --git a/packages/ui/src/components/real-estate-lead-table.tsx b/packages/ui/src/components/real-estate-lead-table.tsx
-index 1a1fea0..4177b1b 100644
+index 1a1fea0..21c5b51 100644
 --- a/packages/ui/src/components/real-estate-lead-table.tsx
 +++ b/packages/ui/src/components/real-estate-lead-table.tsx
-@@ -1,6 +1,16 @@
+@@ -1,6 +1,17 @@
 +"use client";
 +
  import type { ReactNode } from "react";
@@ -31650,11 +32720,12 @@ index 1a1fea0..4177b1b 100644
 +	labelOf,
 +} from "../lib/real-estate";
 +import { cn } from "../lib/utils";
++import { ContactLink } from "./contact-link";
 +import { LEAD_STATUS_OPTIONS, type LeadStatus } from "./lead-status-badge";
  import {
  	Table,
  	TableBody,
-@@ -9,64 +19,192 @@ import {
+@@ -9,64 +20,194 @@ import {
  	TableHeader,
  	TableRow,
  } from "./table";
@@ -31677,7 +32748,7 @@ index 1a1fea0..4177b1b 100644
 +	QUALIFYING: "bg-primary/50",
 +	QUALIFIED: "bg-primary",
 +	APPOINTMENT_BOOKED: "bg-primary",
-+	APPOINTMENT_HELD: "bg-primary",
++	APPOINTMENT_HELD: "bg-success",
 +	NURTURE: "bg-muted-foreground/50",
 +	LOST: "bg-muted-foreground/30",
 +	INVALID: "bg-destructive",
@@ -31857,9 +32928,11 @@ index 1a1fea0..4177b1b 100644
 +											"w-fit rounded-xs font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/60",
 +										children: `${lead.firstName} ${lead.lastName ?? ""}`.trim(),
 +									})}
-+									<span className="text-muted-foreground tabular-nums">
-+										{formatPhone(lead.phone)}
-+									</span>
++									<ContactLink
++										kind="phone"
++										value={lead.phone}
++										className="w-fit text-muted-foreground"
++									/>
 +								</span>
 +							</TableCell>
 +							<TableCell>
@@ -31901,10 +32974,10 @@ index 1a1fea0..4177b1b 100644
  }
 diff --git a/packages/ui/src/components/real-estate-visuals.tsx b/packages/ui/src/components/real-estate-visuals.tsx
 new file mode 100644
-index 0000000..2aaddfc
+index 0000000..f1f302a
 --- /dev/null
 +++ b/packages/ui/src/components/real-estate-visuals.tsx
-@@ -0,0 +1,509 @@
+@@ -0,0 +1,510 @@
 +"use client";
 +
 +import {
@@ -31949,8 +33022,8 @@ index 0000000..2aaddfc
 +const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 +
 +function scoreTone(score: number) {
-+	if (score >= 70) return "stroke-primary";
-+	if (score >= 40) return "stroke-primary/60";
++	if (score >= 70) return "stroke-success";
++	if (score >= 40) return "stroke-primary";
 +	return "stroke-muted-foreground/50";
 +}
 +
@@ -32085,6 +33158,7 @@ index 0000000..2aaddfc
 +	const count = Math.max(0, Math.round(clamp(total, 0, Number.MAX_SAFE_INTEGER)));
 +	const lit = Math.round(clamp(filled, 0, count));
 +	if (count === 0) return null;
++	const tone = lit === count ? "bg-success" : "bg-primary";
 +	if (count > SEGMENT_LIMIT)
 +		return (
 +			<span
@@ -32093,7 +33167,7 @@ index 0000000..2aaddfc
 +				className={cn("inline-block w-24 shrink-0 overflow-hidden rounded-full bg-foreground/10", SEGMENT_SIZES[size].height)}
 +			>
 +				<span
-+					className="block h-full rounded-full bg-primary transition-[width] duration-700 ease-out motion-reduce:transition-none"
++					className={cn("block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none", tone)}
 +					style={{ width: mounted ? `${(lit / count) * 100}%` : "0%" }}
 +				/>
 +			</span>
@@ -32107,7 +33181,7 @@ index 0000000..2aaddfc
 +						"rounded-full transition-colors duration-300 motion-reduce:transition-none",
 +						SEGMENT_SIZES[size].height,
 +						SEGMENT_SIZES[size].width,
-+						mounted && index < lit ? "bg-primary" : "bg-foreground/10",
++						mounted && index < lit ? tone : "bg-foreground/10",
 +					)}
 +					style={{ transitionDelay: `${index * 40}ms` }}
 +				/>
@@ -32188,7 +33262,7 @@ index 0000000..2aaddfc
 +			className="mt-1 h-8 w-full transition-[clip-path] duration-1000 ease-out motion-reduce:transition-none"
 +			style={{ clipPath: mounted ? "inset(0 0 0 0)" : "inset(0 100% 0 0)" }}
 +		>
-+			<path d={`${line} L100 24 L0 24 Z`} className="fill-primary/10" />
++			<path d={`${line} L100 24 L0 24 Z`} className="fill-foreground/5" />
 +			<path
 +				d={line}
 +				fill="none"
@@ -32196,7 +33270,7 @@ index 0000000..2aaddfc
 +				strokeLinecap="round"
 +				strokeLinejoin="round"
 +				vectorEffect="non-scaling-stroke"
-+				className="stroke-primary"
++				className="stroke-foreground/70"
 +			/>
 +		</svg>
 +	);
@@ -32493,10 +33567,10 @@ index 3ffc55f..63bdf99 100644
  							</SelectItem>
  						))}
 diff --git a/packages/ui/src/components/realtor-onboarding-form.tsx b/packages/ui/src/components/realtor-onboarding-form.tsx
-index 16a04a9..278821b 100644
+index 16a04a9..e55c2c1 100644
 --- a/packages/ui/src/components/realtor-onboarding-form.tsx
 +++ b/packages/ui/src/components/realtor-onboarding-form.tsx
-@@ -1,16 +1,17 @@
+@@ -1,16 +1,18 @@
  "use client";
 -import { useState } from "react";
 +
@@ -32519,11 +33593,12 @@ index 16a04a9..278821b 100644
 +import { Field, FieldDescription, FieldLabel } from "./field";
  import { Input } from "./input";
  import { WorkspaceNotice, WorkspaceSelect } from "./real-estate-workspace";
++import { InfoHint } from "./real-estate-visuals";
 +
  export type RealtorOnboardingData = {
  	name: string;
  	agency: string;
-@@ -23,18 +24,107 @@ export type RealtorOnboardingData = {
+@@ -23,18 +25,112 @@ export type RealtorOnboardingData = {
  	calendarLink: string;
  	timezone: string;
  };
@@ -32543,18 +33618,23 @@ index 16a04a9..278821b 100644
 +function Section({
 +	title,
 +	description,
++	info,
 +	index,
 +	children,
 +}: {
 +	title: string;
 +	description: string;
++	info?: string;
 +	index: number;
 +	children: ReactNode;
 +}) {
 +	return (
 +		<Card className={REVEAL} style={staggerStyle(index)}>
 +			<CardHeader>
-+				<CardTitle>{title}</CardTitle>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
 +				<CardDescription>{description}</CardDescription>
 +			</CardHeader>
 +			<CardContent className="@container">
@@ -32635,7 +33715,7 @@ index 16a04a9..278821b 100644
  		setBusy(true);
  		setError(null);
  		const data = new FormData(form);
-@@ -50,115 +140,165 @@ export function RealtorOnboardingForm({
+@@ -50,115 +146,165 @@ export function RealtorOnboardingForm({
  					.split(",")
  					.map((zone) => zone.trim())
  					.filter(Boolean),
@@ -32813,7 +33893,7 @@ index 16a04a9..278821b 100644
 +				void submit(event.currentTarget);
 +			}}
 +		>
-+			<Section index={0} title="Identité" description="Ces coordonnées apparaissent dans le portail et dans les messages au prospect.">
++			<Section index={0} title="Identité" info="Nom, courriel et téléphone du courtier. Ils apparaissent dans son portail et dans les messages envoyés aux prospects. Le numéro de permis OACIQ est exigé pour exercer au Québec." description="Ces coordonnées apparaissent dans le portail et dans les messages au prospect.">
 +				<TextField name="name" label="Nom complet" placeholder="Marie Tremblay" />
 +				<TextField name="email" label="Courriel" type="email" placeholder="marie@courtage.ca" />
 +				<TextField
@@ -32841,7 +33921,7 @@ index 16a04a9..278821b 100644
 +
 +			<Section
 +				index={1}
-+				title="Prospection"
++				title="Prospection" info="Secteurs et types de propriété servent à orienter les prospects vers ce courtier et à poser les bonnes questions de qualification."
 +				description="L'assistant utilise ces informations pour qualifier et orienter les prospects vers ce courtier."
 +			>
 +				<div className="col-span-full">
@@ -32872,7 +33952,7 @@ index 16a04a9..278821b 100644
 +				</fieldset>
 +			</Section>
 +
-+			<Section index={2} title="Outils" description="Où envoyer les prospects et comment réserver les rendez-vous.">
++			<Section index={2} title="Outils" info="Le CRM du courtier reçoit les fiches exportées. Le fuseau horaire sert aux horaires de visite. Le lien de réservation est utilisé tant que l'agenda Google n'est pas connecté." description="Où envoyer les prospects et comment réserver les rendez-vous.">
 +				<WorkspaceSelect
 +					label="CRM du courtier"
 +					value={crm}
@@ -32903,10 +33983,10 @@ index 16a04a9..278821b 100644
  	);
  }
 diff --git a/packages/ui/src/components/realtor-portal-dashboard.tsx b/packages/ui/src/components/realtor-portal-dashboard.tsx
-index e5e8b39..f3a2abc 100644
+index e5e8b39..5b655b2 100644
 --- a/packages/ui/src/components/realtor-portal-dashboard.tsx
 +++ b/packages/ui/src/components/realtor-portal-dashboard.tsx
-@@ -1,13 +1,48 @@
+@@ -1,13 +1,49 @@
 -import { Badge } from "./badge";
 -import { Button } from "./button";
 +"use client";
@@ -32949,6 +34029,7 @@ index e5e8b39..f3a2abc 100644
 +	Sparkline,
 +} from "./real-estate-visuals";
 +import { Tabs, TabsList, TabsTrigger } from "./tabs";
++import { ContactLink } from "./contact-link";
 +
 +export type PortalPeriod = "30D" | "90D" | "MONTH";
 +
@@ -32959,7 +34040,7 @@ index e5e8b39..f3a2abc 100644
  export type RealtorPortalStats = {
  	agencyName: string;
  	client: {
-@@ -16,103 +51,525 @@ export type RealtorPortalStats = {
+@@ -16,103 +52,518 @@ export type RealtorPortalStats = {
  		email: string;
  		phone: string | null;
  		targetZones: string[];
@@ -33043,7 +34124,7 @@ index e5e8b39..f3a2abc 100644
 +const STATUS_DOT: Record<string, string> = {
 +	QUALIFIED: "bg-primary",
 +	APPOINTMENT_BOOKED: "bg-primary",
-+	APPOINTMENT_HELD: "bg-primary",
++	APPOINTMENT_HELD: "bg-success",
 +	NEW: "bg-foreground",
 +	CONTACTED: "bg-muted-foreground",
 +	QUALIFYING: "bg-muted-foreground",
@@ -33053,7 +34134,7 @@ index e5e8b39..f3a2abc 100644
 +};
 +
 +const APPOINTMENT_DOT: Record<string, string> = {
-+	CONFIRMED: "bg-primary",
++	CONFIRMED: "bg-success",
 +	SCHEDULED: "bg-muted-foreground",
 +	RESCHEDULED: "bg-muted-foreground",
 +};
@@ -33109,8 +34190,13 @@ index e5e8b39..f3a2abc 100644
 +	);
 +}
 +
-+function Empty({ children }: { children: ReactNode }) {
-+	return <span className="text-sm text-muted-foreground">{children}</span>;
++function Empty({ title, children }: { title?: string; children: ReactNode }) {
++	return (
++		<div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed px-4 py-6 text-center">
++			{title && <span className="text-sm font-medium">{title}</span>}
++			<span className="max-w-xs text-pretty text-xs text-muted-foreground">{children}</span>
++		</div>
++	);
 +}
 +
 +function Dot({ className }: { className: string }) {
@@ -33247,20 +34333,8 @@ index e5e8b39..f3a2abc 100644
 +						)}
 +						<span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
 +							{zones.length > 0 && <span>{zones.join(" · ")}</span>}
-+							{stats.client.phone && (
-+								<a
-+									href={`tel:${stats.client.phone}`}
-+									className="tabular-nums underline-offset-4 hover:text-foreground hover:underline"
-+								>
-+									{formatPhone(stats.client.phone)}
-+								</a>
-+							)}
-+							<a
-+								href={`mailto:${stats.client.email}`}
-+								className="underline-offset-4 hover:text-foreground hover:underline"
-+							>
-+								{stats.client.email}
-+							</a>
++							{stats.client.phone && <ContactLink kind="phone" value={stats.client.phone} />}
++							<ContactLink kind="email" value={stats.client.email} />
 +						</span>
 +					</div>
 +				</div>
@@ -33350,7 +34424,7 @@ index e5e8b39..f3a2abc 100644
 +				info="Étapes atteintes : un prospect compte à chaque étape franchie, même s'il est maintenant plus loin ou sorti du parcours. Le pourcentage est calculé sur les prospects reçus."
 +			>
 +				{funnel.length === 0 ? (
-+					<Empty>Aucun prospect pour cette période.</Empty>
++					<Empty title="Aucun prospect">Aucun prospect n'est arrivé pendant cette période. Choisissez une période plus longue.</Empty>
 +				) : (
 +					<FunnelBars rows={funnel} total={received} />
 +				)}
@@ -33399,7 +34473,7 @@ index e5e8b39..f3a2abc 100644
 +					info="Répartition des prospects de la période selon leur projet : achat, vente, location ou investissement. « À confirmer » regroupe ceux qui n'ont pas encore précisé leur projet."
 +				>
 +					{projects.length === 0 ? (
-+						<Empty>Aucun projet pour cette période.</Empty>
++						<Empty title="Aucun projet confirmé">Les projets apparaissent quand le prospect confirme achat, vente ou location.</Empty>
 +					) : (
 +						<FunnelBars rows={projects} total={sumOf(projects)} />
 +					)}
@@ -33412,7 +34486,7 @@ index e5e8b39..f3a2abc 100644
 +					info="Origine des prospects de la période : formulaire Meta Lead Ads, saisie manuelle ou autre canal. Le pourcentage est calculé sur l'ensemble des prospects de la période."
 +				>
 +					{sources.length === 0 ? (
-+						<Empty>Aucune source pour cette période.</Empty>
++						<Empty title="Aucune source">La provenance des prospects s'affiche dès que des prospects arrivent.</Empty>
 +					) : (
 +						<FunnelBars rows={sources} total={sumOf(sources)} />
 +					)}
@@ -33446,11 +34520,11 @@ index e5e8b39..f3a2abc 100644
 +
 +			<Panel
 +				index={8}
-+				title="Prospects récents"
++				title="Prospects récents" info="Les derniers prospects reçus par ce courtier, avec leur étape actuelle. Un clic ouvre la fiche."
 +				description="Les derniers prospects reçus. Un clic ouvre la fiche."
 +			>
 +				{stats.recentLeads.length === 0 ? (
-+					<Empty>Aucun prospect pour cette période.</Empty>
++					<Empty title="Aucun prospect">Aucun prospect n'est arrivé pendant cette période. Choisissez une période plus longue.</Empty>
 +				) : (
 +					<ul className="-my-1 flex flex-col divide-y">
 +						{stats.recentLeads.map((lead, index) => {
@@ -33512,7 +34586,7 @@ index e5e8b39..f3a2abc 100644
 +				info="Rendez-vous à venir de ce courtier, du plus proche au plus lointain. Un clic ouvre la fiche du prospect."
 +			>
 +				{appointments.length === 0 ? (
-+					<Empty>Aucun rendez-vous à venir.</Empty>
++					<Empty title="Aucun rendez-vous à venir">Les rendez-vous réservés par l'assistant apparaîtront ici.</Empty>
 +				) : (
 +					<ul className="-my-1 flex flex-col divide-y">
 +						{appointments.map((appointment, index) => (
@@ -33565,10 +34639,10 @@ index e5e8b39..f3a2abc 100644
  }
 diff --git a/packages/ui/src/components/realtor-roster.tsx b/packages/ui/src/components/realtor-roster.tsx
 new file mode 100644
-index 0000000..4dc3204
+index 0000000..46156ca
 --- /dev/null
 +++ b/packages/ui/src/components/realtor-roster.tsx
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,190 @@
 +"use client";
 +
 +import type { ReactNode } from "react";
@@ -33579,6 +34653,7 @@ index 0000000..4dc3204
 +import { Avatar, AvatarFallback } from "./avatar";
 +import { MetricGrid, MetricTile, SegmentMeter } from "./real-estate-visuals";
 +import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
++import { ContactLink } from "./contact-link";
 +
 +export type RosterRealtor = {
 +	id: string;
@@ -33698,14 +34773,8 @@ index 0000000..4dc3204
 +									<span className="truncate">
 +										{[realtor.brokerage, realtor.targetZones.join(", ")].filter(Boolean).join(" · ")}
 +									</span>
-+									{realtor.phone && (
-+										<a className="hover:text-foreground" href={`tel:${realtor.phone}`}>
-+											{formatPhone(realtor.phone)}
-+										</a>
-+									)}
-+									<a className="truncate hover:text-foreground" href={`mailto:${realtor.email}`}>
-+										{realtor.email}
-+									</a>
++									{realtor.phone && <ContactLink kind="phone" value={realtor.phone} />}
++									<ContactLink kind="email" value={realtor.email} className="truncate" />
 +								</span>
 +							</div>
 +						</div>
@@ -33744,7 +34813,7 @@ index 0000000..4dc3204
 +												>
 +													<span
 +														aria-hidden="true"
-+														className={cn("size-1.5 rounded-full", ok ? "bg-primary" : "bg-muted-foreground/40")}
++														className={cn("size-1.5 rounded-full", ok ? "bg-success" : "bg-muted-foreground/40")}
 +													/>
 +													{step.label}
 +												</span>
@@ -33985,6 +35054,74 @@ index a679e4a..703c1ac 100644
 +		/>
 +	);
 +}
+diff --git a/packages/ui/src/components/support-panel.tsx b/packages/ui/src/components/support-panel.tsx
+new file mode 100644
+index 0000000..775e9e7
+--- /dev/null
++++ b/packages/ui/src/components/support-panel.tsx
+@@ -0,0 +1,62 @@
++import type { ReactNode } from "react";
++import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./accordion";
++import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
++import { ContactLink } from "./contact-link";
++
++export type SupportAnswer = { question: string; answer: ReactNode };
++
++export function SupportPanel({
++	email,
++	checklist,
++	answers,
++	action,
++}: {
++	email: string;
++	checklist: string[];
++	answers: SupportAnswer[];
++	action?: ReactNode;
++}) {
++	return (
++		<div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
++			<Card className="self-start">
++				<CardHeader>
++					<CardTitle>Écrire à l'équipe Fratex</CardTitle>
++					<CardDescription>
++						Décrivez ce que vous faisiez et ce que vous attendiez. Plus c'est précis, plus la réponse est rapide.
++					</CardDescription>
++				</CardHeader>
++				<CardContent className="flex flex-col gap-4">
++					<ContactLink kind="email" value={email} className="w-fit text-base font-medium text-foreground underline" />
++					<div className="flex flex-col gap-1.5 text-sm">
++						<span className="text-xs text-muted-foreground">À joindre à votre message</span>
++						<ul className="flex flex-col gap-1.5">
++							{checklist.map((item) => (
++								<li key={item} className="flex gap-2">
++									<span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
++									<span>{item}</span>
++								</li>
++							))}
++						</ul>
++					</div>
++					{action}
++				</CardContent>
++			</Card>
++			<Card>
++				<CardHeader>
++					<CardTitle>Réponses rapides</CardTitle>
++					<CardDescription>Les situations les plus fréquentes et où les régler dans Fratex.</CardDescription>
++				</CardHeader>
++				<CardContent>
++					<Accordion type="single" collapsible>
++						{answers.map((item) => (
++							<AccordionItem key={item.question} value={item.question}>
++								<AccordionTrigger>{item.question}</AccordionTrigger>
++								<AccordionContent className="text-sm text-muted-foreground">{item.answer}</AccordionContent>
++							</AccordionItem>
++						))}
++					</Accordion>
++				</CardContent>
++			</Card>
++		</div>
++	);
++}
 diff --git a/packages/ui/src/components/table-pagination.tsx b/packages/ui/src/components/table-pagination.tsx
 index 1a6c535..909cf15 100644
 --- a/packages/ui/src/components/table-pagination.tsx
@@ -34035,7 +35172,7 @@ index 1a6c535..909cf15 100644
  				</div>
 diff --git a/packages/ui/src/components/team-presence.tsx b/packages/ui/src/components/team-presence.tsx
 new file mode 100644
-index 0000000..8bcf1cd
+index 0000000..4b289a6
 --- /dev/null
 +++ b/packages/ui/src/components/team-presence.tsx
 @@ -0,0 +1,148 @@
@@ -34155,18 +35292,18 @@ index 0000000..8bcf1cd
 +					title={summary}
 +					className="hidden items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring sm:flex"
 +				>
-+					<span className="flex items-center -space-x-1.5">
++					<span className="flex items-center -space-x-1">
 +						{visible.map((member, index) => (
 +							<MemberAvatar
 +								key={member.id}
 +								member={member}
 +								size="default"
-+								className={cn("size-7 bg-background ring-2 ring-background [&_[data-slot=avatar-fallback]]:text-xs", !member.online && "[&_[data-slot=avatar-fallback]]:text-muted-foreground/70")}
++								className={cn("size-8 bg-background ring-2 ring-background [&_[data-slot=avatar-fallback]]:text-[11px] [&_[data-slot=avatar-fallback]]:font-medium", !member.online && "[&_[data-slot=avatar-fallback]]:text-muted-foreground/70")}
 +								style={{ zIndex: VISIBLE - index }}
 +							/>
 +						))}
 +						{hidden > 0 && (
-+							<span className="relative flex size-7 items-center justify-center rounded-full bg-background text-[11px] font-medium text-muted-foreground ring-2 ring-background after:absolute after:inset-0 after:rounded-full after:border after:border-border">
++							<span className="relative flex size-8 items-center justify-center rounded-full bg-background text-[11px] font-medium text-muted-foreground ring-2 ring-background after:absolute after:inset-0 after:rounded-full after:border after:border-border">
 +								+{hidden}
 +							</span>
 +						)}
@@ -34213,6 +35350,19 @@ index c3011ee..f50fc87 100644
  					</p>
  				)}
  
+diff --git a/packages/ui/src/components/toggle.tsx b/packages/ui/src/components/toggle.tsx
+index b7ef1b7..a7d3bd4 100644
+--- a/packages/ui/src/components/toggle.tsx
++++ b/packages/ui/src/components/toggle.tsx
+@@ -12,7 +12,7 @@ const toggleVariants = cva(
+ 			variant: {
+ 				default: "bg-transparent",
+ 				outline:
+-					"border border-input bg-transparent hover:bg-muted data-[state=on]:border-ring data-[state=on]:bg-background data-[state=on]:ring-1 data-[state=on]:ring-ring/30",
++					"border border-input bg-transparent hover:bg-muted data-[state=on]:border-foreground/30 data-[state=on]:bg-background data-[state=on]:ring-1 data-[state=on]:ring-foreground/10",
+ 			},
+ 			size: {
+ 				default:
 diff --git a/packages/ui/src/components/tool.tsx b/packages/ui/src/components/tool.tsx
 new file mode 100644
 index 0000000..f8d1ce7
@@ -35058,6 +36208,90 @@ index 0000000..7d21c55
 +export function labelOf(map: Record<string, string>, key: string): string {
 +	return map[key] ?? key;
 +}
+diff --git a/packages/ui/src/styles/globals.css b/packages/ui/src/styles/globals.css
+index 6db44f8..b8f8247 100644
+--- a/packages/ui/src/styles/globals.css
++++ b/packages/ui/src/styles/globals.css
+@@ -13,7 +13,7 @@
+ 	--card-foreground: #171717;
+ 	--popover: #ffffff;
+ 	--popover-foreground: #171717;
+-	--primary: #006b4f;
++	--primary: #d83c16;
+ 	--primary-foreground: #ffffff;
+ 	--secondary: #f4f4f4;
+ 	--secondary-foreground: #171717;
+@@ -34,12 +34,12 @@
+ 	--border: #e2e2e2;
+ 	--input: #e2e2e2;
+ 	--overlay: rgb(0 0 0 / 0.18);
+-	--ring: #006b4f;
+-	--chart-1: #00915f;
+-	--chart-2: #2563eb;
+-	--chart-3: #b45309;
+-	--chart-4: #7c3aed;
+-	--chart-5: #0891b2;
++	--ring: #d83c16;
++	--chart-1: #d83c16;
++	--chart-2: #f0756b;
++	--chart-3: #9e1f15;
++	--chart-4: #737373;
++	--chart-5: #bdbdbd;
+ 	--severity-critical: var(--destructive);
+ 	--severity-high: oklch(0.646 0.222 41.116);
+ 	--severity-medium: oklch(0.681 0.162 75.834);
+@@ -51,12 +51,12 @@
+ 	--code-string: var(--primary);
+ 	--sidebar: #fafafa;
+ 	--sidebar-foreground: #171717;
+-	--sidebar-primary: #006b4f;
++	--sidebar-primary: #d83c16;
+ 	--sidebar-primary-foreground: #ffffff;
+ 	--sidebar-accent: #f4f4f4;
+ 	--sidebar-accent-foreground: #171717;
+ 	--sidebar-border: #e2e2e2;
+-	--sidebar-ring: #006b4f;
++	--sidebar-ring: #d83c16;
+ 	--font-sans: var(--font-geist-sans, "Geist", sans-serif);
+ 	--font-mono: var(--font-geist-mono, "Geist Mono", monospace);
+ 	--radius: 5px;
+@@ -85,7 +85,7 @@
+ 	--card-foreground: #f5f5f5;
+ 	--popover: #171717;
+ 	--popover-foreground: #f5f5f5;
+-	--primary: #006b4f;
++	--primary: #d83c16;
+ 	--primary-foreground: #ffffff;
+ 	--secondary: #1f1f1f;
+ 	--secondary-foreground: #f5f5f5;
+@@ -106,12 +106,12 @@
+ 	--border: #2a2a2a;
+ 	--input: #2a2a2a;
+ 	--overlay: rgb(0 0 0 / 0.55);
+-	--ring: #40be96;
+-	--chart-1: #0fa871;
+-	--chart-2: #4b87f0;
+-	--chart-3: #c07e22;
+-	--chart-4: #9b7bf0;
+-	--chart-5: #1e93b8;
++	--ring: #f4714a;
++	--chart-1: #f4714a;
++	--chart-2: #ff9a91;
++	--chart-3: #c2352b;
++	--chart-4: #9a9a9a;
++	--chart-5: #5f5f5f;
+ 	--severity-critical: oklch(0.637 0.237 25.331);
+ 	--severity-high: oklch(0.705 0.213 47.604);
+ 	--severity-medium: var(--chart-2);
+@@ -123,7 +123,7 @@
+ 	--code-string: #40be96;
+ 	--sidebar: #171717;
+ 	--sidebar-foreground: #f5f5f5;
+-	--sidebar-primary: #006b4f;
++	--sidebar-primary: #d83c16;
+ 	--sidebar-primary-foreground: #ffffff;
+ 	--sidebar-accent: #292929;
+ 	--sidebar-accent-foreground: #f5f5f5;
 diff --git a/packages/validation/src/real-estate.ts b/packages/validation/src/real-estate.ts
 index 22d0082..4ce5225 100644
 --- a/packages/validation/src/real-estate.ts

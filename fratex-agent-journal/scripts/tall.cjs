@@ -11,6 +11,7 @@ const [, , cookie, out, width, height, ...routes] = process.argv;
   for (const r of routes) {
     const i = r.indexOf("="); const name = r.slice(0, i), url = r.slice(i + 1);
     await p.goto("http://localhost:3000" + url, { waitUntil: "networkidle", timeout: 90000 });
+    await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
     await p.waitForTimeout(2500);
     await p.screenshot({ path: `${out}/${name}.png` });
     console.log(name, "->", p.url());
