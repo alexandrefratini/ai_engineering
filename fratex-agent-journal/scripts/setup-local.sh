@@ -22,8 +22,8 @@ if [ ! -f .env ]; then
 fi
 bun install
 (cd packages/db && set -a && . ../../.env && set +a && bunx prisma migrate deploy && bunx prisma generate)
-bun run db:test
-bun run --cwd packages/db db:seed
+(set -a && . ./.env && set +a && bun run db:test)
+(set -a && . ./.env && set +a && bun run --cwd packages/db db:seed)
 cp "$JOURNAL/demo-seed.ts" packages/db/demo-seed.local.ts
 (cd packages/db && set -a && . ../../.env && set +a && bun demo-seed.local.ts | grep COOKIE)
 rm -f packages/db/demo-seed.local.ts

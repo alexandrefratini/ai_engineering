@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guide Fratex Agent</title>
+<style>
+:root{--bg:#fff;--fg:#171717;--muted:#6b6b6b;--line:#e5e5e5;--card:#fafafa;--brand:#d83c16;--brand-fg:#fff;--note:#fff5f2}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814}}
+:root[data-theme=dark]{--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}
+aside{position:sticky;top:0;height:100vh;overflow:auto;border-right:1px solid var(--line);padding:20px 16px;background:var(--card)}
+aside .brand{display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:12px}
+aside .logo{width:28px;height:28px;border-radius:7px;background:var(--brand);color:var(--brand-fg);display:grid;place-items:center;font-weight:700}
+aside input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);margin-bottom:12px}
+aside h4{margin:16px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+aside ul{list-style:none;margin:0;padding:0}
+aside a{display:block;padding:5px 8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px}
+aside a:hover,aside a.active{background:var(--line)}
+aside a.active{font-weight:600}
+main{padding:32px clamp(16px,4vw,48px) 96px;max-width:1180px;width:100%}
+.intro{margin-bottom:32px}
+.intro h1{font-size:clamp(26px,4vw,36px);margin:0 0 8px}
+.intro p{color:var(--muted);max-width:70ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:20px 0}
+.cards div{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--card)}
+.cards b{display:block;margin-bottom:4px}
+.group-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--brand);margin:56px 0 12px;font-weight:700}
+.page{border-top:1px solid var(--line);padding:28px 0}
+.page h2{margin:0;font-size:24px}
+.page h3{font-size:15px;margin:20px 0 6px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 0;color:var(--muted)}
+code{background:var(--card);border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:13px}
+.who{font-size:12px;border:1px solid var(--line);padding:1px 8px;border-radius:999px}
+.purpose{font-size:17px;max-width:75ch}
+.shots{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0}
+.shot{display:block;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.shot img{display:block;width:100%;height:auto}
+.shot.desktop{flex:1 1 560px;max-width:100%}
+.shot.phone{flex:0 0 200px}
+ul{padding-left:20px}
+li{margin:4px 0}
+.note{border-left:3px solid var(--brand);background:var(--note);padding:10px 14px;border-radius:0 8px 8px 0;margin-top:16px}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--card)}
+dialog{border:0;padding:0;background:transparent;max-width:96vw;max-height:96vh}
+dialog::backdrop{background:rgba(0,0,0,.75)}
+dialog img{max-width:96vw;max-height:94vh;border-radius:8px;display:block}
+.menu-btn{display:none}
+@media (max-width:860px){
+.layout{grid-template-columns:1fr}
+aside{position:fixed;inset:0 20% 0 0;z-index:20;transform:translateX(-100%);transition:transform .2s;height:100vh}
+aside.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.4)}
+.menu-btn{display:block;position:sticky;top:0;z-index:10;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-weight:600}
+.shot.phone{flex-basis:160px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}aside{transition:none}}
+</style>
+</head>
+<body>
+<button class="menu-btn" type="button" id="menu">Menu du guide</button>
+<div class="layout">
+<aside id="nav" aria-label="Table des matières">
+<div class="brand"><span class="logo">F</span><span>Guide Fratex Agent</span></div>
+<input type="search" id="filter" placeholder="Filtrer les pages" aria-label="Filtrer les pages">
+<div class="group"><h4>Démarrer</h4><ul><li><a href="#connexion">Connexion</a></li></ul></div>
+<div class="group"><h4>Immobilier</h4><ul><li><a href="#accueil">Accueil</a></li><li><a href="#accueil-ventes">Accueil, vue Ventes CRM</a></li><li><a href="#prospects">Prospects</a></li><li><a href="#prospects-vide">Prospects, état vide</a></li><li><a href="#fiche">Fiche d&#x27;un prospect</a></li><li><a href="#pipeline">Pipeline</a></li><li><a href="#boite">Boîte de réception</a></li><li><a href="#portail">Portail courtier</a></li><li><a href="#estimateur">Estimateur et offres</a></li><li><a href="#courtiers">Courtiers</a></li><li><a href="#nouveau-courtier">Nouveau courtier</a></li><li><a href="#onboarding-courtier">Ajouter un courtier (page d&#x27;accueil)</a></li></ul></div>
+<div class="group"><h4>Assistant IA</h4><ul><li><a href="#assistant">Assistant IA</a></li><li><a href="#assistant-conversation">Conversation avec l&#x27;assistant</a></li><li><a href="#agents">Agents de l&#x27;équipe</a></li></ul></div>
+<div class="group"><h4>CRM général</h4><ul><li><a href="#contacts">Contacts</a></li><li><a href="#entreprises">Entreprises</a></li><li><a href="#affaires">Affaires</a></li></ul></div>
+<div class="group"><h4>Paramètres</h4><ul><li><a href="#reglages">Général</a></li><li><a href="#suivi">Suivi et analyses</a></li><li><a href="#connexions">Connexions</a></li><li><a href="#connexion-meta">Connexion Meta Lead Ads</a></li><li><a href="#connexion-twilio">Connexion SMS Twilio</a></li><li><a href="#connexion-gemini">Connexion Assistant IA</a></li><li><a href="#connexion-agenda">Connexion Google Agenda des courtiers</a></li><li><a href="#connexion-slack">Connexion Slack</a></li><li><a href="#devises">Devises</a></li><li><a href="#membres">Membres</a></li><li><a href="#cles-api">Clés API</a></li><li><a href="#sso">SSO</a></li></ul></div>
+<div class="group"><h4>Compte et aide</h4><ul><li><a href="#compte">Mon compte</a></li><li><a href="#support">Support</a></li></ul></div>
+<div class="group"><h4>Partout dans l&#x27;application</h4><ul><li><a href="#courtier">Vue du courtier</a></li><li><a href="#recherche">Recherche Ctrl+K</a></li><li><a href="#presence">Présence de l&#x27;équipe</a></li><li><a href="#traduction">Traduction avec Google</a></li><li><a href="#menu-compte">Menu du compte</a></li><li><a href="#sombre">Mode sombre</a></li><li><a href="#agenda-connecte">Agenda connecté</a></li></ul></div>
+<div class="group"><h4>Annexes</h4><ul><li><a href="#statuts">Les étapes d&#x27;un prospect</a></li><li><a href="#couleurs">Les couleurs</a></li><li><a href="#infobulles">Les points d&#x27;interrogation</a></li><li><a href="#connus">Ce qui n&#x27;est pas encore vérifié</a></li></ul></div>
+</aside>
+<main>
+<div class="intro">
+<h1>Guide de l'application Fratex Agent</h1>
+<p>Chaque page de l'application, avec sa capture d'écran, son rôle et ses fonctions en détail. Les captures ont été prises le 22 octobre 2026 sur l'environnement local, avec des données de démonstration. Cliquez sur une image pour l'agrandir.</p>
+<div class="cards">
+<div><b>Pour le courtier</b>Accueil, Prospects, Fiche, Boîte de réception, Portail, Estimateur.</div>
+<div><b>Pour l'équipe Fratex</b>Courtiers, Connexions, Assistant IA, Membres, Support.</div>
+<div><b>Pour la direction</b>Portail courtier, Accueil (vue Ventes CRM), Devises, Activité de l'assistant (à venir).</div>
+</div>
+</div>
+<h1 class="group-title" id="g-demarrer">Démarrer</h1>
+<section class="page" id="connexion">
+<header><h2>Connexion</h2><p class="meta"><code>/sign-in</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">La porte d&#x27;entrée. On se connecte avec Google ou Microsoft. Seuls les courriels autorisés par l&#x27;entreprise peuvent entrer.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion.jpg" data-lightbox><img loading="lazy" src="images/connexion.jpg" alt="Capture de la page Connexion sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Connexion avec le compte Google ou Microsoft de l&#x27;équipe.</li><li>Connexion unique (SSO) si l&#x27;entreprise l&#x27;a configurée dans Paramètres.</li><li>Message clair quand aucune méthode n&#x27;est configurée (cas de cet environnement local de démonstration).</li></ul>
+<h3>Comment ça marche</h3><ul><li>Le domaine autorisé est défini par la variable ALLOWED_SIGN_IN. Un courtier invité se connecte avec son courriel et ne voit que ses propres prospects.</li></ul>
+<div class="note"><b>À savoir.</b> Dans les captures de ce guide, la session de démonstration est créée directement dans la base de données. La page de connexion s&#x27;affiche donc sans bouton Google.</div>
+</section>
+<h1 class="group-title" id="g-immobilier">Immobilier</h1>
+<section class="page" id="accueil">
+<header><h2>Accueil</h2><p class="meta"><code>/{espace}</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Votre journée en un coup d&#x27;œil : ce qui attend une action de votre part, les rendez-vous des 48 prochaines heures et la répartition des prospects par étape.</p>
+<div class="shots"><a class="shot desktop" href="images/accueil.jpg" data-lightbox><img loading="lazy" src="images/accueil.jpg" alt="Capture de la page Accueil sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-accueil.jpg" data-lightbox><img loading="lazy" src="images/m-accueil.jpg" alt="Capture mobile : Accueil"></a><a class="shot phone" href="images/m-menu.jpg" data-lightbox><img loading="lazy" src="images/m-menu.jpg" alt="Capture mobile : Accueil"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Quatre indicateurs : nouveaux prospects aujourd&#x27;hui (avec courbe des 7 derniers jours), prospects à traiter, rendez-vous aujourd&#x27;hui, première réponse médiane sur 7 jours.</li><li>« À faire maintenant » : messages non lus, reprises humaines et prospects jamais contactés, du plus récent au plus ancien. Un bouton « Appeler » compose le numéro.</li><li>« Rendez-vous des 48 prochaines heures » : un clic ouvre la fiche du prospect.</li><li>« Pipeline » : barre proportionnelle par étape. Un clic sur une étape ouvre la liste filtrée.</li><li>Deux bascules en haut à droite : Immobilier ou Ventes CRM, et Moi ou Toute l&#x27;équipe.</li><li>Chaque section a un point d&#x27;interrogation qui explique ce qu&#x27;elle mesure.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les chiffres viennent des prospects, messages et rendez-vous enregistrés. Aucune estimation.</li><li>Un courtier lié à un profil voit « Moi » par défaut. Sans lien avec un courtier, l&#x27;accueil affiche toute l&#x27;équipe et le dit.</li></ul>
+<div class="note"><b>À savoir.</b> Sur mobile, les boutons de bascule passent sous le titre. Le menu s&#x27;ouvre avec le bouton en haut à gauche.</div>
+</section>
+<section class="page" id="accueil-ventes">
+<header><h2>Accueil, vue Ventes CRM</h2><p class="meta"><code>/{espace}?vue=ventes</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Le tableau de bord du CRM général : affaires conclues, pipeline ouvert, taux de réussite et affaire moyenne.</p>
+<div class="shots"><a class="shot desktop" href="images/accueil-ventes.jpg" data-lightbox><img loading="lazy" src="images/accueil-ventes.jpg" alt="Capture de la page Accueil, vue Ventes CRM sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Totaux dans la devise de présentation (dollar canadien par défaut).</li><li>Courbe des conclusions et du nouveau pipeline sur six mois.</li><li>Anneau du pipeline ouvert par étape.</li><li>Liste des plus grosses affaires ouvertes et des tâches en retard.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les affaires dans une autre devise sont converties avec les taux de Paramètres, Devises. Sans taux, l&#x27;affaire est exclue des totaux et le dit.</li></ul>
+<div class="note"><b>À savoir.</b> Cette vue sert à l&#x27;équipe de vente. Le courtier n&#x27;en a pas besoin.</div>
+</section>
+<section class="page" id="prospects">
+<header><h2>Prospects</h2><p class="meta"><code>/{espace}/real-estate/leads</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Tous les prospects au même endroit, qu&#x27;ils viennent d&#x27;une publicité Meta, d&#x27;une référence, d&#x27;un appel ou d&#x27;une visite libre.</p>
+<div class="shots"><a class="shot desktop" href="images/prospects.jpg" data-lightbox><img loading="lazy" src="images/prospects.jpg" alt="Capture de la page Prospects sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-prospects.jpg" data-lightbox><img loading="lazy" src="images/m-prospects.jpg" alt="Capture mobile : Prospects"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Recherche par nom, téléphone ou secteur, et filtre par statut.</li><li>Colonnes : prospect (avec téléphone cliquable), statut et projet, score, budget maximal, secteur, courtier, dernière activité.</li><li>Un clic sur la ligne ouvre la fiche. Le téléphone et le courriel sont cliquables partout.</li><li>« Nouveau prospect » : ajout à la main avec source, projet, note, consentement SMS et choix de lancer l&#x27;assistant. Les doublons sont détectés.</li><li>« Charger la suite » quand il y a plus de prospects que la page.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Un courtier ne voit que ses prospects. L&#x27;équipe voit tout et la colonne « Courtier ».</li><li>Une valeur non confirmée par le prospect s&#x27;affiche « À confirmer », jamais comme un fait.</li></ul>
+<div class="note"><b>À savoir.</b> Sur mobile, les colonnes secondaires sont masquées pour que le tableau tienne dans l&#x27;écran.</div>
+</section>
+<section class="page" id="prospects-vide">
+<header><h2>Prospects, état vide</h2><p class="meta"><code>/{espace}/real-estate/leads?search=…</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Ce que l&#x27;on voit quand aucun prospect ne correspond. Chaque liste de l&#x27;application a un état vide qui explique quoi faire ensuite.</p>
+<div class="shots"><a class="shot desktop" href="images/prospects-vide.jpg" data-lightbox><img loading="lazy" src="images/prospects-vide.jpg" alt="Capture de la page Prospects, état vide sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Explication en une phrase.</li><li>Bouton « Effacer les filtres ».</li><li>Sans aucun prospect dans l&#x27;agence, un autre message mène aux connexions (pour l&#x27;équipe).</li></ul>
+</section>
+<section class="page" id="fiche">
+<header><h2>Fiche d&#x27;un prospect</h2><p class="meta"><code>/{espace}/real-estate/leads/{id}</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Tout ce que l&#x27;on sait d&#x27;un prospect, et ce que l&#x27;assistant a fait avec lui. C&#x27;est la page où se prennent les décisions.</p>
+<div class="shots"><a class="shot desktop" href="images/fiche.jpg" data-lightbox><img loading="lazy" src="images/fiche.jpg" alt="Capture de la page Fiche d&#x27;un prospect sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-fiche.jpg" data-lightbox><img loading="lazy" src="images/m-fiche.jpg" alt="Capture mobile : Fiche d&#x27;un prospect"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>En-tête : score sur 100, statut, projet, téléphone et courriel cliquables, courtier.</li><li>Réaffecter le courtier, changer l&#x27;étape, appeler, ouvrir la conversation.</li><li>Barre d&#x27;étapes : reçu, contacté, qualification, qualifié, rendez-vous fixé, rendez-vous réalisé.</li><li>Budget, secteur, échéance et prochain rendez-vous en quatre cases.</li><li>Qualification : sept critères. Une valeur soulignée a été confirmée par le prospect. Survolez-la pour lire sa réponse.</li><li>Rendez-vous : ajouter, marquer réalisé, absent ou annulé.</li><li>Notes : ce que vous savez et que l&#x27;assistant ne voit pas. Ctrl+Entrée enregistre.</li><li>Derniers messages, propriétés suggérées, suivi et consentement, historique, export vers le CRM du courtier.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les critères viennent de citations réelles du prospect. Les suggestions de propriétés ne changent jamais les critères confirmés.</li><li>Sans consentement aux SMS, l&#x27;assistant n&#x27;envoie rien. La preuve du consentement est dans « Suivi et consentement ».</li><li>Changer l&#x27;issue d&#x27;un rendez-vous met à jour le pipeline et les conversions envoyées à Meta.</li></ul>
+<div class="note"><b>À savoir.</b> Chaque section a un point d&#x27;interrogation avec son explication.</div>
+</section>
+<section class="page" id="pipeline">
+<header><h2>Pipeline</h2><p class="meta"><code>/{espace}/real-estate/pipeline</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Les prospects classés par étape, du premier SMS au rendez-vous réalisé.</p>
+<div class="shots"><a class="shot desktop" href="images/pipeline.jpg" data-lightbox><img loading="lazy" src="images/pipeline.jpg" alt="Capture de la page Pipeline sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-pipeline.jpg" data-lightbox><img loading="lazy" src="images/m-pipeline.jpg" alt="Capture mobile : Pipeline"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Quatre indicateurs : prospects, qualifiés, rendez-vous, taux de rendez-vous.</li><li>Une colonne par étape. Chaque carte montre le nom, le projet, le téléphone (cliquable), le score et le courtier.</li><li>Un clic sur la carte ouvre la fiche.</li><li>Une colonne vide affiche « Aucun prospect ».</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les étapes se changent depuis la fiche du prospect. Sur mobile, chaque colonne est une page que l&#x27;on fait glisser.</li></ul>
+</section>
+<section class="page" id="boite">
+<header><h2>Boîte de réception</h2><p class="meta"><code>/{espace}/real-estate/inbox</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Toutes les conversations avec les prospects, SMS et courriels, dans une seule liste.</p>
+<div class="shots"><a class="shot desktop" href="images/boite-conversation.jpg" data-lightbox><img loading="lazy" src="images/boite-conversation.jpg" alt="Capture de la page Boîte de réception sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-boite-liste.jpg" data-lightbox><img loading="lazy" src="images/m-boite-liste.jpg" alt="Capture mobile : Boîte de réception"></a><a class="shot phone" href="images/m-boite-conversation.jpg" data-lightbox><img loading="lazy" src="images/m-boite-conversation.jpg" alt="Capture mobile : Boîte de réception"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Filtres : Tous, Non lus, Reprise humaine. Recherche par nom, téléphone ou message.</li><li>Conversation par jour, avec l&#x27;état de chaque SMS (livré, en attente, échec).</li><li>Écrire un SMS de 160 caractères au plus. L&#x27;envoi met l&#x27;assistant en pause pour ce prospect.</li><li>« Reprendre la main » et « Rendre à l&#x27;assistant ».</li><li>Barre de contact : Appeler, SMS, Courriel, WhatsApp et Messenger (pour les prospects venus de Meta).</li><li>Ouvrir une conversation la marque comme lue.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Seuls les SMS envoyés dans Fratex sont enregistrés dans la fiche. L&#x27;appel, le courriel, WhatsApp et Meta s&#x27;ouvrent dans leur application et ne sont pas enregistrés.</li><li>Un SMS « incertain » n&#x27;est jamais renvoyé automatiquement.</li></ul>
+<div class="note"><b>À savoir.</b> Fratex lit les courriels synchronisés mais ne les envoie pas : « Écrire un courriel » ouvre votre messagerie.</div>
+</section>
+<section class="page" id="portail">
+<header><h2>Portail courtier</h2><p class="meta"><code>/{espace}/real-estate/portal</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Ce que l&#x27;assistant a réellement accompli pour un courtier : rapidité de réponse, rendez-vous obtenus, budgets confirmés.</p>
+<div class="shots"><a class="shot desktop" href="images/portail.jpg" data-lightbox><img loading="lazy" src="images/portail.jpg" alt="Capture de la page Portail courtier sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-portail.jpg" data-lightbox><img loading="lazy" src="images/m-portail.jpg" alt="Capture mobile : Portail courtier"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Choix du courtier (équipe) et de la période : 30 jours, 90 jours, ce mois-ci.</li><li>Indicateurs : prospects reçus, première réponse médiane, rendez-vous obtenus, budgets qualifiés.</li><li>Entonnoir : reçus, contactés, ont répondu, qualifiés, rendez-vous, rendez-vous réalisés.</li><li>Messages envoyés par l&#x27;assistant et par l&#x27;équipe, réponses reçues.</li><li>Projets, sources (Meta Lead Ads, référence, etc.), prospects récents, rendez-vous à venir.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Chaque chiffre est calculé à partir des données enregistrées. Aucune commission hypothétique.</li></ul>
+</section>
+<section class="page" id="estimateur">
+<header><h2>Estimateur et offres</h2><p class="meta"><code>/{espace}/real-estate/valuation</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Préparer une offre d&#x27;achat : mise de fonds, assurance prêt hypothécaire, taxe de bienvenue et mensualité, avec trois offres comparées.</p>
+<div class="shots"><a class="shot desktop" href="images/estimateur.jpg" data-lightbox><img loading="lazy" src="images/estimateur.jpg" alt="Capture de la page Estimateur et offres sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-estimateur.jpg" data-lightbox><img loading="lazy" src="images/m-estimateur.jpg" alt="Capture mobile : Estimateur et offres"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Propriété : prix demandé, adresse et lien de l&#x27;annonce (facultatifs).</li><li>Financement : mise de fonds, taux, amortissement, municipalité, commission.</li><li>Comparer 3 offres : un rabais par colonne, tout se recalcule à la frappe.</li><li>Fonds requis à la signature : mise de fonds, taxe de bienvenue et taxe sur la prime d&#x27;assurance.</li><li>Lier la propriété à un prospect comme suggestion.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Taux fixe canadien : intérêts composés deux fois par an, paiements mensuels. Sous 20 % de mise de fonds, la prime SCHL s&#x27;ajoute au prêt.</li><li>Le barème a une date de vérification. C&#x27;est une simulation indicative : aucune valeur marchande n&#x27;est estimée.</li></ul>
+<div class="note"><b>À savoir.</b> À confirmer auprès de la municipalité et du prêteur avant de s&#x27;engager.</div>
+</section>
+<section class="page" id="courtiers">
+<header><h2>Courtiers</h2><p class="meta"><code>/{espace}/real-estate/realtors</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Les courtiers servis par l&#x27;agence, leurs résultats et ce qu&#x27;il reste à configurer pour que l&#x27;assistant travaille pour eux.</p>
+<div class="shots"><a class="shot desktop" href="images/courtiers.jpg" data-lightbox><img loading="lazy" src="images/courtiers.jpg" alt="Capture de la page Courtiers sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-courtiers.jpg" data-lightbox><img loading="lazy" src="images/m-courtiers.jpg" alt="Capture mobile : Courtiers"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Indicateurs : courtiers actifs, prêts à recevoir, prospects reçus, rendez-vous obtenus.</li><li>Pour chaque courtier : coordonnées cliquables, prospects, rendez-vous, dernier prospect.</li><li>État de configuration : Meta, Agenda, SMS. Un élément barré reste à faire.</li><li>« Terminer la configuration » mène à la prochaine étape manquante. « Portail » ouvre ses résultats.</li><li>« Ajouter un courtier ».</li></ul>
+</section>
+<section class="page" id="nouveau-courtier">
+<header><h2>Nouveau courtier</h2><p class="meta"><code>/{espace}/real-estate/realtors/new</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Créer le profil d&#x27;un courtier : coordonnées, secteurs, types de propriété et outils.</p>
+<div class="shots"><a class="shot desktop" href="images/nouveau-courtier.jpg" data-lightbox><img loading="lazy" src="images/nouveau-courtier.jpg" alt="Capture de la page Nouveau courtier sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Identité : nom, courriel, téléphone, bannière, numéro de permis OACIQ.</li><li>Prospection : secteurs desservis et types de propriété.</li><li>Outils : CRM du courtier, fuseau horaire, lien de réservation.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les connexions (formulaire Meta, agenda, numéro SMS) se font ensuite, étape par étape depuis la liste des courtiers.</li></ul>
+</section>
+<section class="page" id="onboarding-courtier">
+<header><h2>Ajouter un courtier (page d&#x27;accueil)</h2><p class="meta"><code>/onboarding/realtor</code><span class="who">Équipe</span></p></header>
+<p class="purpose">La même fiche, hors de l&#x27;application, pour l&#x27;intégration d&#x27;un nouveau courtier.</p>
+<div class="shots"><a class="shot desktop" href="images/onboarding-courtier.jpg" data-lightbox><img loading="lazy" src="images/onboarding-courtier.jpg" alt="Capture de la page Ajouter un courtier (page d&#x27;accueil) sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Barre du haut avec retour aux courtiers et accès à l&#x27;application.</li><li>Mêmes sections que « Nouveau courtier ».</li></ul>
+<div class="note"><b>À savoir.</b> La barre du haut a été ajoutée pour qu&#x27;on ne reste jamais sans chemin de retour.</div>
+</section>
+<h1 class="group-title" id="g-assistant">Assistant IA</h1>
+<section class="page" id="assistant">
+<header><h2>Assistant IA</h2><p class="meta"><code>/{espace}/chat</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Poser des questions en français sur ses prospects, ses rendez-vous et son mois, ou décrire un agent d&#x27;équipe à créer.</p>
+<div class="shots"><a class="shot desktop" href="images/assistant-accueil.jpg" data-lightbox><img loading="lazy" src="images/assistant-accueil.jpg" alt="Capture de la page Assistant IA sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-assistant.jpg" data-lightbox><img loading="lazy" src="images/m-assistant.jpg" alt="Capture mobile : Assistant IA"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Questions rapides : prospects en attente, fiche du prospect le plus avancé, rendez-vous de la semaine, résultats du mois.</li><li>Cartes dans la réponse : liste de prospects, fiche, rendez-vous, performance. Chaque ligne ouvre la fiche.</li><li>Historique des conversations privées. Une conversation peut être partagée.</li><li>Agents suggérés pour créer une automatisation.</li></ul>
+<h3>Comment ça marche</h3><ul><li>L&#x27;assistant lit seulement. Il est limité à l&#x27;agence de la personne connectée. Un courtier ne voit que ses prospects.</li><li>Dans les captures, un faux modèle de langage local répond. Les cartes viennent des vrais outils.</li></ul>
+<div class="note"><b>À savoir.</b> Voir ETUDE-AGENTS-IA.md pour l&#x27;essai de bout en bout.</div>
+</section>
+<section class="page" id="assistant-conversation">
+<header><h2>Conversation avec l&#x27;assistant</h2><p class="meta"><code>/{espace}/chat/{id}</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Une réponse avec sa carte de résultats.</p>
+<div class="shots"><a class="shot desktop" href="images/assistant-conversation.jpg" data-lightbox><img loading="lazy" src="images/assistant-conversation.jpg" alt="Capture de la page Conversation avec l&#x27;assistant sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Étape de l&#x27;outil dépliable (« A repéré les prospects qui attendent une action »).</li><li>Carte : état, courtier, dernière citation du prospect, lien vers la fiche.</li><li>Copier, « utile » et « pas utile ».</li></ul>
+<h3>Comment ça marche</h3><ul><li>Le texte sous la carte est ici celui du faux modèle. Avec un vrai modèle, c&#x27;est un résumé en français.</li></ul>
+</section>
+<section class="page" id="agents">
+<header><h2>Agents de l&#x27;équipe</h2><p class="meta"><code>/{espace}/agents</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Les automatisations durables créées à partir de conversations privées, après vérification et déploiement.</p>
+<div class="shots"><a class="shot desktop" href="images/agents.jpg" data-lightbox><img loading="lazy" src="images/agents.jpg" alt="Capture de la page Agents de l&#x27;équipe sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Liste des agents déployés, avec leur état.</li><li>Création à partir d&#x27;une conversation privée (« Créer un agent »).</li><li>Déploiement : un agent déployé est visible par toute l&#x27;équipe.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Un agent n&#x27;agit que dans la portée et avec les actions approuvées au déploiement.</li></ul>
+</section>
+<h1 class="group-title" id="g-crm">CRM général</h1>
+<section class="page" id="contacts">
+<header><h2>Contacts</h2><p class="meta"><code>/{espace}/contacts</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Toutes les personnes du CRM général, avec leur entreprise et leur responsable. Distinct des prospects immobiliers.</p>
+<div class="shots"><a class="shot desktop" href="images/contacts.jpg" data-lightbox><img loading="lazy" src="images/contacts.jpg" alt="Capture de la page Contacts sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Recherche, filtres, tri, colonnes, vues enregistrées, archives.</li><li>Courriel cliquable. Un clic sur la ligne ouvre la fiche.</li><li>Création rapide d&#x27;un contact.</li></ul>
+<div class="note"><b>À savoir.</b> Les données de démonstration de cette page sont des exemples traduits.</div>
+</section>
+<section class="page" id="entreprises">
+<header><h2>Entreprises</h2><p class="meta"><code>/{espace}/companies</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Les comptes du CRM, avec leurs affaires ouvertes et leur dernier contact.</p>
+<div class="shots"><a class="shot desktop" href="images/entreprises.jpg" data-lightbox><img loading="lazy" src="images/entreprises.jpg" alt="Capture de la page Entreprises sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Recherche, filtres, tri, colonnes, vues, archives.</li><li>Enrichissement automatique des fiches d&#x27;entreprise.</li><li>Nombre de contacts et d&#x27;affaires ouvertes.</li></ul>
+</section>
+<section class="page" id="affaires">
+<header><h2>Affaires</h2><p class="meta"><code>/{espace}/deals</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Le pipeline de vente et tout ce qui est déjà clôturé.</p>
+<div class="shots"><a class="shot desktop" href="images/affaires.jpg" data-lightbox><img loading="lazy" src="images/affaires.jpg" alt="Capture de la page Affaires sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Étape, montant, responsable et date de clôture.</li><li>Montants dans la devise d&#x27;origine. Total en dollars canadiens en bas de page.</li><li>Filtres, tri, colonnes, archives.</li></ul>
+<h3>Comment ça marche</h3><ul><li>La devise de présentation se change dans Paramètres, Devises.</li></ul>
+</section>
+<h1 class="group-title" id="g-parametres">Paramètres</h1>
+<section class="page" id="reglages">
+<header><h2>Général</h2><p class="meta"><code>/{espace}/settings</code><span class="who">Équipe et courtier</span></p></header>
+<p class="purpose">Le nom de l&#x27;espace de travail, la clé de recherche d&#x27;entreprises, la durée de conservation des fiches archivées et le modèle de l&#x27;agent de recherche.</p>
+<div class="shots"><a class="shot desktop" href="images/reglages.jpg" data-lightbox><img loading="lazy" src="images/reglages.jpg" alt="Capture de la page Général sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Nom et site web de l&#x27;entreprise.</li><li>Clé de recherche d&#x27;entreprises (facultative).</li><li>Durée de conservation des fiches archivées (180 jours par défaut).</li><li>Modèle de l&#x27;agent de recherche.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Une clé facultative absente ne bloque jamais l&#x27;application.</li></ul>
+</section>
+<section class="page" id="suivi">
+<header><h2>Suivi et analyses</h2><p class="meta"><code>/{espace}/settings/tracking</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Mesurer les visites du site pour les relier aux prospects.</p>
+<div class="shots"><a class="shot desktop" href="images/suivi.jpg" data-lightbox><img loading="lazy" src="images/suivi.jpg" alt="Capture de la page Suivi et analyses sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Domaines autorisés et script de suivi à copier.</li><li>Liaison automatique entre domaines.</li><li>Limiter le suivi aux domaines listés.</li></ul>
+</section>
+<section class="page" id="connexions">
+<header><h2>Connexions</h2><p class="meta"><code>/{espace}/settings/connections</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Les outils qui apportent les prospects à Fratex et ce que l&#x27;assistant a le droit d&#x27;envoyer en votre nom.</p>
+<div class="shots"><a class="shot desktop" href="images/connexions.jpg" data-lightbox><img loading="lazy" src="images/connexions.jpg" alt="Capture de la page Connexions sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-connexions.jpg" data-lightbox><img loading="lazy" src="images/m-connexions.jpg" alt="Capture mobile : Connexions"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Chaîne de prospection : Meta Lead Ads, SMS Twilio, Assistant IA, Google Agenda des courtiers. L&#x27;avancement est « n/4 prêts ».</li><li>Outils de l&#x27;équipe : Google Workspace, Microsoft 365, Slack.</li><li>« Ajouter un outil ». Chaque maillon a un bouton Gérer ou Configurer.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Tant qu&#x27;un maillon manque, l&#x27;assistant ne peut pas travailler seul. Seul un maillon entièrement prêt s&#x27;affiche en vert.</li></ul>
+</section>
+<section class="page" id="connexion-meta">
+<header><h2>Connexion Meta Lead Ads</h2><p class="meta"><code>/{espace}/settings/connections/meta-ads</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Relier le formulaire de publicité d&#x27;un courtier. Chaque prospect qui le remplit arrive dans Fratex et reçoit un SMS en moins de 2 minutes.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion-meta.jpg" data-lightbox><img loading="lazy" src="images/connexion-meta.jpg" alt="Capture de la page Connexion Meta Lead Ads sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Courtier qui reçoit les prospects.</li><li>Adresse de rappel (webhook) à copier dans Meta.</li><li>Identifiants : compte publicitaire, campagne, formulaire, page, jeton d&#x27;accès, pixel (facultatif).</li></ul>
+<h3>Comment ça marche</h3><ul><li>Chaque identifiant dit où le trouver dans Meta Business Suite.</li></ul>
+</section>
+<section class="page" id="connexion-twilio">
+<header><h2>Connexion SMS Twilio</h2><p class="meta"><code>/{espace}/settings/connections/twilio</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Le numéro de l&#x27;agence qui envoie le premier SMS et reçoit les réponses.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion-twilio.jpg" data-lightbox><img loading="lazy" src="images/connexion-twilio.jpg" alt="Capture de la page Connexion SMS Twilio sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Adresse de rappel à coller dans Twilio.</li><li>Account SID, jeton d&#x27;authentification, numéro SMS au format international.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Les accusés de livraison confirment chaque envoi.</li></ul>
+</section>
+<section class="page" id="connexion-gemini">
+<header><h2>Connexion Assistant IA</h2><p class="meta"><code>/{espace}/settings/connections/gemini</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Le modèle qui qualifie les prospects par SMS et propose les rendez-vous.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion-gemini.jpg" data-lightbox><img loading="lazy" src="images/connexion-gemini.jpg" alt="Capture de la page Connexion Assistant IA sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>État de l&#x27;assistant (prêt ou clé manquante).</li><li>Fournisseur, modèle et variables à changer.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Dans cette capture, le faux modèle local est configuré. En production, un vrai modèle est branché.</li></ul>
+</section>
+<section class="page" id="connexion-agenda">
+<header><h2>Connexion Google Agenda des courtiers</h2><p class="meta"><code>/{espace}/settings/connections/realtor-calendar</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Chaque courtier relie son agenda. L&#x27;assistant lit les disponibilités et inscrit les visites réservées.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion-agenda.jpg" data-lightbox><img loading="lazy" src="images/connexion-agenda.jpg" alt="Capture de la page Connexion Google Agenda des courtiers sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Jours et heures de visite, durée.</li><li>Bouton « Connecter l&#x27;agenda ».</li><li>Saisie avancée pour l&#x27;équipe technique.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Sans agenda, l&#x27;assistant propose le lien de réservation du courtier.</li></ul>
+<div class="note"><b>À savoir.</b> Sans les clés Google dans le fichier .env, le bouton explique ce qui manque.</div>
+</section>
+<section class="page" id="connexion-slack">
+<header><h2>Connexion Slack</h2><p class="meta"><code>/{espace}/settings/connections/slack</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Une porte d&#x27;entrée et une porte de sortie. Ce qu&#x27;il en fait ensuite, c&#x27;est à vous d&#x27;en décider, une automatisation à la fois.</p>
+<div class="shots"><a class="shot desktop" href="images/connexion-slack.jpg" data-lightbox><img loading="lazy" src="images/connexion-slack.jpg" alt="Capture de la page Connexion Slack sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Ce que vous accordez, groupe par groupe.</li><li>Ce qu&#x27;elle ne fera jamais.</li><li>Point de départ pour les automatisations d&#x27;équipe.</li></ul>
+</section>
+<section class="page" id="devises">
+<header><h2>Devises</h2><p class="meta"><code>/{espace}/settings/currencies</code><span class="who">Équipe</span></p></header>
+<p class="purpose">La devise des chiffres du CRM, et la façon dont les autres devises sont converties.</p>
+<div class="shots"><a class="shot desktop" href="images/devises.jpg" data-lightbox><img loading="lazy" src="images/devises.jpg" alt="Capture de la page Devises sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Devise de présentation (dollar canadien).</li><li>Taux de change récupérés chaque jour, ou saisis à la main (la saisie a priorité).</li><li>Devises utilisées dans les affaires.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Changer la devise reconvertit chaque affaire au taux du jour.</li></ul>
+</section>
+<section class="page" id="membres">
+<header><h2>Membres</h2><p class="meta"><code>/{espace}/settings/members</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Les personnes qui ont accès à Fratex.</p>
+<div class="shots"><a class="shot desktop" href="images/membres.jpg" data-lightbox><img loading="lazy" src="images/membres.jpg" alt="Capture de la page Membres sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Recherche, tri, filtre par rôle.</li><li>Courriel cliquable.</li><li>Changer le rôle (propriétaire ou administrateur).</li></ul>
+</section>
+<section class="page" id="cles-api">
+<header><h2>Clés API</h2><p class="meta"><code>/{espace}/settings/api-keys</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Clés pour connecter d&#x27;autres outils à Fratex.</p>
+<div class="shots"><a class="shot desktop" href="images/cles-api.jpg" data-lightbox><img loading="lazy" src="images/cles-api.jpg" alt="Capture de la page Clés API sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Nouvelle clé API.</li><li>Une clé n&#x27;est affichée qu&#x27;une seule fois, à sa création.</li><li>État vide qui l&#x27;explique.</li></ul>
+</section>
+<section class="page" id="sso">
+<header><h2>SSO</h2><p class="meta"><code>/{espace}/settings/sso</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Connexion unique avec le fournisseur d&#x27;identité de l&#x27;entreprise.</p>
+<div class="shots"><a class="shot desktop" href="images/sso.jpg" data-lightbox><img loading="lazy" src="images/sso.jpg" alt="Capture de la page SSO sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Ajouter un fournisseur.</li><li>Domaine de courriel, émetteur, adresse de redirection.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Sans SSO, la connexion se fait avec Google ou Microsoft.</li></ul>
+</section>
+<h1 class="group-title" id="g-compte">Compte et aide</h1>
+<section class="page" id="compte">
+<header><h2>Mon compte</h2><p class="meta"><code>/{espace}/account</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Votre profil, votre connexion, vos appareils et votre affichage.</p>
+<div class="shots"><a class="shot desktop" href="images/compte.jpg" data-lightbox><img loading="lazy" src="images/compte.jpg" alt="Capture de la page Mon compte sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-compte.jpg" data-lightbox><img loading="lazy" src="images/m-compte.jpg" alt="Capture mobile : Mon compte"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Profil : modifier le nom affiché.</li><li>Agences et rôles : ce que vous avez le droit de voir et de faire.</li><li>Connexion et courriel : fournisseur, synchronisation en lecture seule.</li><li>Appareils connectés : déconnecter un appareil ou tous les autres.</li><li>Affichage : thème clair, sombre ou automatique, langue, fuseau, devise.</li><li>Raccourcis clavier, demandes d&#x27;aide, déconnexion.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Le courriel vient du compte Google ou Microsoft et ne se change pas ici.</li></ul>
+<div class="note"><b>À savoir.</b> Accessible par le bouton en bas de la barre latérale.</div>
+</section>
+<section class="page" id="support">
+<header><h2>Support</h2><p class="meta"><code>/{espace}/support</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Envoyer une demande à l&#x27;équipe Fratex en quelques secondes : un problème, une question ou une idée.</p>
+<div class="shots"><a class="shot desktop" href="images/support.jpg" data-lightbox><img loading="lazy" src="images/support.jpg" alt="Capture de la page Support sur ordinateur"></a></div>
+<div class="shots mobile"><a class="shot phone" href="images/m-support.jpg" data-lightbox><img loading="lazy" src="images/m-support.jpg" alt="Capture mobile : Support"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Trois choix en un clic. La page où vous étiez est préremplie.</li><li>Un seul champ obligatoire : le message (10 caractères au minimum).</li><li>La page, l&#x27;heure et la taille de l&#x27;écran sont jointes automatiquement.</li><li>Mes demandes avec leur état : ouverte, en cours, résolue.</li><li>Réponses rapides aux situations fréquentes.</li><li>Pour les propriétaires et administrateurs : « Demandes de l&#x27;équipe » avec changement d&#x27;état.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Menu du compte, « Signaler un problème » ouvre cette page avec la page courante.</li><li>Limite de 10 demandes par heure et par personne.</li></ul>
+<div class="note"><b>À savoir.</b> L&#x27;adresse courriel d&#x27;appui affichée (support@fratex.ca) est à confirmer.</div>
+</section>
+<h1 class="group-title" id="g-transversal">Partout dans l&#x27;application</h1>
+<section class="page" id="courtier">
+<header><h2>Vue du courtier</h2><p class="meta"><code>(Marie Tremblay, rôle courtier)</code><span class="who">Courtier</span></p></header>
+<p class="purpose">Ce que voit un courtier : seulement ses propres prospects, sa boîte de réception, son portail.</p>
+<div class="shots"><a class="shot desktop" href="images/courtier-accueil.jpg" data-lightbox><img loading="lazy" src="images/courtier-accueil.jpg" alt="Capture de la page Vue du courtier sur ordinateur"></a><a class="shot desktop" href="images/courtier-prospects.jpg" data-lightbox><img loading="lazy" src="images/courtier-prospects.jpg" alt="Capture supplémentaire : Vue du courtier"></a><a class="shot desktop" href="images/courtier-boite.jpg" data-lightbox><img loading="lazy" src="images/courtier-boite.jpg" alt="Capture supplémentaire : Vue du courtier"></a><a class="shot desktop" href="images/courtier-portail.jpg" data-lightbox><img loading="lazy" src="images/courtier-portail.jpg" alt="Capture supplémentaire : Vue du courtier"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Barre latérale réduite : Accueil, Prospects, Pipeline, Boîte de réception, Portail, Estimateur, puis Mon compte, Support et Paramètres.</li><li>Pas de pages Courtiers, Assistant IA ni CRM général. Les pages de paramètres réservées à l&#x27;équipe n&#x27;apparaissent pas dans la recherche.</li><li>L&#x27;accueil montre « Moi » par défaut.</li><li>Toutes les actions sur ses propres prospects sont disponibles.</li></ul>
+<h3>Comment ça marche</h3><ul><li>L&#x27;isolation est faite côté serveur (agence et courtier) et pas seulement dans l&#x27;affichage.</li></ul>
+</section>
+<section class="page" id="recherche">
+<header><h2>Recherche Ctrl+K</h2><p class="meta"><code>(partout)</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Aller à une page ou à un prospect sans cliquer.</p>
+<div class="shots"><a class="shot desktop" href="images/recherche.jpg" data-lightbox><img loading="lazy" src="images/recherche.jpg" alt="Capture de la page Recherche Ctrl+K sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Pages de l&#x27;application et prospects (au moins deux lettres).</li><li>Flèches pour naviguer, Entrée pour ouvrir, Échap pour fermer.</li></ul>
+</section>
+<section class="page" id="presence">
+<header><h2>Présence de l&#x27;équipe</h2><p class="meta"><code>(barre du haut)</code><span class="who">Équipe</span></p></header>
+<p class="purpose">Voir qui est en ligne et sur quelle page.</p>
+<div class="shots"><a class="shot desktop" href="images/presence.jpg" data-lightbox><img loading="lazy" src="images/presence.jpg" alt="Capture de la page Présence de l&#x27;équipe sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Avatars avec point vert pour les personnes en ligne.</li><li>Liste : nom, page actuelle (lien) ou dernière visite.</li></ul>
+<h3>Comment ça marche</h3><ul><li>La page affichée est un libellé, jamais l&#x27;adresse complète.</li></ul>
+</section>
+<section class="page" id="traduction">
+<header><h2>Traduction avec Google</h2><p class="meta"><code>(barre du haut)</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Traduire l&#x27;interface dans la langue de la personne (anglais, espagnol, portugais, italien, arabe, créole haïtien, chinois, russe, hindi).</p>
+<div class="shots"><a class="shot desktop" href="images/traduction.jpg" data-lightbox><img loading="lazy" src="images/traduction.jpg" alt="Capture de la page Traduction avec Google sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Menu avec la langue active cochée.</li><li>Confirmation avant la première traduction.</li><li>Retour au français en un clic.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Le texte affiché est envoyé à Google pour être traduit, y compris les noms et messages des prospects. Les téléphones et courriels ne sont pas traduits.</li><li>Les chiffres qui se mettent à jour seuls peuvent rester figés : rechargez la page.</li></ul>
+<div class="note"><b>À savoir.</b> Cet environnement n&#x27;a pas accès à Google. Le menu, la confirmation et le cookie ont été vérifiés, pas la traduction elle-même.</div>
+</section>
+<section class="page" id="menu-compte">
+<header><h2>Menu du compte</h2><p class="meta"><code>(barre du haut, avatar)</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Accès rapide au support, au mode sombre et à la déconnexion.</p>
+<div class="shots"><a class="shot desktop" href="images/menu-compte.jpg" data-lightbox><img loading="lazy" src="images/menu-compte.jpg" alt="Capture de la page Menu du compte sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Signaler un problème (avec la page courante).</li><li>Aide et support.</li><li>Mode sombre ou clair.</li><li>Se déconnecter.</li></ul>
+</section>
+<section class="page" id="sombre">
+<header><h2>Mode sombre</h2><p class="meta"><code>(Mon compte, Affichage)</code><span class="who">Tout le monde</span></p></header>
+<p class="purpose">Le même écran avec le thème sombre. Le choix automatique suit le réglage de l&#x27;appareil.</p>
+<div class="shots"><a class="shot desktop" href="images/sombre-accueil.jpg" data-lightbox><img loading="lazy" src="images/sombre-accueil.jpg" alt="Capture de la page Mode sombre sur ordinateur"></a><a class="shot desktop" href="images/sombre-boite.jpg" data-lightbox><img loading="lazy" src="images/sombre-boite.jpg" alt="Capture supplémentaire : Mode sombre"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Le rouge de la marque reste lisible.</li><li>Le vert reste réservé aux états entièrement réussis.</li></ul>
+</section>
+<section class="page" id="agenda-connecte">
+<header><h2>Agenda connecté</h2><p class="meta"><code>/agenda-connecte?statut=ok</code><span class="who">Courtier</span></p></header>
+<p class="purpose">La page où arrive le courtier après avoir autorisé Google Agenda.</p>
+<div class="shots"><a class="shot desktop" href="images/agenda-connecte.jpg" data-lightbox><img loading="lazy" src="images/agenda-connecte.jpg" alt="Capture de la page Agenda connecté sur ordinateur"></a></div>
+<h3>Ce que vous pouvez faire</h3><ul><li>Confirme que l&#x27;agenda est connecté.</li><li>Peut être fermée.</li></ul>
+<h3>Comment ça marche</h3><ul><li>Le lien d&#x27;autorisation est signé : il ne peut pas être modifié pour agir sur un autre courtier.</li></ul>
+</section>
+<h1 class="group-title" id="g-annexes">Annexes</h1>
+<section class="page" id="statuts"><header><h2>Les étapes d&#x27;un prospect</h2></header>
+<table><thead><tr><th>Étape</th><th>Sens</th></tr></thead><tbody>
+<tr><td>Nouveau</td><td>Le prospect est arrivé. Aucun SMS n'est encore envoyé.</td></tr>
+<tr><td>Contacté</td><td>L'assistant a envoyé le premier SMS.</td></tr>
+<tr><td>Qualification</td><td>Le prospect répond. L'assistant confirme ses critères.</td></tr>
+<tr><td>Qualifié</td><td>Projet, secteur, budget et échéance confirmés par le prospect.</td></tr>
+<tr><td>RDV fixé</td><td>Un rendez-vous est au calendrier du courtier.</td></tr>
+<tr><td>RDV réalisé</td><td>Le rendez-vous a eu lieu. La conversion est envoyée à Meta si la connexion est configurée.</td></tr>
+<tr><td>À relancer</td><td>À reprendre plus tard.</td></tr>
+<tr><td>Non intéressé, invalide</td><td>Sortis du parcours.</td></tr>
+</tbody></table></section>
+<section class="page" id="couleurs"><header><h2>Les couleurs</h2></header>
+<ul>
+<li><b>Rouge-orangé</b> (<code>#D83C16</code>) : la marque, les boutons d'action, les étapes en cours.</li>
+<li><b>Vert</b> : réservé aux états entièrement réussis (connecté, livré, confirmé, 100 % terminé).</li>
+<li><b>Gris</b> : le reste. Une valeur « À confirmer » est grise, jamais un fait.</li>
+<li>Une action destructive ne repose jamais sur la couleur seule : elle a une étiquette et une confirmation.</li>
+</ul></section>
+<section class="page" id="infobulles"><header><h2>Les points d&#x27;interrogation</h2></header><p>Chaque page importante et chaque section ont un petit « ? ». Il explique en une ou deux phrases ce que l'on voit et d'où vient le chiffre. Survolez-le ou touchez-le.</p></section>
+<section class="page" id="connus"><header><h2>Ce qui n&#x27;est pas encore vérifié</h2></header>
+<ul>
+<li>La qualité des réponses d'un vrai modèle de langage (seul un faux modèle a été essayé).</li>
+<li>L'envoi réel de SMS (Twilio), l'arrivée de prospects Meta et la connexion de Google Agenda : aucun service externe n'est joignable dans cet environnement.</li>
+<li>La traduction elle-même par Google.</li>
+<li>L'adresse courriel du support.</li>
+<li>L'application mobile native : seule la version web adaptée au mobile existe.</li>
+</ul></section>
+</main>
+</div>
+<dialog id="lightbox"><img alt=""></dialog>
+<script>
+const dialog=document.getElementById("lightbox");
+document.addEventListener("click",e=>{const a=e.target.closest("[data-lightbox]");if(!a)return;e.preventDefault();dialog.querySelector("img").src=a.href;dialog.querySelector("img").alt=a.querySelector("img").alt;dialog.showModal()});
+dialog.addEventListener("click",()=>dialog.close());
+const nav=document.getElementById("nav");
+document.getElementById("menu").addEventListener("click",()=>nav.classList.toggle("open"));
+nav.addEventListener("click",e=>{if(e.target.closest("a"))nav.classList.remove("open")});
+const links=[...nav.querySelectorAll("a")];
+const byId=new Map(links.map(a=>[a.getAttribute("href").slice(1),a]));
+const io=new IntersectionObserver(entries=>{for(const en of entries)if(en.isIntersecting){links.forEach(l=>l.classList.remove("active"));byId.get(en.target.id)?.classList.add("active")}},{rootMargin:"-20% 0px -70% 0px"});
+document.querySelectorAll("section.page").forEach(s=>io.observe(s));
+document.getElementById("filter").addEventListener("input",e=>{const q=e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");links.forEach(l=>{const t=l.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");l.parentElement.hidden=q&&!t.includes(q)})});
+</script>
+</body>
+</html>

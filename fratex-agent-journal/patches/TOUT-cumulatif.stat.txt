@@ -55,8 +55,6 @@
  .../(app)/[slug]/(agent-builder)/agents/page.tsx   |   8 +-
  .../[slug]/(agent-builder)/chat/[chatId]/page.tsx  |   2 +-
  .../app/(app)/[slug]/(agent-builder)/chat/page.tsx |   2 +-
- .../(agent-builder)/chat/preview-results/page.tsx  |   5 +
- .../(agent-builder)/chat/preview-results/view.tsx  | 265 ++++++
  apps/app/app/(app)/[slug]/account/account-view.tsx | 367 +++++++++
  apps/app/app/(app)/[slug]/account/page.tsx         |  52 ++
  .../[slug]/companies/companies-bulk-actions.tsx    |  41 +-
@@ -281,8 +279,8 @@
  apps/app/test/workspace-label.spec.ts              |  28 +-
  docs/design.md                                     |   6 +-
  packages/auth/src/slack-connect.ts                 |   6 +-
- packages/auth/src/slack-scopes.ts                  |  52 +-
- .../auth/test/slack-connect.integration.spec.ts    |   6 +-
+ packages/auth/src/slack-scopes.ts                  |  56 +-
+ .../auth/test/slack-connect.integration.spec.ts    |  10 +-
  .../migration.sql                                  |   2 +
  .../migration.sql                                  |  23 +
  .../migration.sql                                  |   3 +
@@ -365,4 +363,4 @@
  packages/ui/src/styles/globals.css                 |  56 +-
  packages/validation/src/real-estate.ts             |  38 +
  packages/validation/test/phone.spec.ts             |  27 +
- 367 files changed, 23090 insertions(+), 3729 deletions(-)
+ 365 files changed, 22828 insertions(+), 3729 deletions(-)
