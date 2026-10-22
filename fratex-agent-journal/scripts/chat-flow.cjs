@@ -1,0 +1,27 @@
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const [, , cookie, out, question] = process.argv;
+(async () => {
+  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const c = await b.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-CA", timezoneId: "America/Toronto" });
+  await c.addCookies([{ name: "crm.session_token", value: cookie, domain: "localhost", path: "/" }]);
+  const p = await c.newPage();
+  const errors = [];
+  p.on("pageerror", (e) => errors.push(e.message.slice(0, 200)));
+  p.on("console", (m) => m.type() === "error" && errors.push("console: " + m.text().slice(0, 200)));
+  await p.goto("http://localhost:3000/crm/chat", { waitUntil: "networkidle" });
+  await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+  await p.screenshot({ path: `${out}/chat-1.png` });
+  await p.getByRole("button", { name: question }).click();
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: `${out}/chat-1b.png` });
+  const send = p.getByRole("button", { name: /Envoyer|Send/i }).last();
+  console.log("bouton envoyer:", await send.count());
+  await send.click();
+  await p.waitForTimeout(25000);
+  await p.screenshot({ path: `${out}/chat-2.png` });
+  console.log("url:", p.url());
+  console.log("liens fiche:", JSON.stringify(await p.locator('a[href*="real-estate/leads"]').evaluateAll((els) => els.map((e) => e.getAttribute("href")))));
+  await p.screenshot({ path: `${out}/chat-${process.argv[5] || "x"}.png` });
+  console.log("erreurs:", errors.length ? errors : "aucune");
+  await b.close();
+})();

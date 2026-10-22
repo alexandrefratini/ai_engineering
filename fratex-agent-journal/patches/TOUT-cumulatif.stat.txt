@@ -1,3 +1,4 @@
+ apps/agent/agent/agent.ts                          |   1 +
  apps/agent/agent/instructions/task.ts              |  10 +-
  apps/agent/agent/lib/assistant-config.ts           | 140 ++++
  apps/agent/agent/lib/assistant-instructions.ts     |   1 +
@@ -9,6 +10,8 @@
  apps/agent/agent/lib/sdr-tool-policy.ts            |   5 +
  apps/agent/agent/lib/session-purpose.ts            |   2 +-
  apps/agent/agent/skills/broker-assistant.md        |  51 ++
+ apps/agent/agent/subagents/agent_builder/agent.ts  |   1 +
+ apps/agent/agent/subagents/agent_runner/agent.ts   |   1 +
  apps/agent/agent/tools/list_appointments.ts        |  35 +
  .../tools/list_prospects_needing_attention.ts      |  23 +
  apps/agent/agent/tools/read_prospect.ts            |  24 +
@@ -362,4 +365,4 @@
  packages/ui/src/styles/globals.css                 |  56 +-
  packages/validation/src/real-estate.ts             |  38 +
  packages/validation/test/phone.spec.ts             |  27 +
- 364 files changed, 23087 insertions(+), 3729 deletions(-)
+ 367 files changed, 23090 insertions(+), 3729 deletions(-)
