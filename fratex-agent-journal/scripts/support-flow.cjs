@@ -1,0 +1,24 @@
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const [, , cookie, out] = process.argv;
+(async () => {
+  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const c = await b.newContext({ viewport: { width: 1440, height: 1000 }, locale: "fr-CA", timezoneId: "America/Toronto" });
+  await c.addCookies([{ name: "crm.session_token", value: cookie, domain: "localhost", path: "/" }]);
+  const p = await c.newPage();
+  const errors = [];
+  p.on("pageerror", (e) => errors.push(e.message.slice(0, 200)));
+  p.on("console", (m) => m.type() === "error" && errors.push("console: " + m.text().slice(0, 200)));
+  await p.goto("http://localhost:3000/crm/real-estate/inbox", { waitUntil: "networkidle" });
+  await p.addStyleTag({ content: "nextjs-portal{display:none!important}" });
+  await p.getByRole("button", { name: "Menu du compte" }).click();
+  await p.getByRole("menuitem", { name: "Signaler un problème" }).click();
+  await p.waitForURL(/support/);
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${out}/support-1.png` });
+  await p.getByLabel("Que s'est-il passé ?").fill("Le bouton Envoyer reste grisé quand je réponds à un prospect depuis la boîte de réception.");
+  await p.getByRole("button", { name: "Envoyer la demande" }).click();
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${out}/support-2.png` });
+  console.log("erreurs:", errors.length ? errors : "aucune");
+  await b.close();
+})();

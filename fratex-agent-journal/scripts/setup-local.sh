@@ -27,6 +27,9 @@ bun run --cwd packages/db db:seed
 cp "$JOURNAL/demo-seed.ts" packages/db/demo-seed.local.ts
 (cd packages/db && set -a && . ../../.env && set +a && bun demo-seed.local.ts | grep COOKIE)
 rm -f packages/db/demo-seed.local.ts
+cp "$JOURNAL/demo-fr.ts" packages/db/demo-fr.local.ts
+(cd packages/db && set -a && . ../../.env && set +a && bun demo-fr.local.ts)
+rm -f packages/db/demo-fr.local.ts
 cp "$JOURNAL/demo-evidence.ts" packages/db/demo-evidence.local.ts
 (cd packages/db && set -a && . ../../.env && set +a && bun demo-evidence.local.ts)
 rm -f packages/db/demo-evidence.local.ts

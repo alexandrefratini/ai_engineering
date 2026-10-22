@@ -2149,10 +2149,10 @@ index 0000000..5c98620
 +	});
 +});
 diff --git a/apps/api/src/app.module.ts b/apps/api/src/app.module.ts
-index ce6c5f1..7ae380c 100644
+index ce6c5f1..8e68064 100644
 --- a/apps/api/src/app.module.ts
 +++ b/apps/api/src/app.module.ts
-@@ -28,6 +28,7 @@ import { MailboxModule } from "./mailbox/mailbox.module";
+@@ -28,12 +28,14 @@ import { MailboxModule } from "./mailbox/mailbox.module";
  import { MessagingModule } from "./messaging/messaging.module";
  import { MetaModule } from "./meta/meta.module";
  import { MicrosoftModule } from "./microsoft/microsoft.module";
@@ -2160,7 +2160,22 @@ index ce6c5f1..7ae380c 100644
  import { RealEstateModule } from "./real-estate/real-estate.module";
  import { SavedViewsModule } from "./saved-views/saved-views.module";
  import { SearchModule } from "./search/search.module";
-@@ -88,6 +89,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
+ import { SettingsModule } from "./settings/settings.module";
+ import { SlackModule } from "./slack/slack.module";
+ import { SsoModule } from "./sso/sso.module";
++import { SupportModule } from "./support/support.module";
+ import { SyncModule } from "./sync/sync.module";
+ import { TelemetryModule } from "./telemetry/telemetry.module";
+ import { TrackingModule } from "./tracking/tracking.module";
+@@ -78,6 +80,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
+ 		MicrosoftModule,
+ 		SyncModule,
+ 		SettingsModule,
++		SupportModule,
+ 		WorkspaceModule,
+ 		SsoModule,
+ 		SlackModule,
+@@ -88,6 +91,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
  		SavedViewsModule,
  		MetaModule,
  		MessagingModule,
@@ -2169,10 +2184,10 @@ index ce6c5f1..7ae380c 100644
  	],
  })
 diff --git a/apps/api/src/generated/server.ts b/apps/api/src/generated/server.ts
-index 429af2e..8e3e0b5 100644
+index 429af2e..b887b57 100644
 --- a/apps/api/src/generated/server.ts
 +++ b/apps/api/src/generated/server.ts
-@@ -26,7 +26,8 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
+@@ -26,11 +26,13 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
  import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
  import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
  import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
@@ -2182,7 +2197,12 @@ index 429af2e..8e3e0b5 100644
  import { savedViewListInput, savedViewListOutput, savedViewCreateInput, savedViewOutput, savedViewUpdateArgs, savedViewIdInput, savedViewDeleteOutput } from "../saved-views/saved-views.contracts";
  import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
  import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
-@@ -577,6 +578,15 @@ const appRouter = t.router({
+ import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
++import { createSupportRequestInput, supportRequestOutput, supportListOutput, setSupportStatusInput } from "../support/support.contracts";
+ import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
+ import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
+ import type { UsersRouter } from "../users/users.router";
+@@ -577,6 +579,15 @@ const appRouter = t.router({
        .output(microsoftConnectionStatusOutput)
        .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
      }),
@@ -2198,7 +2218,7 @@ index 429af2e..8e3e0b5 100644
    realEstate: t.router({
      list: publicProcedure
        .input(listLeadsInput)
-@@ -647,6 +657,46 @@ const appRouter = t.router({
+@@ -647,6 +658,46 @@ const appRouter = t.router({
      configureCalendar: publicProcedure
        .input(configureCalendarInput)
        .output(configurationOutput)
@@ -2245,6 +2265,29 @@ index 429af2e..8e3e0b5 100644
        .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
      }),
    savedViews: t.router({
+@@ -754,6 +805,22 @@ const appRouter = t.router({
+       .output(deleteSsoProviderOutput)
+       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+     }),
++  support: t.router({
++    create: publicProcedure
++      .input(createSupportRequestInput)
++      .output(supportRequestOutput)
++      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
++    mine: publicProcedure
++      .output(supportListOutput)
++      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
++    team: publicProcedure
++      .output(supportListOutput)
++      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
++    setStatus: publicProcedure
++      .input(setSupportStatusInput)
++      .output(supportRequestOutput)
++      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
++    }),
+   tracking: t.router({
+     settings: publicProcedure
+       .output(trackingSettingsOutput)
 diff --git a/apps/api/src/presence/presence-config.ts b/apps/api/src/presence/presence-config.ts
 new file mode 100644
 index 0000000..54e4bf6
@@ -5383,6 +5426,318 @@ index 1f2ae58..2ef37fa 100644
  		};
  	}
  }
+diff --git a/apps/api/src/support/support-config.ts b/apps/api/src/support/support-config.ts
+new file mode 100644
+index 0000000..cb56a57
+--- /dev/null
++++ b/apps/api/src/support/support-config.ts
+@@ -0,0 +1,18 @@
++export const SUPPORT = {
++	subjectMaxLength: 80,
++	messageMinLength: 10,
++	messageMaxLength: 4000,
++	pathMaxLength: 300,
++	hourlyLimit: 10,
++	listLimit: 50,
++	kinds: ["PROBLEM", "QUESTION", "IDEA"],
++	statuses: ["OPEN", "IN_PROGRESS", "RESOLVED"],
++} as const;
++
++export const SUPPORT_MESSAGES = {
++	tooMany:
++		"Vous avez envoyé beaucoup de demandes en peu de temps. Réessayez dans une heure.",
++	forbidden:
++		"Seuls les propriétaires et les administrateurs voient les demandes de l'équipe.",
++	notFound: "Cette demande n'existe plus.",
++} as const;
+diff --git a/apps/api/src/support/support.contracts.ts b/apps/api/src/support/support.contracts.ts
+new file mode 100644
+index 0000000..bea6899
+--- /dev/null
++++ b/apps/api/src/support/support.contracts.ts
+@@ -0,0 +1,53 @@
++import { z } from "zod";
++import { SUPPORT } from "./support-config";
++
++export const supportKindEnum = z.enum(SUPPORT.kinds);
++export const supportStatusEnum = z.enum(SUPPORT.statuses);
++
++export const createSupportRequestInput = z.object({
++	kind: supportKindEnum,
++	message: z
++		.string()
++		.trim()
++		.min(SUPPORT.messageMinLength)
++		.max(SUPPORT.messageMaxLength),
++	pagePath: z
++		.string()
++		.trim()
++		.max(SUPPORT.pathMaxLength)
++		.regex(/^\//)
++		.optional(),
++	viewport: z
++		.string()
++		.trim()
++		.max(20)
++		.regex(/^\d{2,5}x\d{2,5}$/)
++		.optional(),
++});
++
++export const setSupportStatusInput = z.object({
++	id: z.string().min(1),
++	status: supportStatusEnum,
++});
++
++export const supportRequestOutput = z.object({
++	id: z.string(),
++	kind: supportKindEnum,
++	status: supportStatusEnum,
++	subject: z.string(),
++	message: z.string(),
++	pagePath: z.string().nullable(),
++	createdAt: z.string(),
++	author: z.object({ name: z.string(), email: z.string() }).nullable(),
++});
++
++export const supportListOutput = z.object({
++	rows: z.array(supportRequestOutput),
++	canTriage: z.boolean(),
++});
++
++export type CreateSupportRequestInput = z.infer<
++	typeof createSupportRequestInput
++>;
++export type SetSupportStatusInput = z.infer<typeof setSupportStatusInput>;
++export type SupportRequestRow = z.infer<typeof supportRequestOutput>;
+diff --git a/apps/api/src/support/support.module.ts b/apps/api/src/support/support.module.ts
+new file mode 100644
+index 0000000..f4a6f2f
+--- /dev/null
++++ b/apps/api/src/support/support.module.ts
+@@ -0,0 +1,10 @@
++import { Module } from "@nestjs/common";
++import { DatabaseModule } from "../database/database.module";
++import { SupportRouter } from "./support.router";
++import { SupportService } from "./support.service";
++
++@Module({
++	imports: [DatabaseModule],
++	providers: [SupportService, SupportRouter],
++})
++export class SupportModule {}
+diff --git a/apps/api/src/support/support.router.ts b/apps/api/src/support/support.router.ts
+new file mode 100644
+index 0000000..1af442b
+--- /dev/null
++++ b/apps/api/src/support/support.router.ts
+@@ -0,0 +1,53 @@
++import { Inject } from "@nestjs/common";
++import {
++	Ctx,
++	Input,
++	Mutation,
++	Query,
++	Router,
++	UseMiddlewares,
++} from "nestjs-trpc";
++import type { z } from "zod";
++import type { AuthedTrpcContext } from "../trpc/context.types";
++import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
++import {
++	createSupportRequestInput,
++	setSupportStatusInput,
++	supportListOutput,
++	supportRequestOutput,
++} from "./support.contracts";
++import { SupportService } from "./support.service";
++
++@Router({ alias: "support" })
++@UseMiddlewares(AuthMiddleware)
++export class SupportRouter {
++	constructor(
++		@Inject(SupportService) private readonly support: SupportService,
++	) {}
++
++	@Mutation({ input: createSupportRequestInput, output: supportRequestOutput })
++	async create(
++		@Ctx() ctx: AuthedTrpcContext,
++		@Input() input: z.infer<typeof createSupportRequestInput>,
++	) {
++		return this.support.create(ctx.user.id, input);
++	}
++
++	@Query({ output: supportListOutput })
++	async mine(@Ctx() ctx: AuthedTrpcContext) {
++		return this.support.mine(ctx.user.id);
++	}
++
++	@Query({ output: supportListOutput })
++	async team(@Ctx() ctx: AuthedTrpcContext) {
++		return this.support.team(ctx.user.id);
++	}
++
++	@Mutation({ input: setSupportStatusInput, output: supportRequestOutput })
++	async setStatus(
++		@Ctx() ctx: AuthedTrpcContext,
++		@Input() input: z.infer<typeof setSupportStatusInput>,
++	) {
++		return this.support.setStatus(ctx.user.id, input);
++	}
++}
+diff --git a/apps/api/src/support/support.service.ts b/apps/api/src/support/support.service.ts
+new file mode 100644
+index 0000000..312055a
+--- /dev/null
++++ b/apps/api/src/support/support.service.ts
+@@ -0,0 +1,148 @@
++import { canChangeRole, workspaceRoleOf } from "@crm/auth";
++import type { Db, Prisma } from "@crm/db";
++import {
++	ForbiddenException,
++	HttpException,
++	HttpStatus,
++	Injectable,
++	NotFoundException,
++} from "@nestjs/common";
++import { InjectDatabase } from "../database/database.constants";
++import type {
++	CreateSupportRequestInput,
++	SetSupportStatusInput,
++	SupportRequestRow,
++} from "./support.contracts";
++import { SUPPORT, SUPPORT_MESSAGES } from "./support-config";
++
++const HOUR_MS = 60 * 60 * 1000;
++
++const SELECT = {
++	id: true,
++	kind: true,
++	status: true,
++	subject: true,
++	message: true,
++	pagePath: true,
++	createdAt: true,
++	user: { select: { name: true, email: true } },
++} as const;
++
++type Row = Prisma.SupportRequestGetPayload<{ select: typeof SELECT }>;
++
++function toRow(row: Row, withAuthor: boolean): SupportRequestRow {
++	return {
++		id: row.id,
++		kind: row.kind,
++		status: row.status,
++		subject: row.subject,
++		message: row.message,
++		pagePath: row.pagePath,
++		createdAt: row.createdAt.toISOString(),
++		author: withAuthor ? row.user : null,
++	};
++}
++
++function subjectOf(message: string): string {
++	const firstLine = message.split("\n")[0]?.trim() ?? message;
++	return firstLine.length > SUPPORT.subjectMaxLength
++		? `${firstLine.slice(0, SUPPORT.subjectMaxLength - 1).trimEnd()}…`
++		: firstLine;
++}
++
++@Injectable()
++export class SupportService {
++	constructor(@InjectDatabase() private readonly db: Db) {}
++
++	async create(
++		userId: string,
++		input: CreateSupportRequestInput,
++	): Promise<SupportRequestRow> {
++		const recent = await this.db.supportRequest.count({
++			where: {
++				userId,
++				createdAt: { gte: new Date(Date.now() - HOUR_MS) },
++			},
++		});
++
++		if (recent >= SUPPORT.hourlyLimit) {
++			throw new HttpException(
++				SUPPORT_MESSAGES.tooMany,
++				HttpStatus.TOO_MANY_REQUESTS,
++			);
++		}
++
++		const row = await this.db.supportRequest.create({
++			data: {
++				userId,
++				kind: input.kind,
++				subject: subjectOf(input.message),
++				message: input.message,
++				pagePath: input.pagePath ?? null,
++				context: input.viewport ? { viewport: input.viewport } : undefined,
++			},
++			select: SELECT,
++		});
++
++		return toRow(row, false);
++	}
++
++	async mine(userId: string) {
++		const [rows, role] = await Promise.all([
++			this.db.supportRequest.findMany({
++				where: { userId },
++				orderBy: { createdAt: "desc" },
++				take: SUPPORT.listLimit,
++				select: SELECT,
++			}),
++			workspaceRoleOf(userId),
++		]);
++
++		return {
++			rows: rows.map((row) => toRow(row, false)),
++			canTriage: canChangeRole(role),
++		};
++	}
++
++	async team(userId: string) {
++		const role = await workspaceRoleOf(userId);
++
++		if (!canChangeRole(role)) {
++			throw new ForbiddenException(SUPPORT_MESSAGES.forbidden);
++		}
++
++		const rows = await this.db.supportRequest.findMany({
++			orderBy: [{ status: "asc" }, { createdAt: "desc" }],
++			take: SUPPORT.listLimit,
++			select: SELECT,
++		});
++
++		return { rows: rows.map((row) => toRow(row, true)), canTriage: true };
++	}
++
++	async setStatus(
++		userId: string,
++		input: SetSupportStatusInput,
++	): Promise<SupportRequestRow> {
++		const role = await workspaceRoleOf(userId);
++
++		if (!canChangeRole(role)) {
++			throw new ForbiddenException(SUPPORT_MESSAGES.forbidden);
++		}
++
++		const existing = await this.db.supportRequest.findUnique({
++			where: { id: input.id },
++			select: { id: true },
++		});
++
++		if (!existing) throw new NotFoundException(SUPPORT_MESSAGES.notFound);
++
++		const row = await this.db.supportRequest.update({
++			where: { id: input.id },
++			data: { status: input.status },
++			select: SELECT,
++		});
++
++		return toRow(row, true);
++	}
++}
 diff --git a/apps/api/test/presence.integration.spec.ts b/apps/api/test/presence.integration.spec.ts
 new file mode 100644
 index 0000000..0b0d46a
@@ -7043,6 +7398,129 @@ index 0000000..3fdf138
 +		).rejects.toThrow();
 +	});
 +});
+diff --git a/apps/api/test/support.integration.spec.ts b/apps/api/test/support.integration.spec.ts
+new file mode 100644
+index 0000000..545d915
+--- /dev/null
++++ b/apps/api/test/support.integration.spec.ts
+@@ -0,0 +1,117 @@
++import { afterAll, beforeAll, describe, expect, it } from "bun:test";
++import { randomUUID } from "node:crypto";
++import { WORKSPACE_ID } from "@crm/auth";
++import { db } from "@crm/db";
++import { SUPPORT } from "../src/support/support-config";
++import { SupportService } from "../src/support/support.service";
++
++const suffix = randomUUID();
++const owner = `support-owner-${suffix}`;
++const member = `support-member-${suffix}`;
++const service = new SupportService(db);
++
++beforeAll(async () => {
++	await db.user.createMany({
++		data: [owner, member].map((id) => ({
++			id,
++			name: id,
++			email: `${id}@example.test`,
++		})),
++	});
++	await db.organization.upsert({
++		where: { id: WORKSPACE_ID },
++		update: {},
++		create: {
++			id: WORKSPACE_ID,
++			name: "Support",
++			slug: WORKSPACE_ID,
++			createdAt: new Date(),
++		},
++	});
++	await db.member.createMany({
++		data: [
++			{ userId: owner, role: "owner" },
++			{ userId: member, role: "member" },
++		].map((item) => ({
++			...item,
++			id: `${item.userId}-member`,
++			organizationId: WORKSPACE_ID,
++			createdAt: new Date(),
++		})),
++	});
++});
++
++afterAll(async () => {
++	await db.member.deleteMany({ where: { userId: { in: [owner, member] } } });
++	await db.user.deleteMany({ where: { id: { in: [owner, member] } } });
++});
++
++describe("support requests", () => {
++	it("stores a request with a subject taken from the first line", async () => {
++		const row = await service.create(member, {
++			kind: "PROBLEM",
++			message: `${"Le SMS ne part pas ".repeat(10)}\nDeuxième ligne`,
++			pagePath: "/real-estate/inbox",
++			viewport: "390x844",
++		});
++
++		expect(row.status).toBe("OPEN");
++		expect(row.subject.length).toBeLessThanOrEqual(SUPPORT.subjectMaxLength);
++		expect(row.subject.endsWith("…")).toBe(true);
++		expect(row.pagePath).toBe("/real-estate/inbox");
++		expect(row.author).toBeNull();
++	});
++
++	it("shows a member only their own requests and no triage rights", async () => {
++		await service.create(owner, {
++			kind: "IDEA",
++			message: "Ajouter un export des rendez-vous",
++		});
++		const mine = await service.mine(member);
++
++		expect(mine.canTriage).toBe(false);
++		expect(mine.rows.length).toBeGreaterThan(0);
++		expect(mine.rows.every((row) => row.author === null)).toBe(true);
++		expect(
++			mine.rows.some((row) => row.subject.includes("export des rendez-vous")),
++		).toBe(false);
++	});
++
++	it("limits how many requests one person can send per hour", async () => {
++		const spammer = `support-spam-${suffix}`;
++		await db.user.create({
++			data: { id: spammer, name: spammer, email: `${spammer}@example.test` },
++		});
++		for (let index = 0; index < SUPPORT.hourlyLimit; index += 1)
++			await service.create(spammer, {
++				kind: "QUESTION",
++				message: `Question numéro ${index} sur le portail`,
++			});
++
++		await expect(
++			service.create(spammer, {
++				kind: "QUESTION",
++				message: "Une question de trop sur le portail",
++			}),
++		).rejects.toThrow();
++		await db.user.delete({ where: { id: spammer } });
++	});
++
++	it("lets only an owner or admin read and triage the team requests", async () => {
++		await expect(service.team(member)).rejects.toThrow();
++		const team = await service.team(owner);
++		const target = team.rows.find((row) => row.author?.name === member);
++
++		expect(target).toBeDefined();
++		if (!target) return;
++		const updated = await service.setStatus(owner, {
++			id: target.id,
++			status: "RESOLVED",
++		});
++
++		expect(updated.status).toBe("RESOLVED");
++		await expect(
++			service.setStatus(member, { id: target.id, status: "OPEN" }),
++		).rejects.toThrow();
++	});
++});
 diff --git a/apps/app/app/(app)/[slug]/(agent-builder)/agents/[agentId]/page.tsx b/apps/app/app/(app)/[slug]/(agent-builder)/agents/[agentId]/page.tsx
 index 1f5aa61..925a71d 100644
 --- a/apps/app/app/(app)/[slug]/(agent-builder)/agents/[agentId]/page.tsx
@@ -7393,87 +7871,383 @@ index 0000000..2146746
 +}
 diff --git a/apps/app/app/(app)/[slug]/account/account-view.tsx b/apps/app/app/(app)/[slug]/account/account-view.tsx
 new file mode 100644
-index 0000000..f38c167
+index 0000000..045aa67
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/account/account-view.tsx
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,367 @@
 +"use client";
 +
 +import Asleep from "@carbon/icons-react/es/Asleep";
-+import Light from "@carbon/icons-react/es/Light";
 +import Logout from "@carbon/icons-react/es/Logout";
-+import { AccountPanel } from "@crm/ui/components/account-panel";
++import { authClient } from "@crm/auth/client";
++import { AccountFacts, AccountSection } from "@crm/ui/components/account-panel";
++import { Avatar, AvatarFallback, AvatarImage } from "@crm/ui/components/avatar";
 +import { Button } from "@crm/ui/components/button";
++import { ContactLink } from "@crm/ui/components/contact-link";
++import { EmptyState } from "@crm/ui/components/empty-state";
++import { Field, FieldLabel } from "@crm/ui/components/field";
 +import { Icon } from "@crm/ui/components/icon";
++import { Input } from "@crm/ui/components/input";
++import { SessionList } from "@crm/ui/components/session-list";
++import { ToggleGroup, ToggleGroupItem } from "@crm/ui/components/toggle-group";
++import { initialsFromName } from "@crm/ui/lib/format";
 +import { useQuery } from "@tanstack/react-query";
++import Link from "next/link";
++import { useRouter } from "next/navigation";
 +import { useTheme } from "next-themes";
++import { useState } from "react";
 +import { toast } from "sonner";
++import {
++	AGENCY_ROLE_HINTS,
++	AGENCY_ROLE_LABELS,
++	PROVIDER_LABELS,
++	SHORTCUTS,
++	THEME_CHOICES,
++} from "@/lib/account-config";
 +import { signOutAndRedirect } from "@/lib/sign-out";
 +import { useTRPC } from "@/lib/trpc/client";
 +import { useAudience } from "@/lib/use-audience";
++import { useWorkspaceUrl } from "@/lib/use-workspace-url";
++import { describeDevice } from "@/lib/user-agent";
 +import { workspaceLabel } from "@/lib/workspace-label";
++
++type SessionRow = {
++	id: string;
++	token: string;
++	userAgent?: string | null;
++	updatedAt: Date | string;
++};
 +
 +export function AccountView({
 +	user,
++	providers,
++	currentSessionId,
 +}: {
 +	user: { name: string; email: string; image: string | null };
++	providers: string[];
++	currentSessionId: string;
 +}) {
 +	const trpc = useTRPC();
++	const router = useRouter();
++	const href = useWorkspaceUrl();
 +	const audience = useAudience();
++	const { theme, setTheme } = useTheme();
 +	const workspace = useQuery(trpc.workspace.get.queryOptions());
-+	const { resolvedTheme, setTheme } = useTheme();
-+	const dark = resolvedTheme === "dark";
++	const agencies = useQuery(trpc.realEstate.agencies.queryOptions());
++	const requests = useQuery(trpc.support.mine.queryOptions());
++	const [name, setName] = useState(user.name);
++	const [saving, setSaving] = useState(false);
++	const [sessions, setSessions] = useState<SessionRow[] | null>(null);
++	const [sessionsFailed, setSessionsFailed] = useState(false);
++	const [pendingId, setPendingId] = useState<string | null>(null);
++	const [revokingOthers, setRevokingOthers] = useState(false);
++
++	const loadSessions = async () => {
++		const result = await authClient.listSessions();
++		if (result.error || !result.data) {
++			setSessionsFailed(true);
++			return;
++		}
++		setSessionsFailed(false);
++		setSessions(result.data as SessionRow[]);
++	};
++
++	const sessionsQuery = useQuery({
++		queryKey: ["account", "sessions"],
++		queryFn: async () => {
++			await loadSessions();
++			return true;
++		},
++		staleTime: 0,
++	});
++
++	const openRequests =
++		requests.data?.rows.filter((row) => row.status !== "RESOLVED").length ?? 0;
++	const dirty = name.trim() !== user.name && name.trim().length > 0;
++
++	const saveName = async () => {
++		setSaving(true);
++		const result = await authClient.updateUser({ name: name.trim() });
++		setSaving(false);
++		if (result.error) {
++			toast.error("Le nom n'a pas pu être enregistré. Réessayez.");
++			return;
++		}
++		toast.success("Nom enregistré.");
++		router.refresh();
++	};
++
++	const revoke = async (id: string) => {
++		const target = sessions?.find((session) => session.id === id);
++		if (!target) return;
++		setPendingId(id);
++		const result = await authClient.revokeSession({ token: target.token });
++		setPendingId(null);
++		if (result.error) {
++			toast.error("L'appareil n'a pas pu être déconnecté.");
++			return;
++		}
++		toast.success("Appareil déconnecté.");
++		await loadSessions();
++	};
++
++	const revokeOthers = async () => {
++		setRevokingOthers(true);
++		const result = await authClient.revokeOtherSessions();
++		setRevokingOthers(false);
++		if (result.error) {
++			toast.error("Les autres appareils n'ont pas pu être déconnectés.");
++			return;
++		}
++		toast.success("Les autres appareils sont déconnectés.");
++		await loadSessions();
++	};
++
++	const providerNames = providers
++		.map((provider) => PROVIDER_LABELS[provider] ?? provider)
++		.join(", ");
 +
 +	return (
-+		<AccountPanel
-+			name={user.name}
-+			email={user.email}
-+			image={user.image}
-+			rows={[
-+				{
-+					label: "Espace de travail",
-+					value: workspaceLabel(workspace.data?.name),
-+				},
-+				{
-+					label: "Profil",
-+					value: audience === "staff" ? "Équipe Fratex" : "Courtier",
-+				},
-+				{ label: "Langue", value: "Français (Canada)" },
-+				{
-+					label: "Fuseau horaire et devise",
-+					value: "Heure de l'Est, dollar canadien",
-+				},
-+			]}
-+		>
-+			<Button
-+				variant="outline"
-+				onClick={() => {
-+					setTheme(dark ? "light" : "dark");
-+				}}
++		<div className="grid gap-6 lg:grid-cols-2">
++			<AccountSection
++				title="Profil"
++				description="Votre nom apparaît dans les notes, les rendez-vous et la présence de l'équipe."
++				info="Votre courriel vient de votre compte Google ou Microsoft et ne se change pas ici. Le nom affiché se modifie."
 +			>
-+				<Icon icon={dark ? Light : Asleep} />
-+				{dark ? "Mode clair" : "Mode sombre"}
-+			</Button>
-+			<Button
-+				variant="outline"
-+				onClick={() => {
-+					signOutAndRedirect().catch(() =>
-+						toast.error("Impossible de se déconnecter."),
-+					);
-+				}}
++				<div className="flex items-center gap-3">
++					<Avatar size="lg">
++						{user.image ? <AvatarImage src={user.image} alt="" /> : null}
++						<AvatarFallback>{initialsFromName(user.name)}</AvatarFallback>
++					</Avatar>
++					<div className="flex min-w-0 flex-col">
++						<span className="truncate font-medium">{user.name}</span>
++						<ContactLink
++							kind="email"
++							value={user.email}
++							className="truncate text-sm text-muted-foreground"
++						/>
++					</div>
++				</div>
++				<form
++					className="flex flex-col gap-2 sm:flex-row sm:items-end"
++					onSubmit={(event) => {
++						event.preventDefault();
++						if (dirty && !saving) void saveName();
++					}}
++				>
++					<Field className="flex-1">
++						<FieldLabel htmlFor="account-name">Nom affiché</FieldLabel>
++						<Input
++							id="account-name"
++							value={name}
++							maxLength={120}
++							onChange={(event) => setName(event.target.value)}
++						/>
++					</Field>
++					<Button type="submit" disabled={!dirty || saving}>
++						{saving ? "Enregistrement…" : "Enregistrer"}
++					</Button>
++				</form>
++				<AccountFacts
++					rows={[
++						{
++							label: "Espace de travail",
++							value: workspaceLabel(workspace.data?.name),
++						},
++						{
++							label: "Profil",
++							value: audience === "staff" ? "Équipe Fratex" : "Courtier",
++						},
++					]}
++				/>
++			</AccountSection>
++
++			<AccountSection
++				title="Agences et rôles"
++				description="Ce que vous avez le droit de voir et de faire, agence par agence."
++				info="Un courtier ne voit que ses propres prospects. Les propriétaires et les administrateurs voient toute l'agence."
 +			>
-+				<Icon icon={Logout} />
-+				Se déconnecter
-+			</Button>
-+		</AccountPanel>
++				{agencies.data && agencies.data.agencies.length > 0 ? (
++					<ul className="flex flex-col divide-y rounded-lg border bg-card">
++						{agencies.data.agencies.map((agency) => (
++							<li key={agency.id} className="flex flex-col gap-0.5 p-3 text-sm">
++								<span className="flex items-baseline justify-between gap-2">
++									<span className="truncate font-medium">{agency.name}</span>
++									<span className="shrink-0 text-xs font-medium">
++										{AGENCY_ROLE_LABELS[agency.role] ?? agency.role}
++									</span>
++								</span>
++								<span className="text-xs text-muted-foreground">
++									{AGENCY_ROLE_HINTS[agency.role] ?? ""}
++								</span>
++							</li>
++						))}
++					</ul>
++				) : (
++					<EmptyState
++						compact
++						icon={Logout}
++						title="Aucune agence"
++						description="Votre compte n'est lié à aucune agence pour l'instant. Demandez à un administrateur de vous inviter."
++					/>
++				)}
++			</AccountSection>
++
++			<AccountSection
++				title="Connexion et courriel"
++				description="Comment vous vous connectez et ce que Fratex lit de votre boîte courriel."
++				info="Fratex a un accès en lecture seule à votre boîte courriel, pour afficher les échanges dans la fiche des prospects. Il ne peut ni envoyer ni supprimer de courriels."
++			>
++				<AccountFacts
++					rows={[
++						{
++							label: "Connexion avec",
++							value: providerNames || "Non précisé",
++						},
++						{
++							label: "Courriel synchronisé",
++							value: "Oui, en lecture seule",
++						},
++					]}
++				/>
++				<Button variant="outline" className="self-start" asChild>
++					<Link href={href("/settings/connections")}>Gérer les connexions</Link>
++				</Button>
++			</AccountSection>
++
++			<AccountSection
++				title="Appareils connectés"
++				description="Déconnectez un appareil que vous ne reconnaissez pas ou que vous avez perdu."
++				info="Chaque navigateur où vous êtes connecté est une session. Déconnecter un appareil le force à se reconnecter."
++			>
++				{sessionsQuery.isPending ? (
++					<p className="text-sm text-muted-foreground">
++						Chargement des appareils…
++					</p>
++				) : sessionsFailed || !sessions ? (
++					<EmptyState
++						compact
++						icon={Logout}
++						title="Appareils indisponibles"
++						description="La liste des appareils n'a pas pu être chargée. Rechargez la page."
++					/>
++				) : (
++					<SessionList
++						sessions={sessions.map((session) => ({
++							id: session.id,
++							device: describeDevice(session.userAgent),
++							lastActiveAt: new Date(session.updatedAt).toISOString(),
++							current: session.id === currentSessionId,
++						}))}
++						pendingId={pendingId}
++						onRevoke={(id) => {
++							void revoke(id);
++						}}
++						onRevokeOthers={() => {
++							void revokeOthers();
++						}}
++						revokingOthers={revokingOthers}
++					/>
++				)}
++			</AccountSection>
++
++			<AccountSection title="Affichage" description="Thème, langue et formats.">
++				<Field>
++					<FieldLabel>Thème</FieldLabel>
++					<ToggleGroup
++						type="single"
++						variant="outline"
++						value={theme ?? "system"}
++						onValueChange={(value) => {
++							if (value) setTheme(value);
++						}}
++						aria-label="Thème"
++					>
++						{THEME_CHOICES.map((choice) => (
++							<ToggleGroupItem key={choice.value} value={choice.value}>
++								{choice.value === "dark" && <Icon icon={Asleep} />}
++								{choice.label}
++							</ToggleGroupItem>
++						))}
++					</ToggleGroup>
++				</Field>
++				<AccountFacts
++					rows={[
++						{ label: "Langue", value: "Français (Canada)" },
++						{ label: "Fuseau horaire", value: "Heure de l'Est (Montréal)" },
++						{ label: "Devise", value: "Dollar canadien (CAD)" },
++					]}
++				/>
++			</AccountSection>
++
++			<AccountSection
++				title="Raccourcis clavier"
++				description="Gagnez du temps au quotidien."
++			>
++				<ul className="flex flex-col divide-y rounded-lg border bg-card">
++					{SHORTCUTS.map((shortcut) => (
++						<li
++							key={shortcut.keys}
++							className="flex items-center justify-between gap-3 p-3 text-sm"
++						>
++							<span className="text-muted-foreground">{shortcut.action}</span>
++							<kbd className="shrink-0 rounded-md border bg-muted px-1.5 py-0.5 font-mono text-xs">
++								{shortcut.keys}
++							</kbd>
++						</li>
++					))}
++				</ul>
++			</AccountSection>
++
++			<AccountSection
++				title="Aide"
++				description="Vos demandes à l'équipe Fratex."
++				action={
++					<Button variant="outline" size="sm" asChild>
++						<Link href={href("/support")}>Ouvrir le support</Link>
++					</Button>
++				}
++			>
++				<AccountFacts
++					rows={[
++						{
++							label: "Demandes ouvertes",
++							value: String(openRequests),
++						},
++						{
++							label: "Demandes envoyées",
++							value: String(requests.data?.rows.length ?? 0),
++						},
++					]}
++				/>
++			</AccountSection>
++
++			<AccountSection
++				title="Session"
++				description="Fermez votre session sur cet appareil."
++			>
++				<Button
++					variant="outline"
++					className="self-start"
++					onClick={() => {
++						signOutAndRedirect().catch(() =>
++							toast.error("Impossible de se déconnecter."),
++						);
++					}}
++				>
++					<Icon icon={Logout} />
++					Se déconnecter
++				</Button>
++			</AccountSection>
++		</div>
 +	);
 +}
 diff --git a/apps/app/app/(app)/[slug]/account/page.tsx b/apps/app/app/(app)/[slug]/account/page.tsx
 new file mode 100644
-index 0000000..42cafd7
+index 0000000..2f55301
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/account/page.tsx
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,52 @@
 +import type { Metadata } from "next";
 +import { Suspense } from "react";
 +import {
@@ -7486,7 +8260,7 @@ index 0000000..42cafd7
 +	PageShellTitle,
 +} from "@/components/page-shell";
 +import { PAGE_HELP } from "@/lib/page-help";
-+import { requireSession } from "@/lib/session";
++import { requireSession, signInAccounts } from "@/lib/session";
 +import { AccountView } from "./account-view";
 +
 +export const metadata: Metadata = {
@@ -7500,7 +8274,7 @@ index 0000000..42cafd7
 +				<PageShellHeading>
 +					<PageShellTitle info={PAGE_HELP.account}>Mon compte</PageShellTitle>
 +					<PageShellDescription>
-+						Vos informations de connexion et votre affichage.
++						Votre profil, votre connexion, vos appareils et votre affichage.
 +					</PageShellDescription>
 +				</PageShellHeading>
 +			</PageShellHeader>
@@ -7515,11 +8289,14 @@ index 0000000..42cafd7
 +}
 +
 +async function Account() {
-+	const { user } = await requireSession();
++	const { user, session } = await requireSession();
++	const accounts = await signInAccounts(user.id);
 +
 +	return (
 +		<AccountView
 +			user={{ name: user.name, email: user.email, image: user.image ?? null }}
++			providers={accounts.map((account) => account.providerId)}
++			currentSessionId={session.id}
 +		/>
 +	);
 +}
@@ -16717,26 +17494,23 @@ index 9ced037..af58c9d 100644
  			</CardContent>
 diff --git a/apps/app/app/(app)/[slug]/support/page.tsx b/apps/app/app/(app)/[slug]/support/page.tsx
 new file mode 100644
-index 0000000..961df41
+index 0000000..4bf1f7f
 --- /dev/null
 +++ b/apps/app/app/(app)/[slug]/support/page.tsx
-@@ -0,0 +1,43 @@
-+import { SupportPanel } from "@crm/ui/components/support-panel";
+@@ -0,0 +1,39 @@
 +import type { Metadata } from "next";
++import { Suspense } from "react";
 +import {
 +	PageShell,
 +	PageShellContent,
 +	PageShellDescription,
 +	PageShellHeader,
 +	PageShellHeading,
++	PageShellLoading,
 +	PageShellTitle,
 +} from "@/components/page-shell";
 +import { PAGE_HELP } from "@/lib/page-help";
-+import {
-+	SUPPORT_ANSWERS,
-+	SUPPORT_CHECKLIST,
-+	SUPPORT_EMAIL,
-+} from "@/lib/support-config";
++import { SupportView } from "./support-view";
 +
 +export const metadata: Metadata = {
 +	title: "Support",
@@ -16749,19 +17523,182 @@ index 0000000..961df41
 +				<PageShellHeading>
 +					<PageShellTitle info={PAGE_HELP.support}>Support</PageShellTitle>
 +					<PageShellDescription>
-+						Un blocage ? Commencez par les réponses rapides, puis écrivez-nous.
++						Un problème, une question ou une idée ? Dites-le-nous en quelques
++						secondes.
 +					</PageShellDescription>
 +				</PageShellHeading>
 +			</PageShellHeader>
 +
 +			<PageShellContent>
-+				<SupportPanel
-+					email={SUPPORT_EMAIL}
-+					checklist={SUPPORT_CHECKLIST}
-+					answers={SUPPORT_ANSWERS}
-+				/>
++				<Suspense fallback={<PageShellLoading />}>
++					<SupportView />
++				</Suspense>
 +			</PageShellContent>
 +		</PageShell>
++	);
++}
+diff --git a/apps/app/app/(app)/[slug]/support/support-view.tsx b/apps/app/app/(app)/[slug]/support/support-view.tsx
+new file mode 100644
+index 0000000..00a7340
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/support/support-view.tsx
+@@ -0,0 +1,158 @@
++"use client";
++
++import {
++	Card,
++	CardContent,
++	CardDescription,
++	CardHeader,
++	CardTitle,
++} from "@crm/ui/components/card";
++import { SupportPanel } from "@crm/ui/components/support-panel";
++import {
++	type SupportKind,
++	SupportRequestForm,
++} from "@crm/ui/components/support-request-form";
++import {
++	SupportRequestList,
++	type SupportStatus,
++} from "@crm/ui/components/support-request-list";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
++import { useEffect, useState } from "react";
++import { toast } from "sonner";
++import {
++	SUPPORT_ANSWERS,
++	SUPPORT_EMAIL,
++	SUPPORT_LIMITS,
++} from "@/lib/support-config";
++import {
++	matchNavPage,
++	OTHER_PAGE,
++	pagePathOf,
++	supportPageLabel,
++	supportPageOptions,
++} from "@/lib/support-pages";
++import { useTRPC } from "@/lib/trpc/client";
++import { useAudience } from "@/lib/use-audience";
++import { useWorkspaceSlug } from "@/lib/use-workspace-url";
++
++const KINDS = ["PROBLEM", "QUESTION", "IDEA"] as const;
++
++function describe(error: unknown): string {
++	return error instanceof Error && error.message
++		? error.message
++		: "La demande n'a pas pu être envoyée. Réessayez dans un instant.";
++}
++
++export function SupportView() {
++	const trpc = useTRPC();
++	const cache = useQueryClient();
++	const slug = useWorkspaceSlug();
++	const audience = useAudience();
++	const [type, setType] = useQueryState(
++		"type",
++		parseAsStringLiteral(KINDS).withDefault("PROBLEM"),
++	);
++	const [from] = useQueryState("from", parseAsString);
++	const initialPage = from
++		? (matchNavPage(pagePathOf(from, slug), audience)?.href ?? OTHER_PAGE)
++		: OTHER_PAGE;
++	const [page, setPage] = useState(initialPage);
++	const [message, setMessage] = useState("");
++	const [error, setError] = useState<string | null>(null);
++
++	useEffect(() => {
++		setPage(initialPage);
++	}, [initialPage]);
++
++	const mine = useQuery(trpc.support.mine.queryOptions());
++	const canTriage = mine.data?.canTriage ?? false;
++	const team = useQuery(
++		trpc.support.team.queryOptions(undefined, { enabled: canTriage }),
++	);
++	const create = useMutation(
++		trpc.support.create.mutationOptions({
++			onSuccess: async () => {
++				setMessage("");
++				setError(null);
++				toast.success(
++					"Demande envoyée. L'équipe Fratex la verra dans sa liste.",
++				);
++				await cache.invalidateQueries(trpc.support.pathFilter());
++			},
++			onError: (failure) => setError(describe(failure)),
++		}),
++	);
++	const setStatus = useMutation(
++		trpc.support.setStatus.mutationOptions({
++			onSuccess: () => cache.invalidateQueries(trpc.support.pathFilter()),
++			onError: (failure) => toast.error(describe(failure)),
++		}),
++	);
++
++	const submit = () => {
++		const specific = from ? pagePathOf(from, slug) : null;
++		const matched = specific ? matchNavPage(specific, audience)?.href : null;
++		create.mutate({
++			kind: type as SupportKind,
++			message: message.trim(),
++			pagePath: specific && matched === page ? specific : page || undefined,
++			viewport: `${window.innerWidth}x${window.innerHeight}`,
++		});
++	};
++
++	return (
++		<SupportPanel
++			email={SUPPORT_EMAIL}
++			answers={SUPPORT_ANSWERS}
++			form={
++				<SupportRequestForm
++					kind={type}
++					onKindChange={(kind) => {
++						void setType(kind);
++					}}
++					page={page}
++					onPageChange={setPage}
++					pageOptions={supportPageOptions(audience)}
++					message={message}
++					onMessageChange={setMessage}
++					minLength={SUPPORT_LIMITS.messageMin}
++					maxLength={SUPPORT_LIMITS.messageMax}
++					pending={create.isPending}
++					error={error}
++					onSubmit={submit}
++				/>
++			}
++			history={
++				<SupportRequestList
++					items={mine.data?.rows ?? []}
++					empty="Vos demandes apparaîtront ici avec leur état : ouverte, en cours ou résolue."
++					pageLabel={supportPageLabel}
++				/>
++			}
++			team={
++				canTriage && (
++					<Card>
++						<CardHeader>
++							<CardTitle>Demandes de l'équipe</CardTitle>
++							<CardDescription>
++								Visible par les propriétaires et les administrateurs. Changez
++								l'état au fil du traitement.
++							</CardDescription>
++						</CardHeader>
++						<CardContent>
++							<SupportRequestList
++								items={team.data?.rows ?? []}
++								empty="Aucune demande de l'équipe pour l'instant."
++								pageLabel={supportPageLabel}
++								onStatusChange={(id: string, status: SupportStatus) =>
++									setStatus.mutate({ id, status })
++								}
++							/>
++						</CardContent>
++					</Card>
++				)
++			}
++		/>
 +	);
 +}
 diff --git a/apps/app/app/(landing)/agenda-connecte/page.tsx b/apps/app/app/(landing)/agenda-connecte/page.tsx
@@ -20324,10 +21261,23 @@ index 0000000..cc4c9e9
 +	);
 +}
 diff --git a/apps/app/components/app-header.tsx b/apps/app/components/app-header.tsx
-index 807d15b..7fdccfb 100644
+index 807d15b..57d754c 100644
 --- a/apps/app/components/app-header.tsx
 +++ b/apps/app/components/app-header.tsx
-@@ -15,15 +15,16 @@ import {
+@@ -1,10 +1,12 @@
+ "use client";
+ 
+ import Asleep from "@carbon/icons-react/es/Asleep";
++import Help from "@carbon/icons-react/es/Help";
+ import Light from "@carbon/icons-react/es/Light";
+ import Logout from "@carbon/icons-react/es/Logout";
+ import Menu from "@carbon/icons-react/es/Menu";
+ import UserAvatar from "@carbon/icons-react/es/UserAvatar";
++import Warning from "@carbon/icons-react/es/Warning";
+ import { Avatar, AvatarFallback, AvatarImage } from "@crm/ui/components/avatar";
+ import { Button } from "@crm/ui/components/button";
+ import {
+@@ -15,15 +17,18 @@ import {
  	DropdownMenuSeparator,
  	DropdownMenuTrigger,
  } from "@crm/ui/components/dropdown-menu";
@@ -20337,17 +21287,19 @@ index 807d15b..7fdccfb 100644
 +import { TopBar } from "@crm/ui/components/top-bar";
  import { useQuery } from "@tanstack/react-query";
  import Link from "next/link";
++import { usePathname, useRouter } from "next/navigation";
  import { useTheme } from "next-themes";
  import { toast } from "sonner";
 -import { EnrichmentQueue } from "@/components/enrichment-queue";
 +import { AppBreadcrumb } from "@/components/app-breadcrumb";
 +import { HeaderSearch } from "@/components/header-search";
  import { useMobileNav } from "@/components/mobile-nav";
++import { PageTranslation } from "@/components/page-translation";
 +import { TeamPresenceControl } from "@/components/team-presence-control";
  import { signOutAndRedirect } from "@/lib/sign-out";
  import { useTRPC } from "@/lib/trpc/client";
  import { useWorkspaceUrl } from "@/lib/use-workspace-url";
-@@ -39,66 +40,56 @@ export function AppHeader({ user }: { user: User }) {
+@@ -39,72 +44,66 @@ export function AppHeader({ user }: { user: User }) {
  	const label = workspaceLabel(workspace.data?.name);
  
  	return (
@@ -20387,6 +21339,7 @@ index 807d15b..7fdccfb 100644
 +			)}
 +			breadcrumb={<AppBreadcrumb rootLabel={label} />}
 +			search={<HeaderSearch />}
++			actions={<PageTranslation />}
 +			presence={<TeamPresenceControl />}
 +			userMenu={
  				<UserMenu
@@ -20437,7 +21390,16 @@ index 807d15b..7fdccfb 100644
  	);
  }
  
-@@ -112,7 +103,7 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+ 	const { resolvedTheme, setTheme } = useTheme();
+ 	const isDark = resolvedTheme === "dark";
++	const router = useRouter();
++	const pathname = usePathname();
++	const workspaceUrl = useWorkspaceUrl();
+ 
+ 	return (
+ 		<DropdownMenu>
+@@ -112,7 +111,7 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
  				<Button
  					variant="ghost"
  					size="icon"
@@ -20446,7 +21408,33 @@ index 807d15b..7fdccfb 100644
  					className="hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent"
  				>
  					<Avatar className="size-7">
-@@ -136,12 +127,12 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+@@ -129,6 +128,25 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+ 					<span className="min-w-0 truncate">{user.email}</span>
+ 				</DropdownMenuLabel>
+ 				<DropdownMenuSeparator />
++				<DropdownMenuItem
++					onSelect={() =>
++						router.push(
++							workspaceUrl(
++								`/support?type=PROBLEM&from=${encodeURIComponent(pathname)}`,
++							),
++						)
++					}
++				>
++					<Warning />
++					Signaler un problème
++				</DropdownMenuItem>
++				<DropdownMenuItem
++					onSelect={() => router.push(workspaceUrl("/support"))}
++				>
++					<Help />
++					Aide et support
++				</DropdownMenuItem>
++				<DropdownMenuSeparator />
+ 				<DropdownMenuItem
+ 					onSelect={(event) => {
+ 						event.preventDefault();
+@@ -136,12 +154,12 @@ function UserMenu({ user, onSignOut }: { user: User; onSignOut: () => void }) {
  					}}
  				>
  					{isDark ? <Light /> : <Asleep />}
@@ -23971,6 +24959,140 @@ index 90e1642..092fc41 100644
  			</span>
  		</PageShell>
  	);
+diff --git a/apps/app/components/page-translation.tsx b/apps/app/components/page-translation.tsx
+new file mode 100644
+index 0000000..fa3b95f
+--- /dev/null
++++ b/apps/app/components/page-translation.tsx
+@@ -0,0 +1,128 @@
++"use client";
++
++import {
++	TranslateConsentDialog,
++	TranslateMenu,
++} from "@crm/ui/components/translate-menu";
++import { useEffect, useState } from "react";
++import {
++	activeLanguage,
++	languageLabel,
++	translationCookies,
++} from "@/lib/page-translation";
++import { TRANSLATION } from "@/lib/translation-config";
++
++declare global {
++	interface Window {
++		google?: {
++			translate: {
++				TranslateElement: new (
++					options: { pageLanguage: string; autoDisplay: boolean },
++					elementId: string,
++				) => unknown;
++			};
++		};
++		initGoogleTranslate?: () => void;
++	}
++}
++
++function installDomGuards() {
++	const removeChild = Node.prototype.removeChild;
++	Node.prototype.removeChild = function <T extends Node>(
++		this: Node,
++		child: T,
++	): T {
++		if (child.parentNode !== this) return child;
++		return removeChild.call(this, child) as T;
++	};
++	const insertBefore = Node.prototype.insertBefore;
++	Node.prototype.insertBefore = function <T extends Node>(
++		this: Node,
++		node: T,
++		reference: Node | null,
++	): T {
++		if (reference && reference.parentNode !== this) return node;
++		return insertBefore.call(this, node, reference) as T;
++	};
++}
++
++function loadGoogleTranslate() {
++	if (document.getElementById(TRANSLATION.elementId)) return;
++	installDomGuards();
++	const host = document.createElement("div");
++	host.id = TRANSLATION.elementId;
++	host.hidden = true;
++	document.body.appendChild(host);
++	window[TRANSLATION.callback] = () => {
++		if (!window.google) return;
++		new window.google.translate.TranslateElement(
++			{ pageLanguage: TRANSLATION.pageLanguage, autoDisplay: false },
++			TRANSLATION.elementId,
++		);
++	};
++	const script = document.createElement("script");
++	script.src = `${TRANSLATION.scriptSrc}?cb=${TRANSLATION.callback}`;
++	script.async = true;
++	document.body.appendChild(script);
++}
++
++function applyLanguage(code: string | null) {
++	for (const cookie of translationCookies(code, window.location.hostname))
++		document.cookie = cookie;
++	window.location.reload();
++}
++
++function hasConsent(): boolean {
++	try {
++		return window.localStorage.getItem(TRANSLATION.consentKey) === "1";
++	} catch {
++		return false;
++	}
++}
++
++function rememberConsent() {
++	try {
++		window.localStorage.setItem(TRANSLATION.consentKey, "1");
++	} catch {
++		return;
++	}
++}
++
++export function PageTranslation() {
++	const [active, setActive] = useState<string | null>(null);
++	const [pending, setPending] = useState<string | null>(null);
++
++	useEffect(() => {
++		const code = activeLanguage(document.cookie);
++		setActive(code);
++		if (code) loadGoogleTranslate();
++	}, []);
++
++	return (
++		<>
++			<TranslateMenu
++				languages={TRANSLATION.languages}
++				original={TRANSLATION.original}
++				active={active}
++				notice={TRANSLATION.notice}
++				onSelect={(code) => {
++					if (code && !hasConsent()) {
++						setPending(code);
++						return;
++					}
++					applyLanguage(code);
++				}}
++			/>
++			<TranslateConsentDialog
++				open={pending !== null}
++				languageLabel={pending ? languageLabel(pending) : ""}
++				notice={TRANSLATION.notice}
++				onCancel={() => setPending(null)}
++				onConfirm={() => {
++					rememberConsent();
++					applyLanguage(pending);
++				}}
++			/>
++		</>
++	);
++}
 diff --git a/apps/app/components/slack/channel-picker.tsx b/apps/app/components/slack/channel-picker.tsx
 index dc2ed4b..b02166d 100644
 --- a/apps/app/components/slack/channel-picker.tsx
@@ -24092,6 +25214,51 @@ index 0000000..c0a4abd
 +		/>
 +	);
 +}
+diff --git a/apps/app/lib/account-config.ts b/apps/app/lib/account-config.ts
+new file mode 100644
+index 0000000..61bc008
+--- /dev/null
++++ b/apps/app/lib/account-config.ts
+@@ -0,0 +1,39 @@
++export const AGENCY_ROLE_LABELS: Record<string, string> = {
++	OWNER: "Propriétaire",
++	ADMIN: "Administrateur",
++	MARKETER: "Responsable marketing",
++	REALTOR: "Courtier",
++	VIEWER: "Lecteur",
++};
++
++export const AGENCY_ROLE_HINTS: Record<string, string> = {
++	OWNER: "Accès complet, y compris les connexions et les membres.",
++	ADMIN: "Gère les courtiers, les connexions et les prospects.",
++	MARKETER: "Suit les prospects et les campagnes, sans changer les connexions.",
++	REALTOR: "Voit uniquement ses propres prospects et rendez-vous.",
++	VIEWER: "Consulte sans pouvoir modifier.",
++};
++
++export const PROVIDER_LABELS: Record<string, string> = {
++	google: "Google",
++	microsoft: "Microsoft",
++	credential: "Courriel et mot de passe",
++};
++
++export const THEME_CHOICES = [
++	{ value: "light", label: "Clair" },
++	{ value: "dark", label: "Sombre" },
++	{ value: "system", label: "Automatique" },
++] as const;
++
++export const SHORTCUTS = [
++	{
++		keys: "Ctrl K",
++		action: "Chercher une page ou un prospect, de n'importe où",
++	},
++	{
++		keys: "Ctrl Entrée",
++		action: "Enregistrer une note sur la fiche d'un prospect",
++	},
++	{ keys: "Échap", action: "Fermer une fenêtre ou la recherche" },
++] as const;
 diff --git a/apps/app/lib/activity-presentation.ts b/apps/app/lib/activity-presentation.ts
 index 3f19918..4bd5981 100644
 --- a/apps/app/lib/activity-presentation.ts
@@ -25791,7 +26958,7 @@ index ea82737..49bd165 100644
 -}
 diff --git a/apps/app/lib/page-help.ts b/apps/app/lib/page-help.ts
 new file mode 100644
-index 0000000..12baa56
+index 0000000..3158a5b
 --- /dev/null
 +++ b/apps/app/lib/page-help.ts
 @@ -0,0 +1,44 @@
@@ -25835,10 +27002,95 @@ index 0000000..12baa56
 +	account:
 +		"Vos informations de connexion et vos préférences d'affichage. Ces données viennent de votre compte Google ou Microsoft : pour les changer, modifiez-les chez votre fournisseur.",
 +	support:
-+		"Les réponses aux situations les plus fréquentes et le moyen de joindre l'équipe Fratex. Joignez le courtier ou le prospect concerné pour aller plus vite.",
++		"Envoyez une demande à l'équipe Fratex : un problème, une question ou une idée. La page où vous étiez est jointe automatiquement. Vous retrouvez ici le suivi de chaque demande.",
 +} as const;
 +
 +export type PageHelpKey = keyof typeof PAGE_HELP;
+diff --git a/apps/app/lib/page-translation.test.ts b/apps/app/lib/page-translation.test.ts
+new file mode 100644
+index 0000000..4e13426
+--- /dev/null
++++ b/apps/app/lib/page-translation.test.ts
+@@ -0,0 +1,41 @@
++import { describe, expect, it } from "bun:test";
++import {
++	activeLanguage,
++	languageLabel,
++	translationCookies,
++} from "./page-translation";
++
++describe("page translation cookie", () => {
++	it("reads the target language from the Google cookie", () => {
++		expect(activeLanguage("a=1; googtrans=/fr/en; b=2")).toBe("en");
++		expect(activeLanguage("googtrans=/fr/zh-CN")).toBe("zh-CN");
++	});
++
++	it("ignores other source languages and unknown targets", () => {
++		expect(activeLanguage("googtrans=/en/fr")).toBeNull();
++		expect(activeLanguage("googtrans=/fr/xx")).toBeNull();
++		expect(activeLanguage("")).toBeNull();
++	});
++
++	it("sets the cookie on the host and its domain variants", () => {
++		expect(translationCookies("es", "localhost")).toEqual([
++			"googtrans=/fr/es; path=/",
++		]);
++		const cookies = translationCookies("es", "app.fratex.ca");
++
++		expect(cookies).toHaveLength(3);
++		expect(
++			cookies.every((cookie) => cookie.startsWith("googtrans=/fr/es")),
++		).toBe(true);
++	});
++
++	it("expires the cookie when going back to the original language", () => {
++		for (const cookie of translationCookies(null, "app.fratex.ca"))
++			expect(cookie).toContain("expires=Thu, 01 Jan 1970");
++	});
++
++	it("labels a language by its code", () => {
++		expect(languageLabel("ht")).toBe("Kreyòl ayisyen");
++		expect(languageLabel("zz")).toBe("zz");
++	});
++});
+diff --git a/apps/app/lib/page-translation.ts b/apps/app/lib/page-translation.ts
+new file mode 100644
+index 0000000..319905c
+--- /dev/null
++++ b/apps/app/lib/page-translation.ts
+@@ -0,0 +1,32 @@
++import { TRANSLATION } from "@/lib/translation-config";
++
++const COOKIE_PATTERN = new RegExp(
++	`(?:^|;\\s*)${TRANSLATION.cookie}=/${TRANSLATION.pageLanguage}/([A-Za-z-]+)`,
++);
++
++export function activeLanguage(cookieHeader: string): string | null {
++	const code = COOKIE_PATTERN.exec(cookieHeader)?.[1];
++	return code &&
++		TRANSLATION.languages.some((language) => language.code === code)
++		? code
++		: null;
++}
++
++export function translationCookies(
++	code: string | null,
++	hostname: string,
++): string[] {
++	const value = code ? `/${TRANSLATION.pageLanguage}/${code}` : "";
++	const expiry = code ? "" : "; expires=Thu, 01 Jan 1970 00:00:00 GMT";
++	const base = `${TRANSLATION.cookie}=${value}; path=/${expiry}`;
++	return hostname.includes(".")
++		? [base, `${base}; domain=.${hostname}`, `${base}; domain=${hostname}`]
++		: [base];
++}
++
++export function languageLabel(code: string): string {
++	return (
++		TRANSLATION.languages.find((language) => language.code === code)?.label ??
++		code
++	);
++}
 diff --git a/apps/app/lib/presence-config.ts b/apps/app/lib/presence-config.ts
 new file mode 100644
 index 0000000..94484de
@@ -25893,25 +27145,21 @@ index 7315b5f..2f1d51f 100644
  const CONTACT_LINKS: SocialLink<ContactLinks>[] = [
 diff --git a/apps/app/lib/support-config.ts b/apps/app/lib/support-config.ts
 new file mode 100644
-index 0000000..da0a67d
+index 0000000..631726d
 --- /dev/null
 +++ b/apps/app/lib/support-config.ts
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,33 @@
 +import type { ReactNode } from "react";
 +
 +export const SUPPORT_EMAIL = "support@fratex.ca";
 +
-+export const SUPPORT_CHECKLIST = [
-+	"La page où vous étiez et ce que vous avez fait juste avant.",
-+	"Le nom du courtier ou du prospect concerné (jamais son mot de passe).",
-+	"Une capture d'écran du message d'erreur, s'il y en a un.",
-+];
++export const SUPPORT_LIMITS = { messageMin: 10, messageMax: 4000 } as const;
 +
 +export const SUPPORT_ANSWERS: { question: string; answer: ReactNode }[] = [
 +	{
 +		question: "L'assistant n'écrit pas au prospect",
 +		answer:
-+			"Vérifiez trois choses : le prospect a donné son consentement aux SMS (fiche du prospect, Suivi et consentement), un numéro Twilio est connecté (Paramètres, Connexions) et l'assistant n'est pas en pause sur cette conversation (Boîte de réception, bouton Reprendre).",
++			"Vérifiez trois choses : le prospect a donné son consentement aux SMS (fiche du prospect, Suivi et consentement), un numéro Twilio est connecté (Paramètres, Connexions) et l'assistant n'est pas en pause sur cette conversation (Boîte de réception, bouton Rendre à l'assistant).",
 +	},
 +	{
 +		question: "Aucun prospect n'arrive de Meta",
@@ -25926,7 +27174,7 @@ index 0000000..da0a67d
 +	{
 +		question: "Comment reprendre la main sur une conversation ?",
 +		answer:
-+			"Ouvrez la Boîte de réception, choisissez la conversation et cliquez sur Reprendre la main. L'assistant se met en pause pour ce prospect. Le même bouton lui redonne la conversation.",
++			"Ouvrez la Boîte de réception, choisissez la conversation et cliquez sur Reprendre la main. L'assistant se met en pause pour ce prospect. Le bouton Rendre à l'assistant lui redonne la conversation.",
 +	},
 +	{
 +		question: "Comment ajouter un courtier ?",
@@ -25934,6 +27182,71 @@ index 0000000..da0a67d
 +			"Allez à Courtiers, puis Ajouter un courtier. Remplissez l'identité, les secteurs et les outils, puis connectez son formulaire Meta, son agenda et son numéro SMS.",
 +	},
 +];
+diff --git a/apps/app/lib/support-pages.ts b/apps/app/lib/support-pages.ts
+new file mode 100644
+index 0000000..292bf42
+--- /dev/null
++++ b/apps/app/lib/support-pages.ts
+@@ -0,0 +1,31 @@
++import { type NavAudience, pagesFor, presenceLabel } from "@/lib/navigation";
++
++export const OTHER_PAGE = "";
++
++export function pagePathOf(pathname: string, slug: string): string {
++	const withoutQuery = pathname.split("?")[0] ?? pathname;
++	const prefix = `/${slug}`;
++	const path = withoutQuery.startsWith(prefix)
++		? withoutQuery.slice(prefix.length)
++		: withoutQuery;
++	return path === "" ? "/" : path;
++}
++
++export function matchNavPage(path: string, audience: NavAudience) {
++	return pagesFor(audience)
++		.filter((page) =>
++			page.href === "/" ? path === "/" : path.startsWith(page.href),
++		)
++		.sort((a, b) => b.href.length - a.href.length)[0];
++}
++
++export function supportPageOptions(audience: NavAudience) {
++	return [
++		{ id: OTHER_PAGE, name: "Autre ou je ne sais pas" },
++		...pagesFor(audience).map((page) => ({ id: page.href, name: page.label })),
++	];
++}
++
++export function supportPageLabel(path: string): string {
++	return presenceLabel(path.split("/").filter(Boolean));
++}
+diff --git a/apps/app/lib/translation-config.ts b/apps/app/lib/translation-config.ts
+new file mode 100644
+index 0000000..963534d
+--- /dev/null
++++ b/apps/app/lib/translation-config.ts
+@@ -0,0 +1,22 @@
++export const TRANSLATION = {
++	pageLanguage: "fr",
++	cookie: "googtrans",
++	consentKey: "fratex.translate.consent",
++	elementId: "google_translate_element",
++	callback: "initGoogleTranslate",
++	scriptSrc: "https://translate.google.com/translate_a/element.js",
++	original: "Français (original)",
++	languages: [
++		{ code: "en", label: "English" },
++		{ code: "es", label: "Español" },
++		{ code: "pt", label: "Português" },
++		{ code: "it", label: "Italiano" },
++		{ code: "ar", label: "العربية" },
++		{ code: "ht", label: "Kreyòl ayisyen" },
++		{ code: "zh-CN", label: "中文 (简体)" },
++		{ code: "ru", label: "Русский" },
++		{ code: "hi", label: "हिन्दी" },
++	],
++	notice:
++		"Traduction automatique par Google. Le texte affiché à l'écran, y compris les noms et les messages des prospects, est envoyé à Google pour être traduit. Les numéros de téléphone et les courriels ne sont pas traduits. Les chiffres qui se mettent à jour seuls peuvent rester figés : rechargez la page au besoin.",
++} as const;
 diff --git a/apps/app/lib/use-audience.ts b/apps/app/lib/use-audience.ts
 new file mode 100644
 index 0000000..70727e7
@@ -25957,6 +27270,62 @@ index 0000000..70727e7
 +	const trpc = useTRPC();
 +	const agencies = useQuery(trpc.realEstate.agencies.queryOptions());
 +	return audienceOf(agencies.data?.agencies.map((agency) => agency.role) ?? []);
++}
+diff --git a/apps/app/lib/user-agent.test.ts b/apps/app/lib/user-agent.test.ts
+new file mode 100644
+index 0000000..06f5b3e
+--- /dev/null
++++ b/apps/app/lib/user-agent.test.ts
+@@ -0,0 +1,21 @@
++import { describe, expect, it } from "bun:test";
++import { describeDevice } from "./user-agent";
++
++describe("describeDevice", () => {
++	it("names the browser and the system", () => {
++		expect(
++			describeDevice(
++				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 Edg/130.0",
++			),
++		).toBe("Edge sur Windows");
++		expect(
++			describeDevice(
++				"Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
++			),
++		).toBe("Safari sur iOS");
++	});
++
++	it("falls back when the user agent is missing", () => {
++		expect(describeDevice(null)).toBe("Appareil inconnu");
++	});
++});
+diff --git a/apps/app/lib/user-agent.ts b/apps/app/lib/user-agent.ts
+new file mode 100644
+index 0000000..4a5bebc
+--- /dev/null
++++ b/apps/app/lib/user-agent.ts
+@@ -0,0 +1,23 @@
++const BROWSERS: [RegExp, string][] = [
++	[/Edg\//, "Edge"],
++	[/OPR\//, "Opera"],
++	[/Firefox\//, "Firefox"],
++	[/Chrome\//, "Chrome"],
++	[/Safari\//, "Safari"],
++];
++
++const SYSTEMS: [RegExp, string][] = [
++	[/iPhone|iPad/, "iOS"],
++	[/Android/, "Android"],
++	[/Windows/, "Windows"],
++	[/Mac OS X|Macintosh/, "macOS"],
++	[/Linux/, "Linux"],
++];
++
++export function describeDevice(userAgent: string | null | undefined): string {
++	if (!userAgent) return "Appareil inconnu";
++	const browser = BROWSERS.find(([pattern]) => pattern.test(userAgent))?.[1];
++	const system = SYSTEMS.find(([pattern]) => pattern.test(userAgent))?.[1];
++	if (browser && system) return `${browser} sur ${system}`;
++	return browser ?? system ?? "Appareil inconnu";
 +}
 diff --git a/apps/app/lib/workspace-label.ts b/apps/app/lib/workspace-label.ts
 index 8c91313..64e8a34 100644
@@ -27359,35 +28728,115 @@ index 0000000..b3d9a30
 +-- AlterTable
 +ALTER TABLE "user" ADD COLUMN     "lastSeenLabel" TEXT,
 +ADD COLUMN     "lastSeenPath" TEXT;
+diff --git a/packages/db/prisma/migrations/20261022210000_add_support_requests/migration.sql b/packages/db/prisma/migrations/20261022210000_add_support_requests/migration.sql
+new file mode 100644
+index 0000000..8b1aad6
+--- /dev/null
++++ b/packages/db/prisma/migrations/20261022210000_add_support_requests/migration.sql
+@@ -0,0 +1,30 @@
++-- CreateEnum
++CREATE TYPE "SupportRequestKind" AS ENUM ('PROBLEM', 'QUESTION', 'IDEA');
++
++-- CreateEnum
++CREATE TYPE "SupportRequestStatus" AS ENUM ('OPEN', 'IN_PROGRESS', 'RESOLVED');
++
++-- CreateTable
++CREATE TABLE "supportRequest" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "kind" "SupportRequestKind" NOT NULL,
++    "subject" TEXT NOT NULL,
++    "message" TEXT NOT NULL,
++    "pagePath" TEXT,
++    "context" JSONB,
++    "status" "SupportRequestStatus" NOT NULL DEFAULT 'OPEN',
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "supportRequest_pkey" PRIMARY KEY ("id")
++);
++
++-- CreateIndex
++CREATE INDEX "supportRequest_userId_createdAt_idx" ON "supportRequest"("userId", "createdAt");
++
++-- CreateIndex
++CREATE INDEX "supportRequest_status_createdAt_idx" ON "supportRequest"("status", "createdAt");
++
++-- AddForeignKey
++ALTER TABLE "supportRequest" ADD CONSTRAINT "supportRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 diff --git a/packages/db/prisma/schema.prisma b/packages/db/prisma/schema.prisma
-index 1785af9..ae495c1 100644
+index 1785af9..4f45506 100644
 --- a/packages/db/prisma/schema.prisma
 +++ b/packages/db/prisma/schema.prisma
-@@ -13,15 +13,19 @@ generator client {
+@@ -13,15 +13,20 @@ generator client {
  }
  
  model User {
 -  id            String    @id
-+  id            String     @id
-   name          String
-   email         String
+-  name          String
+-  email         String
 -  emailVerified Boolean   @default(false)
-+  emailVerified Boolean    @default(false)
-   image         String?
+-  image         String?
 -  createdAt     DateTime  @default(now())
 -  updatedAt     DateTime  @updatedAt
-+  lastSeenAt    DateTime?
-+  lastSeenPath  String?
-+  lastSeenLabel String?
-+  createdAt     DateTime   @default(now())
-+  updatedAt     DateTime   @updatedAt
-   sessions      Session[]
-   accounts      Account[]
-+  leadNotes     LeadNote[]
+-  sessions      Session[]
+-  accounts      Account[]
++  id              String           @id
++  name            String
++  email           String
++  emailVerified   Boolean          @default(false)
++  image           String?
++  lastSeenAt      DateTime?
++  lastSeenPath    String?
++  lastSeenLabel   String?
++  createdAt       DateTime         @default(now())
++  updatedAt       DateTime         @updatedAt
++  sessions        Session[]
++  accounts        Account[]
++  leadNotes       LeadNote[]
++  supportRequests SupportRequest[]
  
    ownedCompanies Company[]           @relation("CompanyOwner")
    ownedContacts  Contact[]           @relation("ContactOwner")
-@@ -1812,6 +1816,7 @@ model Lead {
+@@ -55,6 +60,37 @@ model User {
+   @@map("user")
+ }
+ 
++enum SupportRequestKind {
++  PROBLEM
++  QUESTION
++  IDEA
++}
++
++enum SupportRequestStatus {
++  OPEN
++  IN_PROGRESS
++  RESOLVED
++}
++
++model SupportRequest {
++  id        String               @id @default(cuid())
++  userId    String
++  kind      SupportRequestKind
++  subject   String
++  message   String
++  pagePath  String?
++  context   Json?
++  status    SupportRequestStatus @default(OPEN)
++  createdAt DateTime             @default(now())
++  updatedAt DateTime             @updatedAt
++
++  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
++
++  @@index([userId, createdAt])
++  @@index([status, createdAt])
++  @@map("supportRequest")
++}
++
+ model SlackMemberMatch {
+   id          String   @id @default(cuid())
+   crmUserId   String   @unique
+@@ -1812,6 +1848,7 @@ model Lead {
    financing             String?
    targetArea            String?
    currentSituation      String?
@@ -27395,7 +28844,7 @@ index 1785af9..ae495c1 100644
    firstContactedAt      DateTime?
    lastInteractedAt      DateTime?
    createdAt             DateTime           @default(now())
-@@ -1824,6 +1829,7 @@ model Lead {
+@@ -1824,6 +1861,7 @@ model Lead {
    appointments          Appointment[]
    propertyInterest      PropertyInterest?
    attributions          AttributionEvent[]
@@ -27403,7 +28852,7 @@ index 1785af9..ae495c1 100644
  
    @@unique([id, agencyId])
    @@index([agencyId, status])
-@@ -1834,6 +1840,20 @@ model Lead {
+@@ -1834,6 +1872,20 @@ model Lead {
    @@map("lead")
  }
  
@@ -27603,69 +29052,56 @@ index de9043a..f17a382 100644
  });
 diff --git a/packages/ui/src/components/account-panel.tsx b/packages/ui/src/components/account-panel.tsx
 new file mode 100644
-index 0000000..bbdd0e3
+index 0000000..2c48250
 --- /dev/null
 +++ b/packages/ui/src/components/account-panel.tsx
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,48 @@
++"use client";
++
 +import type { ReactNode } from "react";
-+import { Avatar, AvatarFallback, AvatarImage } from "./avatar";
 +import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
-+import { ContactLink } from "./contact-link";
-+import { initialsFromName } from "../lib/format";
++import { InfoHint } from "./real-estate-visuals";
 +
 +export type AccountRow = { label: string; value: ReactNode };
 +
-+export function AccountPanel({
-+	name,
-+	email,
-+	image,
-+	rows,
++export function AccountSection({
++	title,
++	description,
++	info,
++	action,
 +	children,
 +}: {
-+	name: string;
-+	email: string;
-+	image: string | null;
-+	rows: AccountRow[];
-+	children?: ReactNode;
++	title: string;
++	description?: string;
++	info?: string;
++	action?: ReactNode;
++	children: ReactNode;
 +}) {
 +	return (
 +		<Card>
 +			<CardHeader>
-+				<CardTitle>Informations de connexion</CardTitle>
-+				<CardDescription>
-+					Elles viennent de votre fournisseur Google ou Microsoft.
-+				</CardDescription>
++				<CardTitle className="flex items-center gap-1.5">
++					{title}
++					{info && <InfoHint label={title}>{info}</InfoHint>}
++				</CardTitle>
++				{description && <CardDescription>{description}</CardDescription>}
++				{action && <div className="col-start-2 row-span-2 row-start-1 self-start justify-self-end">{action}</div>}
 +			</CardHeader>
-+			<CardContent className="flex flex-col gap-4">
-+				<div className="flex items-center gap-3">
-+					<Avatar size="lg">
-+						{image ? <AvatarImage src={image} alt="" /> : null}
-+						<AvatarFallback>{initialsFromName(name)}</AvatarFallback>
-+					</Avatar>
-+					<div className="flex min-w-0 flex-col">
-+						<span className="truncate font-medium">{name}</span>
-+						<ContactLink
-+							kind="email"
-+							value={email}
-+							className="truncate text-sm text-muted-foreground"
-+						/>
-+					</div>
-+				</div>
-+				<dl className="grid gap-x-6 gap-y-3 border-t pt-4 text-sm sm:grid-cols-2">
-+					{rows.map((row) => (
-+						<div key={row.label} className="flex flex-col gap-0.5">
-+							<dt className="text-xs text-muted-foreground">{row.label}</dt>
-+							<dd className="font-medium">{row.value}</dd>
-+						</div>
-+					))}
-+				</dl>
-+				{children && (
-+					<div className="flex flex-wrap items-center gap-2 border-t pt-4">
-+						{children}
-+					</div>
-+				)}
-+			</CardContent>
++			<CardContent className="flex flex-col gap-4">{children}</CardContent>
 +		</Card>
++	);
++}
++
++export function AccountFacts({ rows }: { rows: AccountRow[] }) {
++	return (
++		<dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
++			{rows.map((row) => (
++				<div key={row.label} className="flex min-w-0 flex-col gap-0.5">
++					<dt className="text-xs text-muted-foreground">{row.label}</dt>
++					<dd className="truncate font-medium">{row.value}</dd>
++				</div>
++			))}
++		</dl>
 +	);
 +}
 diff --git a/packages/ui/src/components/assistant-result-cards.tsx b/packages/ui/src/components/assistant-result-cards.tsx
@@ -28889,10 +30325,10 @@ index 1ee6686..616e75f 100644
  			)}
 diff --git a/packages/ui/src/components/contact-link.tsx b/packages/ui/src/components/contact-link.tsx
 new file mode 100644
-index 0000000..d77f62b
+index 0000000..02bbf16
 --- /dev/null
 +++ b/packages/ui/src/components/contact-link.tsx
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,35 @@
 +"use client";
 +
 +import type { MouseEvent } from "react";
@@ -28917,6 +30353,7 @@ index 0000000..d77f62b
 +			href={phone ? `tel:${value}` : `mailto:${value}`}
 +			onClick={stop}
 +			title={phone ? "Appeler" : "Écrire un courriel"}
++			translate="no"
 +			className={cn(
 +				"rounded-xs underline-offset-4 outline-none transition-colors hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring/60",
 +				phone && "tabular-nums",
@@ -30093,10 +31530,10 @@ index 0000000..d69ccd6
 +}
 diff --git a/packages/ui/src/components/lead-profile.tsx b/packages/ui/src/components/lead-profile.tsx
 new file mode 100644
-index 0000000..d2b150d
+index 0000000..e9648bd
 --- /dev/null
 +++ b/packages/ui/src/components/lead-profile.tsx
-@@ -0,0 +1,829 @@
+@@ -0,0 +1,831 @@
 +"use client";
 +
 +import { type ReactNode, useState } from "react";
@@ -30117,7 +31554,9 @@ index 0000000..d2b150d
 +	formatCad,
 +	formatDateTime,
 +	formatDuration,
++	formatDate,
 +	formatPhone,
++	formatTime,
 +	labelOf,
 +} from "../lib/real-estate";
 +import { cn } from "../lib/utils";
@@ -30385,8 +31824,8 @@ index 0000000..d2b150d
 +			<MetricTile
 +				index={4}
 +				label="Prochain rendez-vous"
-+				value={next ? formatDateTime(next.startTime) : "Aucun"}
-+				hint={next ? labelOf(APPOINTMENT_STATUS_LABELS, next.status) : "À planifier"}
++				value={next ? formatDate(next.startTime) : "Aucun"}
++				hint={next ? `${formatTime(next.startTime)} · ${labelOf(APPOINTMENT_STATUS_LABELS, next.status)}` : "À planifier"}
 +			/>
 +		</MetricGrid>
 +	);
@@ -34906,6 +36345,70 @@ index 0000000..52fff09
 +		</Tooltip>
 +	);
 +}
+diff --git a/packages/ui/src/components/session-list.tsx b/packages/ui/src/components/session-list.tsx
+new file mode 100644
+index 0000000..3b2b5ea
+--- /dev/null
++++ b/packages/ui/src/components/session-list.tsx
+@@ -0,0 +1,58 @@
++"use client";
++
++import { formatDateTime } from "../lib/real-estate";
++import { Button } from "./button";
++
++export type SessionItem = {
++	id: string;
++	device: string;
++	lastActiveAt: string;
++	current: boolean;
++};
++
++export function SessionList({
++	sessions,
++	pendingId,
++	onRevoke,
++	onRevokeOthers,
++	revokingOthers,
++}: {
++	sessions: SessionItem[];
++	pendingId: string | null;
++	onRevoke: (id: string) => void;
++	onRevokeOthers: () => void;
++	revokingOthers: boolean;
++}) {
++	const others = sessions.filter((session) => !session.current).length;
++	return (
++		<div className="flex flex-col gap-3">
++			<ul className="flex flex-col divide-y rounded-lg border bg-card">
++				{sessions.map((session) => (
++					<li key={session.id} className="flex items-center gap-3 p-3 text-sm">
++						<span
++							aria-hidden="true"
++							className={session.current ? "size-2 shrink-0 rounded-full bg-success" : "size-2 shrink-0 rounded-full bg-muted-foreground/40"}
++						/>
++						<span className="flex min-w-0 flex-1 flex-col">
++							<span className="truncate font-medium">
++								{session.device}
++								{session.current && <span className="font-normal text-muted-foreground"> · cet appareil</span>}
++							</span>
++							<span className="text-xs text-muted-foreground">Dernière activité : {formatDateTime(session.lastActiveAt)}</span>
++						</span>
++						{!session.current && (
++							<Button variant="outline" size="sm" disabled={pendingId === session.id} onClick={() => onRevoke(session.id)}>
++								Déconnecter
++							</Button>
++						)}
++					</li>
++				))}
++			</ul>
++			{others > 0 && (
++				<Button variant="outline" className="self-start" disabled={revokingOthers} onClick={onRevokeOthers}>
++					Déconnecter les {others} autres appareils
++				</Button>
++			)}
++		</div>
++	);
++}
 diff --git a/packages/ui/src/components/sheet.tsx b/packages/ui/src/components/sheet.tsx
 index db98a2b..008aace 100644
 --- a/packages/ui/src/components/sheet.tsx
@@ -35056,10 +36559,10 @@ index a679e4a..703c1ac 100644
 +}
 diff --git a/packages/ui/src/components/support-panel.tsx b/packages/ui/src/components/support-panel.tsx
 new file mode 100644
-index 0000000..775e9e7
+index 0000000..5201eac
 --- /dev/null
 +++ b/packages/ui/src/components/support-panel.tsx
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,65 @@
 +import type { ReactNode } from "react";
 +import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./accordion";
 +import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
@@ -35069,57 +36572,305 @@ index 0000000..775e9e7
 +
 +export function SupportPanel({
 +	email,
-+	checklist,
 +	answers,
-+	action,
++	form,
++	history,
++	team,
 +}: {
 +	email: string;
-+	checklist: string[];
 +	answers: SupportAnswer[];
-+	action?: ReactNode;
++	form: ReactNode;
++	history: ReactNode;
++	team?: ReactNode;
 +}) {
 +	return (
-+		<div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-+			<Card className="self-start">
-+				<CardHeader>
-+					<CardTitle>Écrire à l'équipe Fratex</CardTitle>
-+					<CardDescription>
-+						Décrivez ce que vous faisiez et ce que vous attendiez. Plus c'est précis, plus la réponse est rapide.
-+					</CardDescription>
-+				</CardHeader>
-+				<CardContent className="flex flex-col gap-4">
-+					<ContactLink kind="email" value={email} className="w-fit text-base font-medium text-foreground underline" />
-+					<div className="flex flex-col gap-1.5 text-sm">
-+						<span className="text-xs text-muted-foreground">À joindre à votre message</span>
-+						<ul className="flex flex-col gap-1.5">
-+							{checklist.map((item) => (
-+								<li key={item} className="flex gap-2">
-+									<span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-+									<span>{item}</span>
-+								</li>
-+							))}
-+						</ul>
-+					</div>
-+					{action}
-+				</CardContent>
-+			</Card>
-+			<Card>
-+				<CardHeader>
-+					<CardTitle>Réponses rapides</CardTitle>
-+					<CardDescription>Les situations les plus fréquentes et où les régler dans Fratex.</CardDescription>
-+				</CardHeader>
-+				<CardContent>
-+					<Accordion type="single" collapsible>
-+						{answers.map((item) => (
-+							<AccordionItem key={item.question} value={item.question}>
-+								<AccordionTrigger>{item.question}</AccordionTrigger>
-+								<AccordionContent className="text-sm text-muted-foreground">{item.answer}</AccordionContent>
-+							</AccordionItem>
-+						))}
-+					</Accordion>
-+				</CardContent>
-+			</Card>
++		<div className="flex flex-col gap-6">
++			<div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
++				<Card className="self-start">
++					<CardHeader>
++						<CardTitle>Nouvelle demande</CardTitle>
++						<CardDescription>
++							Choisissez un type, décrivez en une ou deux phrases. C'est tout.
++						</CardDescription>
++					</CardHeader>
++					<CardContent>{form}</CardContent>
++				</Card>
++				<div className="flex flex-col gap-6">
++					<Card>
++						<CardHeader>
++							<CardTitle>Mes demandes</CardTitle>
++							<CardDescription>Le suivi de ce que vous nous avez envoyé.</CardDescription>
++						</CardHeader>
++						<CardContent>{history}</CardContent>
++					</Card>
++					<Card>
++						<CardHeader>
++							<CardTitle>Réponses rapides</CardTitle>
++							<CardDescription>Les situations les plus fréquentes.</CardDescription>
++						</CardHeader>
++						<CardContent>
++							<Accordion type="single" collapsible>
++								{answers.map((item) => (
++									<AccordionItem key={item.question} value={item.question}>
++										<AccordionTrigger>{item.question}</AccordionTrigger>
++										<AccordionContent className="text-sm text-muted-foreground">{item.answer}</AccordionContent>
++									</AccordionItem>
++								))}
++							</Accordion>
++						</CardContent>
++					</Card>
++					<p className="text-sm text-muted-foreground">
++						Vous préférez le courriel ? Écrivez à <ContactLink kind="email" value={email} className="text-foreground underline" />.
++					</p>
++				</div>
++			</div>
++			{team}
 +		</div>
++	);
++}
+diff --git a/packages/ui/src/components/support-request-form.tsx b/packages/ui/src/components/support-request-form.tsx
+new file mode 100644
+index 0000000..dfdf45b
+--- /dev/null
++++ b/packages/ui/src/components/support-request-form.tsx
+@@ -0,0 +1,147 @@
++"use client";
++
++import Help from "@carbon/icons-react/es/Help";
++import Idea from "@carbon/icons-react/es/Idea";
++import Warning from "@carbon/icons-react/es/Warning";
++import { cn } from "../lib/utils";
++import { Button } from "./button";
++import { Field, FieldLabel } from "./field";
++import { type CarbonIcon, Icon } from "./icon";
++import { WorkspaceSelect } from "./real-estate-workspace";
++import { Textarea } from "./textarea";
++
++export type SupportKind = "PROBLEM" | "QUESTION" | "IDEA";
++
++export const SUPPORT_KIND_OPTIONS: {
++	id: SupportKind;
++	label: string;
++	hint: string;
++	icon: CarbonIcon;
++	question: string;
++	placeholder: string;
++}[] = [
++	{
++		id: "PROBLEM",
++		label: "Signaler un problème",
++		hint: "Quelque chose ne marche pas",
++		icon: Warning,
++		question: "Que s'est-il passé ?",
++		placeholder:
++			"Ex. : j'ai cliqué sur Envoyer dans la boîte de réception et le SMS est resté en attente.",
++	},
++	{
++		id: "QUESTION",
++		label: "Poser une question",
++		hint: "Je ne sais pas comment faire",
++		icon: Help,
++		question: "Quelle est votre question ?",
++		placeholder: "Ex. : comment connecter l'agenda Google d'un courtier ?",
++	},
++	{
++		id: "IDEA",
++		label: "Proposer une idée",
++		hint: "Une amélioration utile",
++		icon: Idea,
++		question: "Quelle amélioration proposez-vous ?",
++		placeholder:
++			"Ex. : exporter la liste des rendez-vous de la semaine en PDF pour le courtier.",
++	},
++];
++
++export function SupportRequestForm({
++	kind,
++	onKindChange,
++	page,
++	onPageChange,
++	pageOptions,
++	message,
++	onMessageChange,
++	minLength,
++	maxLength,
++	pending,
++	error,
++	onSubmit,
++}: {
++	kind: SupportKind;
++	onKindChange: (kind: SupportKind) => void;
++	page: string;
++	onPageChange: (page: string) => void;
++	pageOptions: readonly { id: string; name: string }[];
++	message: string;
++	onMessageChange: (message: string) => void;
++	minLength: number;
++	maxLength: number;
++	pending: boolean;
++	error?: string | null;
++	onSubmit: () => void;
++}) {
++	const current = SUPPORT_KIND_OPTIONS.find((option) => option.id === kind);
++	const ready = message.trim().length >= minLength;
++	return (
++		<form
++			className="flex flex-col gap-4"
++			onSubmit={(event) => {
++				event.preventDefault();
++				if (ready && !pending) onSubmit();
++			}}
++		>
++			<div role="radiogroup" aria-label="Type de demande" className="grid gap-2 sm:grid-cols-3">
++				{SUPPORT_KIND_OPTIONS.map((option) => {
++					const selected = option.id === kind;
++					return (
++						<button
++							key={option.id}
++							type="button"
++							role="radio"
++							aria-checked={selected}
++							onClick={() => onKindChange(option.id)}
++							className={cn(
++								"flex flex-col items-start gap-1 rounded-lg border bg-card p-3 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60",
++								selected && "border-foreground/40 bg-muted ring-1 ring-foreground/10",
++							)}
++						>
++							<span className="flex items-center gap-2 text-sm font-medium">
++								<Icon icon={option.icon} className={cn("size-4", selected ? "text-primary" : "text-muted-foreground")} />
++								{option.label}
++							</span>
++							<span className="text-xs text-muted-foreground">{option.hint}</span>
++						</button>
++					);
++				})}
++			</div>
++			<WorkspaceSelect label="Page concernée" value={page} options={pageOptions} onChange={onPageChange} />
++			<Field>
++				<FieldLabel htmlFor="support-message">{current?.question}</FieldLabel>
++				<Textarea
++					id="support-message"
++					value={message}
++					maxLength={maxLength}
++					rows={6}
++					placeholder={current?.placeholder}
++					onChange={(event) => onMessageChange(event.target.value)}
++				/>
++				<span className="flex justify-between gap-3 text-xs text-muted-foreground">
++					<span>
++						{ready ? "Prêt à envoyer." : `Encore ${Math.max(0, minLength - message.trim().length)} caractères au minimum.`}
++					</span>
++					<span className="tabular-nums">
++						{message.length} / {maxLength}
++					</span>
++				</span>
++			</Field>
++			{error && (
++				<p role="alert" className="text-sm text-destructive">
++					{error}
++				</p>
++			)}
++			<div className="flex flex-wrap items-center gap-3">
++				<Button type="submit" disabled={!ready || pending}>
++					{pending ? "Envoi…" : "Envoyer la demande"}
++				</Button>
++				<span className="text-xs text-muted-foreground">
++					La page, l'heure et la taille de votre écran sont jointes automatiquement.
++				</span>
++			</div>
++		</form>
++	);
++}
+diff --git a/packages/ui/src/components/support-request-list.tsx b/packages/ui/src/components/support-request-list.tsx
+new file mode 100644
+index 0000000..66b43be
+--- /dev/null
++++ b/packages/ui/src/components/support-request-list.tsx
+@@ -0,0 +1,86 @@
++"use client";
++
++import { formatDateTime } from "../lib/real-estate";
++import { cn } from "../lib/utils";
++import { EmptyState } from "./empty-state";
++import Chat from "@carbon/icons-react/es/Chat";
++import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
++
++export type SupportStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
++
++export type SupportRequestItem = {
++	id: string;
++	kind: "PROBLEM" | "QUESTION" | "IDEA";
++	status: SupportStatus;
++	subject: string;
++	message: string;
++	pagePath: string | null;
++	createdAt: string;
++	author: { name: string; email: string } | null;
++};
++
++const KIND_LABELS = { PROBLEM: "Problème", QUESTION: "Question", IDEA: "Idée" } as const;
++
++export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
++	OPEN: "Ouverte",
++	IN_PROGRESS: "En cours",
++	RESOLVED: "Résolue",
++};
++
++const STATUS_DOTS: Record<SupportStatus, string> = {
++	OPEN: "bg-primary",
++	IN_PROGRESS: "bg-foreground",
++	RESOLVED: "bg-success",
++};
++
++export function SupportRequestList({
++	items,
++	empty,
++	onStatusChange,
++	pageLabel,
++}: {
++	items: SupportRequestItem[];
++	empty: string;
++	onStatusChange?: (id: string, status: SupportStatus) => void;
++	pageLabel: (path: string) => string;
++}) {
++	if (items.length === 0) return <EmptyState compact icon={Chat} title="Aucune demande" description={empty} />;
++	return (
++		<ul className="flex flex-col divide-y rounded-lg border bg-card">
++			{items.map((item) => (
++				<li key={item.id} className="flex flex-col gap-1.5 p-3 text-sm">
++					<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
++						<span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", STATUS_DOTS[item.status])} />
++						<span className="font-medium">{KIND_LABELS[item.kind]}</span>
++						<span className="text-xs text-muted-foreground">{formatDateTime(item.createdAt)}</span>
++						{item.pagePath && <span className="text-xs text-muted-foreground">· {pageLabel(item.pagePath)}</span>}
++						<span className="ml-auto">
++							{onStatusChange ? (
++								<Select value={item.status} onValueChange={(value) => onStatusChange(item.id, value as SupportStatus)}>
++									<SelectTrigger aria-label="Statut de la demande" className="h-7 w-32 text-xs">
++										<SelectValue />
++									</SelectTrigger>
++									<SelectContent>
++										{(Object.keys(SUPPORT_STATUS_LABELS) as SupportStatus[]).map((status) => (
++											<SelectItem key={status} value={status}>
++												{SUPPORT_STATUS_LABELS[status]}
++											</SelectItem>
++										))}
++									</SelectContent>
++								</Select>
++							) : (
++								<span className="text-xs text-muted-foreground">{SUPPORT_STATUS_LABELS[item.status]}</span>
++							)}
++						</span>
++					</div>
++					{item.author && (
++						<span className="text-xs text-muted-foreground">
++							{item.author.name} · {item.author.email}
++						</span>
++					)}
++					<p className="whitespace-pre-wrap text-pretty text-muted-foreground">{item.message}</p>
++				</li>
++			))}
++		</ul>
 +	);
 +}
 diff --git a/packages/ui/src/components/table-pagination.tsx b/packages/ui/src/components/table-pagination.tsx
@@ -35484,10 +37235,10 @@ index 0000000..f8d1ce7
 +export { Tool, ToolContent, ToolHeader };
 diff --git a/packages/ui/src/components/top-bar.tsx b/packages/ui/src/components/top-bar.tsx
 new file mode 100644
-index 0000000..517282e
+index 0000000..90c08db
 --- /dev/null
 +++ b/packages/ui/src/components/top-bar.tsx
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,52 @@
 +import type { ReactNode } from "react";
 +import { cn } from "../lib/utils";
 +import Logo from "./logo";
@@ -35498,6 +37249,7 @@ index 0000000..517282e
 +	renderHomeLink,
 +	breadcrumb,
 +	search,
++	actions,
 +	presence,
 +	userMenu,
 +	className,
@@ -35506,6 +37258,7 @@ index 0000000..517282e
 +	renderHomeLink?: (logo: ReactNode) => ReactNode;
 +	breadcrumb?: ReactNode;
 +	search?: ReactNode;
++	actions?: ReactNode;
 +	presence?: ReactNode;
 +	userMenu?: ReactNode;
 +	className?: string;
@@ -35530,11 +37283,119 @@ index 0000000..517282e
 +			</div>
 +			{search && <div className="flex shrink-0 justify-center md:w-[clamp(14rem,36vw,36rem)]">{search}</div>}
 +			<div className="flex shrink-0 items-center justify-end gap-1.5 md:flex-1 md:basis-0">
++				{actions}
 +				{presence}
 +				{presence && <Separator orientation="vertical" className="mx-1.5 h-5 data-vertical:self-center" />}
 +				{userMenu && <div className="flex items-center pl-1">{userMenu}</div>}
 +			</div>
 +		</header>
++	);
++}
+diff --git a/packages/ui/src/components/translate-menu.tsx b/packages/ui/src/components/translate-menu.tsx
+new file mode 100644
+index 0000000..9afbe05
+--- /dev/null
++++ b/packages/ui/src/components/translate-menu.tsx
+@@ -0,0 +1,101 @@
++"use client";
++
++import Language from "@carbon/icons-react/es/Language";
++import { Button } from "./button";
++import {
++	AlertDialog,
++	AlertDialogAction,
++	AlertDialogCancel,
++	AlertDialogContent,
++	AlertDialogDescription,
++	AlertDialogFooter,
++	AlertDialogHeader,
++	AlertDialogTitle,
++} from "./alert-dialog";
++import {
++	DropdownMenu,
++	DropdownMenuContent,
++	DropdownMenuLabel,
++	DropdownMenuRadioGroup,
++	DropdownMenuRadioItem,
++	DropdownMenuSeparator,
++	DropdownMenuTrigger,
++} from "./dropdown-menu";
++import { Icon } from "./icon";
++
++export type TranslateLanguage = { code: string; label: string };
++
++export function TranslateMenu({
++	languages,
++	original,
++	active,
++	notice,
++	onSelect,
++}: {
++	languages: readonly TranslateLanguage[];
++	original: string;
++	active: string | null;
++	notice: string;
++	onSelect: (code: string | null) => void;
++}) {
++	return (
++		<DropdownMenu>
++			<DropdownMenuTrigger asChild>
++				<Button
++					variant="ghost"
++					size="icon"
++					translate="no"
++					aria-label={active ? "Traduction active : changer de langue" : "Traduire la page"}
++					className={active ? "text-primary" : "text-muted-foreground"}
++				>
++					<Icon icon={Language} />
++				</Button>
++			</DropdownMenuTrigger>
++			<DropdownMenuContent align="end" className="w-64" translate="no">
++				<DropdownMenuLabel>Traduire la page</DropdownMenuLabel>
++				<DropdownMenuRadioGroup
++					value={active ?? ""}
++					onValueChange={(value) => onSelect(value === "" ? null : value)}
++				>
++					<DropdownMenuRadioItem value="">{original}</DropdownMenuRadioItem>
++					{languages.map((language) => (
++						<DropdownMenuRadioItem key={language.code} value={language.code}>
++							{language.label}
++						</DropdownMenuRadioItem>
++					))}
++				</DropdownMenuRadioGroup>
++				<DropdownMenuSeparator />
++				<p className="px-2 py-1.5 text-xs text-pretty text-muted-foreground">{notice}</p>
++			</DropdownMenuContent>
++		</DropdownMenu>
++	);
++}
++
++export function TranslateConsentDialog({
++	open,
++	languageLabel,
++	notice,
++	onConfirm,
++	onCancel,
++}: {
++	open: boolean;
++	languageLabel: string;
++	notice: string;
++	onConfirm: () => void;
++	onCancel: () => void;
++}) {
++	return (
++		<AlertDialog open={open} onOpenChange={(next) => !next && onCancel()}>
++			<AlertDialogContent>
++				<AlertDialogHeader>
++					<AlertDialogTitle>Traduire avec Google ?</AlertDialogTitle>
++					<AlertDialogDescription>{notice}</AlertDialogDescription>
++				</AlertDialogHeader>
++				<AlertDialogFooter>
++					<AlertDialogCancel>Annuler</AlertDialogCancel>
++					<AlertDialogAction onClick={onConfirm}>Traduire en {languageLabel}</AlertDialogAction>
++				</AlertDialogFooter>
++			</AlertDialogContent>
++		</AlertDialog>
 +	);
 +}
 diff --git a/packages/ui/src/lib/format.ts b/packages/ui/src/lib/format.ts
@@ -36209,7 +38070,7 @@ index 0000000..7d21c55
 +	return map[key] ?? key;
 +}
 diff --git a/packages/ui/src/styles/globals.css b/packages/ui/src/styles/globals.css
-index 6db44f8..b8f8247 100644
+index 6db44f8..8a4396f 100644
 --- a/packages/ui/src/styles/globals.css
 +++ b/packages/ui/src/styles/globals.css
 @@ -13,7 +13,7 @@
@@ -36292,6 +38153,32 @@ index 6db44f8..b8f8247 100644
  	--sidebar-primary-foreground: #ffffff;
  	--sidebar-accent: #292929;
  	--sidebar-accent-foreground: #f5f5f5;
+@@ -922,3 +922,25 @@
+ 		animation: alert-attention-ring 1.4s ease-out;
+ 	}
+ }
++
++@layer base {
++	body {
++		top: 0 !important;
++	}
++
++	.goog-te-banner-frame,
++	.skiptranslate iframe,
++	iframe.skiptranslate,
++	#goog-gt-tt,
++	.goog-te-balloon-frame,
++	.VIpgJd-ZVi9od-ORHb-OEVmcd,
++	.VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
++	.VIpgJd-yAWNEb-L7lbkb {
++		display: none !important;
++	}
++
++	.goog-text-highlight {
++		background: transparent !important;
++		box-shadow: none !important;
++	}
++}
 diff --git a/packages/validation/src/real-estate.ts b/packages/validation/src/real-estate.ts
 index 22d0082..4ce5225 100644
 --- a/packages/validation/src/real-estate.ts
