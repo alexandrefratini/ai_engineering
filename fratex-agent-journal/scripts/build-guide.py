@@ -752,12 +752,13 @@ TEMPLATE = """<!doctype html>
 <html lang="fr-CA">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
 <title>Guide Fratex Agent</title>
 <style>
 :root{--bg:#fff;--fg:#171717;--muted:#6b6b6b;--line:#e5e5e5;--card:#fafafa;--brand:#d83c16;--brand-fg:#fff;--note:#fff5f2}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814}}
-:root[data-theme=dark]{--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#111;--fg:#f2f2f2;--muted:#a3a3a3;--line:#2a2a2a;--card:#181818;--note:#2a1814;color-scheme:dark}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:16px}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -771,7 +772,7 @@ aside ul{list-style:none;margin:0;padding:0}
 aside a{display:block;padding:5px 8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px}
 aside a:hover,aside a.active{background:var(--line)}
 aside a.active{font-weight:600}
-main{padding:32px clamp(16px,4vw,48px) 96px;max-width:1180px;width:100%}
+main{min-width:0;padding-block:32px 96px;padding-left:max(clamp(16px,4vw,48px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,48px),env(safe-area-inset-right,0px));max-width:1180px;width:100%}
 .intro{margin-bottom:32px}
 .intro h1{font-size:clamp(26px,4vw,36px);margin:0 0 8px}
 .intro p{color:var(--muted);max-width:70ch}
@@ -803,9 +804,9 @@ dialog img{max-width:96vw;max-height:94vh;border-radius:8px;display:block}
 .menu-btn{display:none}
 @media (max-width:860px){
 .layout{grid-template-columns:1fr}
-aside{position:fixed;inset:0 20% 0 0;z-index:20;transform:translateX(-100%);transition:transform .2s;height:100vh}
+aside{position:fixed;inset:0 20% 0 0;z-index:20;padding-left:max(16px,env(safe-area-inset-left,0px));transform:translateX(-100%);transition:transform .2s;height:100vh}
 aside.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.4)}
-.menu-btn{display:block;position:sticky;top:0;z-index:10;width:100%;text-align:left;padding:12px 16px;border:0;border-bottom:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-weight:600}
+.menu-btn{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:11;width:100%;text-align:left;padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));border:0;border-bottom:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-weight:600}
 .shot.phone{flex-basis:160px}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}aside{transition:none}}
