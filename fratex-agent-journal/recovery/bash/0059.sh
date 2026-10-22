@@ -1,0 +1,1 @@
+curl -s -o /dev/null -w "app %{http_code}\n" http://localhost:3000/ ; curl -s -o /dev/null -w "api %{http_code}\n" http://localhost:3001/health; pg_isready -h localhost 2>&1 | tail -1; tail -2 /tmp/dev.log

@@ -1,0 +1,35 @@
+6:	grant: string;
+14:		grant: "See the people in your workspace",
+20:		grant: "See their email addresses, so it can match them to CRM records",
+26:		grant: "See the name and topic of every public channel",
+32:		grant: "See private channels it has been added to",
+38:		grant: "Read messages in public channels it has been added to",
+44:		grant: "Read messages in private channels it has been added to",
+50:		grant: "Post messages as the app",
+56:		grant: "Post to any public channel, including ones it has not joined",
+62:		grant: "Open a direct message with a person",
+68:		grant: "Join a public channel by itself",
+74:		grant: "Create public channels, and rename or archive ones it is in",
+80:		grant: "Create private channels, and rename or archive ones it is in",
+86:		grant: "Invite people to a public channel",
+92:		grant: "Invite people to a private channel",
+98:		grant: "Send and accept Slack Connect invitations",
+104:		grant: "Show a preview under a link it posts",
+120:	grant: "Add itself to a private channel on your behalf",
+126:	label: string;
+127:	summary: string;
+131:		label: "People",
+132:		summary:
+133:			"Names and email addresses, so it can match a Slack account to a CRM record.",
+137:		label: "Channels it can read",
+138:		summary:
+139:			"Names and topics of public channels, and the messages in any channel it has been added to.",
+143:		label: "Messages it can send",
+144:		summary:
+145:			"Post as the app, open a direct message, and preview a link it posts.",
+149:		label: "Channels it can change",
+150:		summary: "Join, create, rename, archive, and invite people to channels.",
+156:	label: string;
+157:	summary: string;
+198:				grant: `An undocumented permission named ${scope}`,
+Shell cwd was reset to /home/user/ai_engineering

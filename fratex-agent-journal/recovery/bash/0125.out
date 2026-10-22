@@ -1,0 +1,3 @@
+lien : https://accounts.google.com/o/oauth2/v2/auth | scope : https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy | redirect : http://localhost:3001/api/real-estate/calendar/callback
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,99 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import {
+	PageShell,
+	PageShellContent,
+	PageShellDescription,
+	PageShellHeader,
+	PageShellHeading,
+	PageShellLoading,
+	PageShellTitle,
+} from "@/components/page-shell";
+import { requireSession } from "@/lib/session";
+import { HydrateClient } from "@/lib/trpc/hydrate";
+import { getServerQueryClient, getServerTrpc } from "@/lib/trpc/server";
+import { LeadsView } from "./leads-view";
+
+export const metadata: Metadata = {
+	title: "Prospects Immobiliers",
+};
+
+export default function LeadsPage() {
+	return (
+		<PageShell className="min-h-0">
+			<PageShellHeader>
+				<PageShellHeading>
+					<PageShellTitle>Prospects Immobiliers</PageShellTitle>
+					<PageShellDescription>
+						Tous les leads capturés depuis Meta Ads avec qualification SDR et
+						routage courtier.
+					</PageShellDescription>
+				</PageShellHeading>
+			</PageShellHeader>
+
+			<PageShellContent className="min-h-0 p-0">
+				<Suspense fallback={<PageShellLoading />}>
+					<LeadsDataLoader />
+				</Suspense>
+			</PageShellContent>
+		</PageShell>
+	);
+}
+
+async function LeadsDataLoader() {
+	await requireSession();
+	const trpc = getServerTrpc();
+	const queryClient = getServerQueryClient();
+
+	await queryClient.prefetchQuery(
+		trpc.realEstate.list.queryOptions({ limit: 50 }),
+	);
+
+	return (
+		<HydrateClient>
+			<LeadsView />
+		</HydrateClient>
+	);
+}
+33:export function LeadsView() {
+34-	const href = useWorkspaceUrl();
+35-	const scope = useAgency();
+36-	const [search, setSearch] = useQueryState(
+37-		"search",
+38-		parseAsString.withDefault(""),
+39-	);
+40-	const [status, setStatus] = useQueryState(
+41-		"status",
+42-		parseAsStringLiteral(STATUSES),
+43-	);
+44-	const query = useLeads(scope.agencyId, {
+45-		search: search.trim() || undefined,
+46-		status: status ?? undefined,
+47-	});
+48-	const leads = query.data?.pages.flatMap((page) => page.leads) ?? [];
+49-	return (
+50-		<RealEstateWorkspace>
+51-			<AgencyControl scope={scope} />
+52-			{scope.agencyId && (
+53-				<>
+54-					<WorkspaceToolbar>
+55-						<WorkspaceSearch
+56-							value={search}
+57-							onChange={(value) => {
+58-								void setSearch(value);
+59-							}}
+60-						/>
+61-						<WorkspaceSelect
+62-							label="Statut"
+63-							value={status ?? "ALL"}
+64-							options={[{ id: "ALL", name: "Tous" }, ...LEAD_STATUS_OPTIONS]}
+65-							onChange={(value) => {
+66-								void setStatus(value === "ALL" ? null : (value as LeadStatus));
+67-							}}
+68-						/>
+69-					</WorkspaceToolbar>
+70-					{query.isPending ? (
+71-						<WorkspaceLoading />
+72-					) : query.error ? (
+73-						<WorkspaceNotice
+Shell cwd was reset to /home/user/ai_engineering

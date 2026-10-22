@@ -1,0 +1,54 @@
+1:import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+2-import { randomUUID } from "node:crypto";
+3-import { db } from "@crm/db";
+4-import { AgentTriggerService } from "../src/agent/agent-trigger.service";
+5-import { RealEstateService } from "../src/real-estate/real-estate.service";
+6-
+7-const suffix = randomUUID();
+8-const agency = `inbox-agency-${suffix}`;
+9-const owner = `inbox-owner-${suffix}`;
+10-const outsider = `inbox-outsider-${suffix}`;
+11-const quiet = `inbox-quiet-${suffix}`;
+12-const busy = `inbox-busy-${suffix}`;
+13-const email = `prospect-${suffix}@example.test`;
+14-const trigger = new AgentTriggerService(db);
+15-trigger.poke = () => {};
+16-const service = new RealEstateService(db, trigger);
+17-
+18-beforeAll(async () => {
+19-	await db.user.createMany({
+20-		data: [owner, outsider].map((id) => ({
+21-			id,
+--
+90:afterAll(async () => {
+91-	await db.emailThread.deleteMany({
+92-		where: { messages: { some: { fromEmail: email } } },
+93-	});
+94-	await db.agency.deleteMany({ where: { id: agency } });
+95-	await db.user.deleteMany({ where: { id: { in: [owner, outsider] } } });
+96-});
+97-
+1648:model Client {
+1649-  id              String           @id @default(cuid())
+1650-  agencyId        String
+1651-  name            String
+1652-  email           String
+1653-  phone           String?
+1654-  status          ClientStatus     @default(ACTIVE)
+1655-  targetZones     String[]
+1656-  brokerage       String?
+1657-  licenseNumber   String?
+1658-  propertyTypes   String[]         @default([])
+1659-  crmChoice       String           @default("NONE")
+1660-  calendarLink    String?
+1661-  timezone        String           @default("America/Toronto")
+1662-  createdAt       DateTime         @default(now())
+1663-  updatedAt       DateTime         @updatedAt
+1664-  agency          Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+1665-  leads           Lead[]
+1666-  adAccounts      MetaAdAccount[]
+1667-  campaigns       Campaign[]
+1668-  realtorCalendar RealtorCalendar?
+1669-  appointments    Appointment[]
+1670-  members         AgencyUser[]
+Shell cwd was reset to /home/user/ai_engineering

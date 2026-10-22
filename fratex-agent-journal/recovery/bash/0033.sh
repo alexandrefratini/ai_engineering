@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && ls packages/validation; ls packages/validation/test 2>/dev/null | head; grep -n "\"test\"" packages/validation/package.json; ls apps/api/test | grep -v integration | head

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1,80p packages/auth/src/organization.ts; grep -n "onboardedAt" -r apps/app/lib/onboarding.ts packages/auth/src | head

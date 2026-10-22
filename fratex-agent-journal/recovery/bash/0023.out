@@ -1,0 +1,11 @@
+packages/db/src/generated/prisma/models/Company.ts
+packages/db/src/generated/prisma/models/SmsConnection.ts
+packages/db/src/generated/prisma/models/Lead.ts
+packages/db/src/generated/prisma/models/Client.ts
+packages/db/src/generated/prisma/models/Contact.ts
+packages/db/src/generated/prisma/internal/prismaNamespace.ts
+packages/db/src/generated/prisma/internal/prismaNamespaceBrowser.ts
+packages/db/src/generated/prisma/internal/class.ts
+packages/db/src/generated/prisma/enums.ts
+packages/db/src/fields-shape.ts
+Shell cwd was reset to /home/user/ai_engineering

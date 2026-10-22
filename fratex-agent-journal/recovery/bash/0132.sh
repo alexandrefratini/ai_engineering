@@ -1,0 +1,1 @@
+ps -eo pid,args | grep -E "turbo|next|nest|bun " | grep -v "grep" | cut -c1-150

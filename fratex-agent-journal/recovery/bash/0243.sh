@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat packages/ui/src/components/team-presence.tsx; cat apps/app/components/team-presence-control.tsx; cat apps/api/src/presence/presence.contracts.ts; grep -n "async" -A25 apps/api/src/presence/presence.service.ts | head -70; cat apps/app/lib/presence-config.ts apps/api/src/presence/presence-config.ts

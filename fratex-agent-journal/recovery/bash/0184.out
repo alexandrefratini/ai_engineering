@@ -1,0 +1,33 @@
+packages/db/package.json:33:		"build": "prisma generate",
+packages/db/package.json:35:		"db:deploy": "prisma migrate deploy",
+packages/db/package.json:36:		"db:generate": "prisma generate",
+packages/db/package.json:37:		"db:migrate": "bun scripts/require-local-db.ts db:migrate && prisma migrate dev",
+packages/db/package.json:38:		"db:push": "bun scripts/require-local-db.ts db:push && prisma db push",
+packages/db/package.json:39:		"db:reset": "bun scripts/require-local-db.ts db:reset && prisma migrate reset",
+packages/db/package.json:40:		"db:seed": "bun scripts/require-local-db.ts db:seed && prisma db seed",
+packages/db/package.json:41:		"db:studio": "prisma studio",
+packages/db/package.json:42:		"db:test": "bun scripts/test-db.ts",
+packages/db/package.json:46:		"postinstall": "prisma generate",
+20261022020000_secure_real_estate_workflows
+20261022044450_add_user_last_seen
+migration_lock.toml
+-- AlterTable
+ALTER TABLE "user" ADD COLUMN     "lastSeenAt" TIMESTAMP(3);
+1630:model AgencyUser {
+1631-  id        String     @id @default(cuid())
+1632-  agencyId  String
+1633-  userId    String
+1634-  clientId  String?
+1635-  role      AgencyRole @default(MARKETER)
+1636-  createdAt DateTime   @default(now())
+1637-  updatedAt DateTime   @updatedAt
+1638-
+1639-  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+1640-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+1641-  client Client? @relation(fields: [clientId, agencyId], references: [id, agencyId], onDelete: Restrict)
+1642-
+1643-  @@unique([agencyId, userId])
+1644-  @@index([userId])
+1645-  @@map("agencyUser")
+1646-}
+Shell cwd was reset to /home/user/ai_engineering

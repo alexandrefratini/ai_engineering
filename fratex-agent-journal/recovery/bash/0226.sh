@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/app/lib/workspace-label.ts; cat apps/app/test/workspace-label.spec.ts | head -30

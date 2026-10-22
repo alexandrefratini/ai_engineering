@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && set -a && . ./.env && set +a && grep -n "model Client " -A3 packages/db/prisma/schema.prisma | head -5; grep -n "@@map(\"client" packages/db/prisma/schema.prisma | head; psql "${DATABASE_URL%%\?*}" -c "\dt" | grep -i client

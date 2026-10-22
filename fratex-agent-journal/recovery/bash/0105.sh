@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings" && ls; grep -rln "agentModel\|setAgentModel\|model" --include=*.tsx . | head

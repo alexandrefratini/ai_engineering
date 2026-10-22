@@ -1,0 +1,22 @@
+125:export const SEGMENT_LABELS: Record<string, string> = {
+126-	pipeline: "Pipeline",
+127-	leads: "Prospects",
+128-	inbox: "Boîte de réception",
+--
+156:export const HIDDEN_SEGMENTS = new Set(["real-estate"]);
+157-
+158-export function normalizeSearch(value: string): string {
+159-	return value
+import { describe, expect, it } from "bun:test";
+import { matchPages, NAV_PAGES, SEGMENT_LABELS } from "../lib/navigation";
+
+describe("page search in the switcher", () => {
+	it("lists every page before anything is typed", () => {
+		expect(matchPages("")).toEqual(NAV_PAGES);
+	});
+
+	it("ignores accents and case", () => {
+		expect(matchPages("BOITE").map((page) => page.label)).toContain(
+			"Boîte de réception",
+		);
+Shell cwd was reset to /home/user/ai_engineering

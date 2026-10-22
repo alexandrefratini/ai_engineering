@@ -1,0 +1,38 @@
+});
+
+describe("describe", () => {
+	it("says what happened in a rep's words, not the tool's", () => {
+		expect(describeStep(tool("read_crm_history") as never)).toBe(
+			"Read our emails and meetings with them",
+		);
+	});
+
+	it("carries the reason a write did not happen", () => {
+		const step = tool("set_contact_socials", {
+			output: { written: false, reason: "the account is named somebody else" },
+		});
+
+		expect(describeStep(step as never)).toContain("named somebody else");
+	});
+
+	it("falls back to a readable form of an unknown tool", () => {
+		expect(describeStep(tool("some_new_tool") as never)).toBe("Some new tool");
+	});
+});
+	read_crm_history: "A lu nos courriels et rencontres avec cette personne",
+	read_company_history: "A lu tout ce que nous avons sur l'entreprise",
+	read_deal_history: "A lu l'affaire et son historique",
+	search_crm: "A cherché la fiche dans Fratex",
+	resolve_linkedin_profile: "A cherché son profil LinkedIn",
+	get_linkedin_profile: "A lu un profil LinkedIn",
+	get_contact_work_history: "A lu son parcours professionnel",
+111:	const words = tool.replace(/_/g, " ");
+112-	return words.charAt(0).toUpperCase() + words.slice(1);
+113-}
+114-
+115-export type TranscriptMessage = {
+116-	id: string;
+117-	mine: boolean;
+118-	items: TranscriptItem[];
+119-};
+Shell cwd was reset to /home/user/ai_engineering

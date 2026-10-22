@@ -1,0 +1,32 @@
+apps/app/app/(app)/[slug]/overview-scope.tsx:84:export function OverviewViewToggle() {
+apps/app/app/(app)/[slug]/page.tsx:21:	OverviewViewToggle,
+apps/app/app/(app)/[slug]/page.tsx:38:						<OverviewViewToggle />
+84:export function OverviewViewToggle() {
+85-	const [view, setView] = useQueryState(
+86-		SEARCH_PARAM.overview.view,
+87-		overviewParsers[SEARCH_PARAM.overview.view],
+88-	);
+89-
+90-	return (
+91-		<ToggleGroup
+92-			type="single"
+93-			variant="outline"
+94-			size="sm"
+95-			spacing={0}
+96-			value={view}
+97-			onValueChange={(next) => {
+98-				if (isView(next)) void setView(next === "immobilier" ? null : next);
+99-			}}
+100-			aria-label="Tableau de bord à afficher"
+101-		>
+102-			{OVERVIEW_VIEWS.map((value) => (
+103-				<ToggleGroupItem key={value} value={value}>
+104-					{VIEW_LABELS[value]}
+105-				</ToggleGroupItem>
+106-			))}
+107-		</ToggleGroup>
+108-	);
+109-}
+4:import { initialsFromName } from "../lib/format";
+160:						<AvatarFallback>{initialsFromName(stats.client.name)}</AvatarFallback>
+Shell cwd was reset to /home/user/ai_engineering

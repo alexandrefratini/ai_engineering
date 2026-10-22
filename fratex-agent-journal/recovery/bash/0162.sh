@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && head -30 packages/ui/src/components/logo.tsx; ls apps/app/public 2>/dev/null | head; grep -rn "fratex" -i docs/design.md README.md 2>/dev/null | grep -i "logo\|brand\|marque" | head -5

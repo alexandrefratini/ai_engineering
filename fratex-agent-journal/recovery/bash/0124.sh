@@ -1,0 +1,1 @@
+for i in $(seq 1 40); do a=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health); b=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/agenda-connecte); [ "$a" = 200 ] && [ "$b" = 200 ] && break; sleep 3; done; echo "api $a app $b"

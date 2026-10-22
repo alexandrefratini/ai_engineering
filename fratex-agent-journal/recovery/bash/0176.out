@@ -1,0 +1,111 @@
+1758:enum LeadStatus {
+1759-  NEW
+1760-  CONTACTED
+1761-  QUALIFYING
+1762-  QUALIFIED
+1763-  APPOINTMENT_BOOKED
+1764-  APPOINTMENT_HELD
+1765-  NURTURE
+1766-  LOST
+1767-  INVALID
+1768-}
+1769-
+1770-enum LeadIntent {
+1771-  BUY
+1772-  SELL
+1773-  BUY_AND_SELL
+1774-  RENT
+1775-  INVEST
+1776-  UNKNOWN
+1777-}
+1778-
+1779-enum ContactChannel {
+1780-  SMS
+1781-  WHATSAPP
+1782-  EMAIL
+1783-  CALL
+1784-}
+1785-
+1786:model Lead {
+1787-  id                    String             @id @default(cuid())
+1788-  agencyId              String
+1789-  clientId              String?
+1790-  campaignId            String?
+1791-  metaFormId            String?
+1792-  metaLeadgenId         String?            @unique
+1793-  firstName             String
+1794-  lastName              String?
+1795-  email                 String?
+1796-  phone                 String
+1797-  language              String             @default("fr")
+1798-  status                LeadStatus         @default(NEW)
+1799-  score                 Int                @default(0)
+1800-  qualificationSummary  String?
+1801-  unsubscribedAt        DateTime?
+1802-  consentedAt           DateTime?
+1803-  consentSource         String?
+1804-  automationPausedAt    DateTime?
+1805-  escalationReason      String?
+1806-  qualificationEvidence Json?
+1807-  suggestions           Json?
+1808-  intent                LeadIntent         @default(UNKNOWN)
+1809-  propertyType          String?
+1810-  budgetMin             Int?
+1811-  budgetMax             Int?
+1812-  timeline              String?
+1813-  financing             String?
+1814-  targetArea            String?
+1815-  currentSituation      String?
+1816-  firstContactedAt      DateTime?
+1817-  lastInteractedAt      DateTime?
+1818-  createdAt             DateTime           @default(now())
+1819-  updatedAt             DateTime           @updatedAt
+1820-  agency                Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+1821-  client                Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+1822-  campaign              Campaign?          @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+1823-  form                  MetaLeadForm?      @relation(fields: [metaFormId], references: [id], onDelete: SetNull)
+1824-  conversations         Conversation[]
+1825-  appointments          Appointment[]
+1826-  propertyInterest      PropertyInterest?
+1923:model Appointment {
+1924-  agencyId       String
+1925-  id             String            @id @default(cuid())
+1926-  leadId         String
+1927-  clientId       String
+1928-  bookingKey     String?           @unique
+1929-  title          String
+1930-  description    String?
+1931-  startTime      DateTime
+1932-  endTime        DateTime
+1933-  googleEventId  String?
+1934-  meetingLink    String?
+1935-  status         AppointmentStatus @default(SCHEDULED)
+1936-  reminderSentAt DateTime?
+1937-  createdAt      DateTime          @default(now())
+1938-  updatedAt      DateTime          @updatedAt
+1939-  lead           Lead              @relation(fields: [leadId, agencyId], references: [id, agencyId], onDelete: Cascade)
+1940-  client         Client            @relation(fields: [clientId, agencyId], references: [id, agencyId], onDelete: Cascade)
+1941-
+1942-  @@index([clientId, startTime])
+1943-  @@index([leadId])
+1944-  @@map("appointment")
+1945-}
+1946-
+1947-enum AttributionEventType {
+1948-  LEAD_CREATED
+1949-  FIRST_SMS_SENT
+1950-  LEAD_REPLIED
+1951-  LEAD_QUALIFIED
+1952-  APPOINTMENT_SCHEDULED
+1953-  APPOINTMENT_HELD
+1954-  DEAL_SIGNED
+1955-}
+1956-
+1957-model AttributionEvent {
+1958-  id           String               @id @default(cuid())
+1959-  agencyId     String
+1960-  leadId       String
+1961-  eventType    AttributionEventType
+1962-  metaSentAt   DateTime?
+1963-  metaResponse Json?
+Shell cwd was reset to /home/user/ai_engineering

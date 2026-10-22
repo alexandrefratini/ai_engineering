@@ -1,0 +1,33 @@
+apps/app/components/crm/quick-switcher.tsx:24:import { matchPages, NAV_PAGES } from "@/lib/navigation";
+apps/app/components/crm/quick-switcher.tsx:37:const PAGE_GROUPS = [...new Set(NAV_PAGES.map((page) => page.group))];
+apps/app/components/crm/quick-switcher.tsx:82:	const pages = matchPages(query);
+export type NavPage = {
+	label: string;
+	href: string;
+	group: "Immobilier" | "CRM" | "Paramètres";
+	keywords: string[];
+};
+
+export const NAV_PAGES: NavPage[] = [
+	{
+		label: "Accueil",
+		href: "/",
+		group: "Immobilier",
+		keywords: ["tableau de bord", "aujourd'hui"],
+	},
+	{
+		label: "Pipeline",
+		href: "/real-estate/pipeline",
+		group: "Immobilier",
+		keywords: ["kanban", "étapes"],
+	},
+166:export function matchPages(query: string): NavPage[] {
+167-	const needle = normalizeSearch(query);
+168-	if (!needle) return NAV_PAGES;
+169-	return NAV_PAGES.filter((page) =>
+170-		[page.label, ...page.keywords].some((text) =>
+171-			normalizeSearch(text).includes(needle),
+172-		),
+173-	);
+174-}
+Shell cwd was reset to /home/user/ai_engineering

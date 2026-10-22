@@ -1,0 +1,7 @@
+ 2910 /bin/bash -c source /root/.claude/shell-snapshots/snapshot-bash-1792659120974-m1kf59.sh 2>/dev/null || true && \builtin export BUN_OPTIONS="--sm
+ 2912 bun run dev --filter=app --filter=api
+ 2913 node /home/user/endsi3g/fratex-agent/node_modules/.bin/turbo run dev --filter=app --filter=api
+ 2920 /home/user/endsi3g/fratex-agent/node_modules/.bun/@turbo+linux-64@2.10.8/node_modules/@turbo/linux-64/bin/turbo run dev --filter=app --filter=ap
+ 3070 /root/.bun/bin/bun run dev
+ 3071 node /home/user/endsi3g/fratex-agent/apps/api/node_modules/.bin/concurrently -n api,trpc -c blue,magenta bun --watch src/main.ts bun run dev:trp
+ 3088 bun --watch src/main.ts

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "@crm/\|\"zod\"" packages/ui/package.json packages/validation/package.json; grep -rn "@crm/validation" packages/ui/src | head -3

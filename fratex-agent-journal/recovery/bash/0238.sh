@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 340,360p apps/app/test/agent-transcript.spec.ts; sed -n 60,66p apps/app/lib/agent-transcript.ts; grep -n "function describeStep\|const words" -A8 apps/app/lib/agent-transcript.ts | head -24

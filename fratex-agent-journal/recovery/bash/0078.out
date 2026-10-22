@@ -1,0 +1,103 @@
+101:export const workingHours = z
+102-	.object({
+103-		timezone: z.string().default("America/Toronto"),
+104-		days: z.array(z.number().int().min(0).max(6)),
+105-		startHour: z.number().int().min(0).max(23),
+106-		endHour: z.number().int().min(1).max(24),
+107-	})
+108-	.refine(
+109-		(v) => v.endHour > v.startHour,
+--
+159:export const googleRefreshResponse = z.object({
+160-	access_token: z.string().min(1),
+161-	expires_in: z.number().positive(),
+162-});
+163-
+164-export const metaConversionResponse = z.object({
+165-	events_received: z.number().int().nonnegative(),
+166-	fbtrace_id: z.string().optional(),
+167-});
+import { Module } from "@nestjs/common";
+import { AgentModule } from "../agent/agent.module";
+import { DatabaseModule } from "../database/database.module";
+import { RealEstateRouter } from "./real-estate.router";
+import { RealEstateService } from "./real-estate.service";
+
+@Module({
+	imports: [DatabaseModule, AgentModule],
+	providers: [RealEstateService, RealEstateRouter],
+	exports: [RealEstateService],
+})
+export class RealEstateModule {}
+21-	clientDetailOutput,
+22-	configurationOutput,
+23:	configureCalendarInput,
+24-	configureMetaInput,
+25-	configureSmsInput,
+26:	connectionsStatusOutput,
+27-	createAgencyInput,
+28-	createAgencyOutput,
+29-	createClientInput,
+30-	getLeadInput,
+31-	homeInput,
+32-	homeOutput,
+33-	inboxInput,
+34-	inboxOutput,
+35-	leadDetailOutput,
+36-	listLeadsInput,
+37-	listLeadsOutput,
+38-	markReadInput,
+--
+216-	@Query({
+217-		input: agencyScopeInput,
+218:		output: connectionsStatusOutput,
+219-		meta: restMeta("GET", "/real-estate/connections-status", ["RealEstate"]),
+220-	})
+221:	async connectionsStatus(
+222-		@Ctx() ctx: AuthedTrpcContext,
+223-		@Input() input: z.infer<typeof agencyScopeInput>,
+224-	) {
+225-		return this.realEstateService.getConnectionsStatus(
+226-			ctx.user.id,
+227-			input.agencyId,
+228-		);
+229-	}
+230-	@Query({ output: agenciesOutput })
+231-	async agencies(@Ctx() ctx: AuthedTrpcContext) {
+232-		return this.realEstateService.listAgencies(ctx.user.id);
+233-	}
+--
+267-		return this.realEstateService.configureMeta(ctx.user.id, input);
+268-	}
+269:	@Mutation({ input: configureCalendarInput, output: configurationOutput })
+270:	async configureCalendar(
+271-		@Ctx() ctx: AuthedTrpcContext,
+272:		@Input() input: z.infer<typeof configureCalendarInput>,
+273-	) {
+274:		return this.realEstateService.configureCalendar(ctx.user.id, input);
+275-	}
+276-}
+export const MINUTE_MS = 60_000;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
+
+export const REAL_ESTATE = {
+	export: { timeoutMs: 5000 },
+	lead: { eventLimit: 20, emailLimit: 20 },
+	portal: {
+		recentLimit: 10,
+		upcomingLimit: 5,
+		fastResponseMinutes: 5,
+		periodDays: { "30D": 30, "90D": 90 },
+	},
+	home: {
+		timeZone: "America/Toronto",
+		trendDays: 14,
+		weekDays: 7,
+		appointmentHours: 48,
+		toDoLimit: 8,
+	},
+	messages: { maxLength: 160 },
+	email: { gmailWebBase: "https://mail.google.com/mail/u/0/#all/" },
+} as const;
+Shell cwd was reset to /home/user/ai_engineering

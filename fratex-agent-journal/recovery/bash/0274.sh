@@ -1,0 +1,1 @@
+ls /usr/lib/postgresql/ 2>&1; which bun node psql 2>&1; bun --version; ls /home/user/endsi3g/fratex-agent; ls /home/user/endsi3g/fratex-agent/.env* 2>&1

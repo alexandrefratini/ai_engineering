@@ -1,0 +1,25 @@
+import { Inject } from "@nestjs/common";
+import { Ctx, Mutation, Query, Router, UseMiddlewares } from "nestjs-trpc";
+import type { AuthedTrpcContext } from "../trpc/context.types";
+import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+import { heartbeatOutput, teamPresenceOutput } from "./presence.contracts";
+import { PresenceService } from "./presence.service";
+
+@Router({ alias: "presence" })
+@UseMiddlewares(AuthMiddleware)
+export class PresenceRouter {
+	constructor(
+		@Inject(PresenceService) private readonly presence: PresenceService,
+	) {}
+
+	@Query({ output: teamPresenceOutput })
+	async team(@Ctx() ctx: AuthedTrpcContext) {
+		return this.presence.team(ctx.user.id);
+	}
+
+	@Mutation({ output: heartbeatOutput })
+	async heartbeat(@Ctx() ctx: AuthedTrpcContext) {
+		return this.presence.heartbeat(ctx.user.id);
+	}
+}
+Shell cwd was reset to /home/user/ai_engineering

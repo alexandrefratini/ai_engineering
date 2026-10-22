@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "^model User " -A40 packages/db/prisma/schema.prisma | grep -n "\[\]" | head -5; grep -n "^model User " packages/db/prisma/schema.prisma

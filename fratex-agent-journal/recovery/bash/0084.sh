@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/api/test && grep -n "afterAll" -A20 real-estate-inbox.integration.spec.ts | head -30; grep -n "model Client " -A22 ../../../packages/db/prisma/schema.prisma | grep -v "^\s*$" | head -24

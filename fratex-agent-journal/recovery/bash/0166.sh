@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rn "components/logo\"" apps packages --include=*.tsx | grep -v node_modules | head; grep -n "Comp" apps/app/components/auth-shell.tsx | head

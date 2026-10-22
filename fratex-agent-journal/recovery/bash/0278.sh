@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && (bun run --cwd packages/db db:seed 2>&1 | tail -4); set -a && . ./.env && set +a && psql "${DATABASE_URL%%\?*}" -At -c "select count(*) from \"user\";" -c "select id, name, slug, metadata from organization;" -c "select count(*) from contact;" 2>&1 | head

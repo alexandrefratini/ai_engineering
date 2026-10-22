@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && head -40 packages/validation/src/real-estate.ts; grep -n "real-estate" packages/validation/package.json packages/validation/src/index.ts; grep -n "@crm/validation" apps/api/src/real-estate/real-estate.contracts.ts

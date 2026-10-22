@@ -1,0 +1,18 @@
+import { describe, expect, it } from "bun:test";
+import * as z from "zod";
+import { InvalidInput, parse, schemas } from "../src/index";
+
+const person = z.object({
+	name: z.string().trim().min(1),
+	age: z.number().int().min(0),
+});
+
+describe("parse", () => {
+	it("returns the parsed value", () => {
+		expect(parse(person, { name: "Grim", age: 30 }, "This person")).toEqual({
+
+ 8 pass
+ 0 fail
+ 19 expect() calls
+Ran 8 tests across 2 files. [80.00ms]
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,7 @@
+apps/api/src/messaging/messaging.service.ts:42:				accountSid_phoneNumber: {
+apps/api/src/messaging/messaging.service.ts:44:					phoneNumber: body.data.To ?? "",
+apps/api/src/messaging/messaging.service.ts:52:					accountSid_phoneNumber: {
+apps/api/src/messaging/messaging.service.ts:54:						phoneNumber: body.data.From ?? "",
+apps/api/src/messaging/messaging.service.ts:94:				where: { agencyId, phone: body.From },
+apps/api/src/messaging/messaging.service.ts:215:				message.conversation.lead.phone !== body.To ||
+Shell cwd was reset to /home/user/ai_engineering

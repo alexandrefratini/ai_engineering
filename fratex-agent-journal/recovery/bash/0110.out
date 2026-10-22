@@ -1,0 +1,7 @@
+erreurs: [
+  'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.\n' +
+    '  {id: "slack"',
+  'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.\n' +
+    '  {id: "google'
+]
+Shell cwd was reset to /home/user/ai_engineering

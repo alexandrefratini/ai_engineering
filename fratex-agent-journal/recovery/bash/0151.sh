@@ -1,0 +1,1 @@
+grep -n "cookie\|sign-in\|session" /home/user/ai_engineering/fratex-agent-journal/scripts/setup-local.sh | head; cd /home/user/endsi3g/fratex-agent && set -a && . ./.env && set +a && psql "${DATABASE_URL%%\?*}" -c "select u.email, au.role, c.name as client from \"agencyUser\" au join \"user\" u on u.id=au.\"userId\" left join client c on c.id=au.\"clientId\";" 2>&1 | head -12

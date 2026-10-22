@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rn "phone" packages/validation/src packages/db/src apps/api/src/real-estate apps/api/src/meta* --include=*.ts -il | grep -v spec | head; grep -rn "\\\\+1\|+1" apps/api/src --include=*.ts | grep -v spec | grep -i "phone\|replace\|digits" | head

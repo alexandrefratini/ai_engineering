@@ -1,0 +1,44 @@
+p2-conversation.png
+p2-fiche-agence-obsolete.png
+p2-fiche-agence-vide.png
+p2-fiche-complete.png
+p2-fiche-rdv.png
+p2-mobile-1-prospects.png
+p2-mobile-2-fiche.png
+p2-mobile-3-conversation.png
+p2-mobile-fiche.png
+p3-portail-infobulle.png
+p3-portail-mobile.png
+p3-portail.png
+p4-estimateur-lie.png
+p4-estimateur-mobile.png
+p4-estimateur-offres.png
+p4-estimateur-vide.png
+p4-fiche-karim-suggestion.png
+p9-accueil-equipe.png
+p9-accueil-ventes.png
+p9-accueil.png
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const [, , cookie, out] = process.argv;
+(async () => {
+  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const c = await b.newContext({ viewport: { width: 1440, height: 900 }, locale: "fr-CA" });
+  await c.addCookies([{ name: "crm.session_token", value: cookie, domain: "localhost", path: "/" }]);
+  const p = await c.newPage();
+  const errors = [];
+  p.on("pageerror", (e) => errors.push(e.message.slice(0, 200)));
+  await p.goto("http://localhost:3000/crm/real-estate/portal", { waitUntil: "networkidle" });
+  await p.waitForTimeout(1500);
+  await p.getByRole("tab", { name: "90 jours" }).click();
+  await p.waitForTimeout(2000);
+  console.log("url période :", p.url());
+  console.log("libellé période :", await p.getByText(/^Du /).first().textContent());
+  await p.getByRole("button", { name: /Explication : Première réponse/ }).hover();
+  await p.waitForTimeout(600);
+  await p.screenshot({ path: `${out}/p3-portail-infobulle.png`, clip: { x: 380, y: 220, width: 760, height: 260 } });
+  await p.getByRole("button", { name: /Karim Benali/ }).click();
+  await p.waitForURL(/real-estate\/leads\//);
+  console.log("clic prospect → ", p.url().replace(/\?.*/, ""));
+  console.log("erreurs:", errors.length ? errors : "aucune");
+  await b.close();
+})();

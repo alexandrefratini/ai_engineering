@@ -1,0 +1,6 @@
+38:export const leadListItemOutput = z.object({
+64:	leads: z.array(leadListItemOutput),
+158:	lead: leadListItemOutput,
+371:	recentLeads: z.array(leadListItemOutput),
+219:			lead: leadItem(lead),
+Shell cwd was reset to /home/user/ai_engineering

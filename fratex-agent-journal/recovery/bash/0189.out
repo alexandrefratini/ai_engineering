@@ -1,0 +1,31 @@
+34:				where: { agencyId: lead.agencyId, id: clientId, status: "ACTIVE" },
+99:					status: { in: ["SCHEDULED", "CONFIRMED"] },
+116:					status: "SCHEDULED",
+142:					data: { status: "CANCELLED" },
+155:					status: "CONFIRMED",
+162:				data: { status: "APPOINTMENT_BOOKED", clientId },
+164:			const attribution = await tx.attributionEvent.upsert({
+171:					eventType: "APPOINTMENT_SCHEDULED",
+177:				kind: "real-estate-capi",
+558:					["QUALIFIED", "APPOINTMENT_BOOKED", "APPOINTMENT_HELD"].includes(
+563:					["APPOINTMENT_BOOKED", "APPOINTMENT_HELD"].includes(lead.status),
+678:			(counts.get("APPOINTMENT_HELD") ?? 0);
+777:			"APPOINTMENT_HELD",
+829:						{ status: { in: ["APPOINTMENT_BOOKED", "APPOINTMENT_HELD"] } },
+838:						{ status: "APPOINTMENT_HELD" },
+839:						{ appointments: { some: { status: "COMPLETED" } } },
+866:					status: { in: ["CONFIRMED", "COMPLETED"] },
+148:export const leadDetailOutput = z.object({
+149-	lead: leadListItemOutput,
+150-	profile: leadProfileOutput,
+151-	emails: z.array(leadEmailOutput),
+152-	channels: leadChannelsOutput,
+153-	evidence: storedQualificationEvidence,
+154-	suggestedListings: listingSuggestions.shape.listings,
+155-	events: z.array(leadEventOutput),
+156-	messages: z.array(messageOutput),
+157-	appointments: z.array(appointmentItemOutput),
+158-	canWrite: z.boolean(),
+159-	deliveries: z.array(
+160-		z.object({
+Shell cwd was reset to /home/user/ai_engineering

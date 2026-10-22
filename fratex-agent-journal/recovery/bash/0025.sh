@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rn "phone" apps/api/src --include=*.ts -l | grep -v "spec\|generated" | head; grep -rn "phone" apps/api/src/sdr* apps/api/src/meta* 2>/dev/null | head -20; ls apps/api/src

@@ -1,0 +1,18 @@
+node_modules
+package.json
+src
+test
+tsconfig.json
+parse.spec.ts
+24:		"test": "bun test",
+agent-delete.spec.ts
+agent-events.spec.ts
+agent-lifecycle.spec.ts
+agent-queue.spec.ts
+agent-runs.spec.ts
+agent-trigger.stub.ts
+agent-visibility.spec.ts
+auth.e2e.spec.ts
+bulk.spec.ts
+company-requested.spec.ts
+Shell cwd was reset to /home/user/ai_engineering

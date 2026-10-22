@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "^export function\|^export type\|^export const" packages/ui/src/components/real-estate-visuals.tsx; grep -n "export function MetricTile" -A40 packages/ui/src/components/real-estate-visuals.tsx | head -60; grep -n "export function MetricGrid" -A10 packages/ui/src/components/real-estate-visuals.tsx

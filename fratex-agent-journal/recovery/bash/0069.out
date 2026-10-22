@@ -1,0 +1,242 @@
+"use client";
+import { ConnectionSetup } from "@crm/ui/components/connection-setup";
+import {
+	RealEstateWorkspace,
+	WorkspaceLoading,
+	WorkspaceNotice,
+	WorkspaceSelect,
+} from "@crm/ui/components/real-estate-workspace";
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useTRPC } from "@/lib/trpc/client";
+import { AgencyControl } from "../../../real-estate/use-agency";
+import { useSdrConnections } from "../use-sdr-connections";
+export function RealtorCalendarConnection() {
+	const trpc = useTRPC();
+	const { scope, query, clients } = useSdrConnections();
+	const [clientId, setClientId] = useState("");
+	const mutation = useMutation(
+		trpc.realEstate.configureCalendar.mutationOptions(),
+	);
+	return (
+		<RealEstateWorkspace>
+			<AgencyControl scope={scope} />
+			{scope.agencyId &&
+				(query.isPending ? (
+					<WorkspaceLoading />
+				) : query.error ? (
+					<WorkspaceNotice
+						title="Configuration indisponible"
+						error={query.error.message}
+					/>
+				) : (
+					<ConnectionSetup
+						title="Google Calendar du courtier"
+						description="Les réservations utilisent cet agenda et ces horaires. Le lien d’onboarding ne connecte pas cet agenda."
+						enabled={
+							query.data.canManage && Boolean(clients.data?.clients.length)
+						}
+						fields={[
+							{ name: "calendarId", label: "Identifiant Google Calendar" },
+							{
+								name: "accessToken",
+								label: "Jeton d’accès OAuth",
+								type: "password",
+							},
+							{
+								name: "refreshToken",
+								label: "Jeton de renouvellement OAuth",
+								type: "password",
+							},
+							{
+								name: "tokenExpiry",
+								label: "Expiration ISO, exemple 2026-12-01T12:00:00Z",
+							},
+							{
+								name: "timezone",
+								label: "Fuseau horaire",
+								defaultValue: "America/Toronto",
+							},
+							{
+								name: "days",
+								label: "Jours : 0 dimanche, 1 lundi, jusqu’à 6 samedi",
+								defaultValue: "1,2,3,4,5",
+							},
+							{
+								name: "startHour",
+								label: "Heure de début",
+								type: "number",
+								defaultValue: "9",
+							},
+							{
+								name: "endHour",
+								label: "Heure de fin",
+								type: "number",
+								defaultValue: "17",
+							},
+							{
+								name: "slotDuration",
+								label: "Durée en minutes",
+								type: "number",
+								defaultValue: "30",
+							},
+						]}
+						onSubmit={async (data) => {
+							if (!clientId) throw new Error("Sélectionnez un courtier.");
+							await mutation.mutateAsync({
+								agencyId: scope.agencyId,
+								clientId,
+								calendarId: String(data.get("calendarId")),
+								accessToken: String(data.get("accessToken")),
+								refreshToken: String(data.get("refreshToken")),
+								tokenExpiry: String(data.get("tokenExpiry")),
+								timezone: String(data.get("timezone")),
+								days: String(data.get("days")).split(",").map(Number),
+								startHour: Number(data.get("startHour")),
+								endHour: Number(data.get("endHour")),
+								slotDuration: Number(data.get("slotDuration")),
+							});
+							await query.refetch();
+						}}
+					>
+						{clients.data && (
+							<WorkspaceSelect
+								label="Courtier"
+								value={clientId}
+								options={clients.data.clients}
+								onChange={setClientId}
+							/>
+						)}
+						{clients.error && (
+							<WorkspaceNotice
+								title="Courtiers indisponibles"
+								error={clients.error.message}
+							/>
+						)}
+					</ConnectionSetup>
+				))}
+		</RealEstateWorkspace>
+	);
+}
+import { Button } from "@crm/ui/components/button";
+import Link from "next/link";
+import { Suspense } from "react";
+import { requireSession } from "@/lib/session";
+import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
+
+export default function IntakeConnectionPage(
+	props: PageProps<"/[slug]/settings/connections/intake">,
+) {
+	return (
+		<Suspense fallback={<ConnectionPageLoading />}>
+			<IntakeConnectionPageContent {...props} />
+		</Suspense>
+	);
+}
+
+async function IntakeConnectionPageContent({
+	params,
+}: PageProps<"/[slug]/settings/connections/intake">) {
+	await requireSession();
+	const { slug } = await params;
+
+	return (
+		<ConnectionPage centered className="max-w-(--container-narrow) text-center">
+			<header className="flex flex-col gap-3 px-(--spacing-block-inline)">
+				<h1 className="font-medium text-2xl tracking-tight">Intake endpoint</h1>
+				<p className="text-muted-foreground text-sm leading-relaxed">
+					This connection is not available yet. No endpoint, API key, or intake
+					activity has been created for this workspace.
+				</p>
+			</header>
+			<div>
+				<Button asChild variant="outline">
+					<Link href={`/${slug}/settings/connections`}>
+						Back to connections
+					</Link>
+				</Button>
+			</div>
+		</ConnectionPage>
+	);
+}
+"use client";
+
+import Plug from "@carbon/icons-react/es/Plug";
+import DocusignLogo from "@crm/ui/components/brand-logos/docusign";
+import GeminiLogo from "@crm/ui/components/brand-logos/gemini";
+import GoogleLogo from "@crm/ui/components/brand-logos/google";
+import MetaLogo from "@crm/ui/components/brand-logos/meta";
+import MicrosoftLogo from "@crm/ui/components/brand-logos/microsoft";
+import SlackLogo from "@crm/ui/components/brand-logos/slack";
+import StripeLogo from "@crm/ui/components/brand-logos/stripe";
+import TwilioLogo from "@crm/ui/components/brand-logos/twilio";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@crm/ui/components/dialog";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+export function AddConnectionDialog({
+	slug,
+	open,
+	connected,
+}: {
+	slug: string;
+	open: boolean;
+	connected: string[];
+}) {
+	const router = useRouter();
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				if (!next) router.replace(`/${slug}/settings/connections`);
+			}}
+		>
+			<DialogContent className="max-w-(--container-narrow) gap-0 p-0 md:left-[calc(50%+calc((56px+213px)/2))]">
+				<DialogHeader className="gap-2 px-(--spacing-block-inline) pt-5 pb-4">
+					<DialogTitle className="text-base font-semibold">
+						Ajouter un outil
+					</DialogTitle>
+					<DialogDescription className="text-xs">
+						Connectez vos comptes pour commencer à recevoir des prospects et
+						envoyer des messages automatiquement.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="flex flex-col border-y px-2 py-2">
+					<CatalogRow
+						logo={MetaLogo}
+						name="Publicités Meta"
+						description="Recevez vos prospects Facebook & Instagram en direct"
+						href={`/${slug}/settings/connections/meta-ads`}
+					/>
+					<CatalogRow
+						logo={TwilioLogo}
+						name="Téléphonie & SMS"
+						description="Envoyez des SMS avec consentement confirmé"
+						href={`/${slug}/settings/connections/twilio`}
+					/>
+					<CatalogRow
+						logo={GeminiLogo}
+						name="Assistant IA"
+						description="Qualification à partir des critères confirmés"
+						href={`/${slug}/settings/connections/gemini`}
+					/>
+					{!connected.includes("Google Workspace & Agenda") ? (
+						<CatalogRow
+							logo={GoogleLogo}
+							name="Google Workspace & Agenda"
+							description="Synchronisez vos disponibilités et rendez-vous"
+							href={`/${slug}/settings/connections/google`}
+						/>
+					) : null}
+					<CatalogRow
+						logo={MicrosoftLogo}
+						name="Microsoft 365"
+						description="Synchronisez Outlook"
+						href={`/${slug}/settings/connections/microsoft`}
+Shell cwd was reset to /home/user/ai_engineering

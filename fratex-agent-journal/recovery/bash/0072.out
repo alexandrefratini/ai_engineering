@@ -1,0 +1,37 @@
+1062:		const url = new URL(input.targetWebhookUrl);
+1344:		const origin = process.env.API_URL ?? "http://localhost:3001";
+1349:			metaWebhookUrl: `${origin}/api/meta/webhook`,
+1362:				inboundWebhookUrl: `${origin}/api/messaging/sms/webhook`,
+apps/api/src/telemetry/telemetry.controller.ts:32:@Controller("internal/telemetry")
+apps/api/src/auth/auth.controller.ts:21:@Controller("auth")
+apps/api/src/currency/rates.controller.ts:33:@Controller("internal/sync")
+apps/api/src/conversations/conversation-attachments.controller.ts:26:@Controller("api/conversations/attachments")
+apps/api/src/messaging/messaging.controller.ts:17:@Controller("api/messaging")
+apps/api/src/meta/meta.controller.ts:23:@Controller("api/meta")
+apps/api/src/health/health.controller.ts:20:@Controller("health")
+apps/api/src/sync/sync.controller.ts:32:@Controller("internal/sync")
+apps/api/src/tracking/tracking.controller.ts:63:@Controller("api/t")
+apps/api/src/tracking/tracking.controller.ts:143:@Controller("internal/tracking")
+apps/api/src/archive/archive-retention.controller.ts:39:@Controller("internal/archive")
+2:	CALENDAR_SCOPE,
+3:	GMAIL_SCOPE,
+4-	GOOGLE_PROVIDER_ID,
+5-	type MailboxProviderId,
+--
+11:	CALENDAR_SCOPE,
+12:	GMAIL_SCOPE,
+13-	GOOGLE_PROVIDER_ID,
+14-	type MailboxProviderId,
+--
+40:			"BETTER_AUTH_SECRET must be at least 32 characters. Generate one with: openssl rand -base64 32",
+42:	BETTER_AUTH_SECRET!: string;
+57:	GOOGLE_CLIENT_SECRET?: string;
+65:	MICROSOFT_CLIENT_SECRET?: string;
+77:	SLACK_CLIENT_SECRET?: string;
+81:	API_URL?: string;
+85:	APP_URL?: string;
+104:		message: "CRON_SECRET must be at least 16 characters.",
+106:	CRON_SECRET?: string;
+124:	AGENT_BRIDGE_SECRET?: string;
+136:	META_APP_SECRET?: string;
+Shell cwd was reset to /home/user/ai_engineering

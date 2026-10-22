@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "function AvatarFallback\|function AvatarBadge" -A16 packages/ui/src/components/avatar.tsx | grep -n "className\|cn(" -A3 | head -30

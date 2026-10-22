@@ -1,0 +1,18 @@
+29:const phoneDigits = /^\+1(\d{3})(\d{3})(\d{4})$/;
+106:	const match = phoneDigits.exec(value);
+activity-meta.ts
+agent-events.ts
+agent-manifest.ts
+agents.ts
+builder-question.ts
+enrichment-queue.ts
+eve-stream.ts
+eve-tool.ts
+field-backfill.ts
+field-templates.ts
+index.ts
+meta-ads.ts
+real-estate.ts
+saved-view.ts
+slack.ts
+Shell cwd was reset to /home/user/ai_engineering

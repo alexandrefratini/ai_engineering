@@ -1,0 +1,9 @@
+25:export function WorkspaceToolbar({ children }: { children: ReactNode }) {
+25:export function WorkspaceToolbar({ children }: { children: ReactNode }) {
+26-	return <div className="flex flex-wrap items-end gap-3">{children}</div>;
+27-}
+28-export function WorkspaceNotice({
+29-	title,
+30-	error,
+31-	onRetry,
+Shell cwd was reset to /home/user/ai_engineering

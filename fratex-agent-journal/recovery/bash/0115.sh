@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "Réglages\|realtor-calendar\|connections\|settings\|gemini\|twilio\|meta-ads\|tracking\|currencies\|members\|api-keys" apps/app/lib/navigation.ts | head -30

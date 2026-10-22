@@ -1,0 +1,7 @@
+ 181 pass
+ 0 fail
+ 491 expect() calls
+Ran 181 tests across 20 files. [1002.00ms]
+bun test v1.4.2 (744846f84)
+error: 0 test files matching **{.test,.spec,_test_,_spec_}.{js,ts,jsx,tsx} in --cwd="/home/user/endsi3g/fratex-agent/packages/ui"
+Shell cwd was reset to /home/user/ai_engineering

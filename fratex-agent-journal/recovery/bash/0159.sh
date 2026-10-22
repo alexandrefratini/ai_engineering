@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "OverviewViewToggle" -r "apps/app/app/(app)/[slug]" | head; grep -n "export function OverviewViewToggle" -A30 "apps/app/app/(app)/[slug]/overview-scope.tsx" | head -40; grep -n "initialsFromName" packages/ui/src/components/realtor-portal-dashboard.tsx

@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings/connections" && cat realtor-calendar/realtor-calendar-connection.tsx && cat intake/page.tsx && sed -n 1,80p add-connection-dialog.tsx

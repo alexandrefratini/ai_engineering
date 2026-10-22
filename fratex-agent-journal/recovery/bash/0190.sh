@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 150,195p apps/agent/agent/tools/book_appointment.ts; grep -n "leadListItemOutput = \|leadProfileOutput = \|appointmentItemOutput = \|leadEventOutput = " -A22 apps/api/src/real-estate/real-estate.contracts.ts | head -100

@@ -1,0 +1,33 @@
+export const PRODUCT_NAME = "Fratex Agent";
+
+const UNNAMED_WORKSPACE = "CRM";
+
+export function workspaceLabel(name: string | undefined): string {
+	const trimmed = name?.trim();
+
+	if (!trimmed || trimmed === UNNAMED_WORKSPACE) return PRODUCT_NAME;
+
+	return trimmed;
+}
+import { describe, expect, it } from "bun:test";
+import { DEFAULT_WORKSPACE_NAME } from "@crm/auth";
+import { PRODUCT_NAME, workspaceLabel } from "../lib/workspace-label";
+
+describe("what the header calls this install", () => {
+	it("shows the product name before anybody has named the workspace", () => {
+		expect(workspaceLabel(DEFAULT_WORKSPACE_NAME)).toBe(PRODUCT_NAME);
+	});
+
+	it("shows the product name when there is no name at all", () => {
+		expect(workspaceLabel(undefined)).toBe(PRODUCT_NAME);
+		expect(workspaceLabel("")).toBe(PRODUCT_NAME);
+		expect(workspaceLabel("   ")).toBe(PRODUCT_NAME);
+	});
+
+	it("shows a chosen name as it was typed, trimmed, with no suffix", () => {
+		expect(workspaceLabel("Agence Fratex")).toBe("Agence Fratex");
+		expect(workspaceLabel("  Agence Fratex  ")).toBe("Agence Fratex");
+		expect(workspaceLabel("Acme CRM")).toBe("Acme CRM");
+	});
+});
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/ui/src/components && grep -n "^export\|^function\|type=\|variant" toggle-group.tsx | head -20; grep -n "^export" collapsible.tsx; grep -n "export function WorkspaceSelect" -A30 real-estate-workspace.tsx | head -40

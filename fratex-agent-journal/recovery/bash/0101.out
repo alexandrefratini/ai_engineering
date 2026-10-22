@@ -1,0 +1,57 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
+import { TwilioConnection } from "../twilio-connection";
+
+export const metadata: Metadata = { title: "Twilio SMS & Téléphonie" };
+
+export default function TwilioConnectionPage(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	return (
+		<Suspense fallback={<ConnectionPageLoading />}>
+			<TwilioConnectionPageContent {...props} />
+		</Suspense>
+	);
+}
+
+async function TwilioConnectionPageContent(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	const { slug } = await props.params;
+
+	return (
+		<ConnectionPage>
+			<TwilioConnection slug={slug} />
+		</ConnectionPage>
+	);
+}
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
+import { GeminiConnection } from "../gemini-connection";
+
+export const metadata: Metadata = { title: "Google Gemini AI" };
+
+export default function GeminiConnectionPage(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	return (
+		<Suspense fallback={<ConnectionPageLoading />}>
+			<GeminiConnectionPageContent {...props} />
+		</Suspense>
+	);
+}
+
+async function GeminiConnectionPageContent(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	const { slug } = await props.params;
+
+	return (
+		<ConnectionPage>
+			<GeminiConnection slug={slug} />
+		</ConnectionPage>
+	);
+}
+Shell cwd was reset to /home/user/ai_engineering

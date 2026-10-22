@@ -1,0 +1,3 @@
+232:					pattern="[\d\s\(\)\.\+\-]{10,20}"
+v ok true
+Shell cwd was reset to /home/user/ai_engineering

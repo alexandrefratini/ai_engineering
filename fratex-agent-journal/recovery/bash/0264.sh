@@ -1,0 +1,1 @@
+pg_isready -h localhost 2>&1 | tail -1; curl -s -o /dev/null -w "app %{http_code}\n" http://localhost:3000/agenda-connecte; curl -s -o /dev/null -w "api %{http_code}\n" http://localhost:3001/health; ls /tmp/pgdata >/dev/null 2>&1 && echo "pgdata ok"; ls /home/user/endsi3g/fratex-agent >/dev/null && echo "repo ok"; cd /home/user/endsi3g/fratex-agent && git status --short | wc -l

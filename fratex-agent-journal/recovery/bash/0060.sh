@@ -1,0 +1,1 @@
+grep -n "pg_ctl\|postgres\|su \|initdb" /home/user/ai_engineering/fratex-agent-journal/scripts/setup-local.sh | head

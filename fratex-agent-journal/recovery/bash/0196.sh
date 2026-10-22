@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rn "real-estate-qualify" apps/agent --include=*.ts | grep -v test | head -5

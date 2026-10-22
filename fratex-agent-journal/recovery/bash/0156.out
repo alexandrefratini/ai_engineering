@@ -1,0 +1,5 @@
+marie-accueil -> http://localhost:3000/crm
+marie-leads -> http://localhost:3000/crm/real-estate/leads
+marie-portail -> http://localhost:3000/crm/real-estate/portal
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

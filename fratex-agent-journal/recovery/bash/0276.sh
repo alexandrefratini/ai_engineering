@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cp .env.example .env && SECRET=$(openssl rand -base64 32) && sed -i "s|^BETTER_AUTH_SECRET=\"\"|BETTER_AUTH_SECRET=\"$SECRET\"|" .env && grep -n "^BETTER_AUTH_SECRET" .env | cut -c1-30 && (bun install 2>&1 | tail -3)

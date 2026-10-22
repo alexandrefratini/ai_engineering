@@ -1,0 +1,11 @@
+packages/ui/src/components/calendar-connect-panel.tsx:5:import { formatDateTime, TIMEZONE_OPTIONS } from "../lib/real-estate";
+packages/ui/src/components/calendar-connect-panel.tsx:154:							Agenda. Fuseau : {TIMEZONE_OPTIONS.find((zone) => zone.id === selected.timezone)?.name ?? selected.timezone}.
+packages/ui/src/components/realtor-onboarding-form.tsx:6:import { TIMEZONE_OPTIONS } from "../lib/real-estate";
+packages/ui/src/components/realtor-onboarding-form.tsx:286:				<WorkspaceSelect label="Fuseau horaire" value={timezone} options={TIMEZONE_OPTIONS} onChange={setTimezone} />
+Found 2 warnings.
+ui 0
+app 0
+ 1 fail
+ 22 expect() calls
+Ran 4 tests across 1 file. [34.00ms]
+Shell cwd was reset to /home/user/ai_engineering

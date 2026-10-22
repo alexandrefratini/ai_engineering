@@ -1,0 +1,53 @@
+cp /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/realtors-flow.cjs /home/user/ai_engineering/fratex-agent-journal/scripts/ && cat >> /home/user/ai_engineering/fratex-agent-journal/JOURNAL.md <<'EOF'
+
+## B.9 Phase 5 — Courtiers : liste, ajout et onboarding réparé
+
+**Le problème.** La page `/onboarding/realtor` affichait le formulaire dans une colonne écrasée. Cause : le conteneur `flex flex-col items-center` centrait un enfant **sans largeur**, donc le formulaire prenait la largeur de son contenu. De plus, après l'ajout d'un courtier, rien n'indiquait quoi faire ensuite. Enfin, aucune page ne listait les courtiers : impossible de savoir lequel ne reçoit pas de prospects.
+
+**Ce que se demande chaque personne (et la réponse de l'écran).**
+
+| Qui | Question | Réponse |
+|-----|----------|---------|
+| Équipe Fratex | « Quels courtiers ne sont pas prêts ? » | Page **Courtiers** : « Prêts à recevoir 0/3 » et, par courtier, Meta · Agenda · SMS (point vert = fait, gris barré = manquant, infobulle qui explique la conséquence). |
+| Équipe Fratex | « Quoi faire après l'ajout ? » | Écran de succès : **étapes numérotées** avec un bouton chacune. Une étape déjà faite pour l'agence (ex. : SMS) est cochée « Déjà en place ». |
+| CEO | « Est-ce que ça rapporte ? » | 4 indicateurs : courtiers actifs, prêts à recevoir, prospects reçus, rendez-vous obtenus (et % des prospects). |
+| Courtier | « Comment me joindre ? » | Téléphone et courriel cliquables (`tel:` et `mailto:`). |
+
+**Où.**
+
+| Fichier | Rôle |
+|---------|------|
+| `apps/app/app/(app)/[slug]/real-estate/realtors/page.tsx` + `realtors-view.tsx` | Nouvelle page **Courtiers** (bouton « Ajouter un courtier »). Bouton « Terminer la configuration » qui mène à la **première** connexion manquante. |
+| `apps/app/app/(app)/[slug]/real-estate/realtors/new/page.tsx` | Nouvelle page **Nouveau courtier**, dans l'application (fil d'Ariane, barre latérale). |
+| `apps/app/app/(app)/[slug]/real-estate/realtors/realtor-onboarding.tsx` | Logique partagée : crée le courtier, relit son état de configuration réel, construit les étapes suivantes. Utilisée par la page ci-dessus **et** par `/onboarding/realtor`. |
+| `apps/app/app/(landing)/onboarding/realtor/page.tsx` | Correctif de largeur : enveloppe `w-full max-w-3xl`. Titre en français : « Ajouter un courtier ». |
+| `packages/ui/src/components/realtor-onboarding-form.tsx` | Formulaire en 3 sections (Identité · Prospection · Outils). Grille **adaptée à la largeur du conteneur** (`@container`) : 1, 2 ou 3 colonnes selon la place, sans règle par page. |
+| `packages/ui/src/components/realtor-roster.tsx` | `RealtorRoster` (liste) et `RealtorRosterSummary` (4 indicateurs). |
+| `packages/validation/src/real-estate.ts` | `toNorthAmericanE164` et `northAmericanPhone` : « 514 555-0199 », « (514) 555-0199 » ou « 1-514-555-0199 » deviennent `+15145550199`. |
+| `apps/api/src/real-estate/real-estate.contracts.ts` | `createClientInput.phone` utilise `northAmericanPhone` : le numéro est normalisé **à l'entrée de l'API**. |
+| `apps/app/components/app-icon-rail.tsx` | Barre latérale : libellés français, une icône **différente** par écran, séparateurs entre Immobilier / CRM / Paramètres, entrée **Courtiers**. |
+| `apps/app/lib/navigation.ts` | « Courtiers » et « Ajouter un courtier » dans la recherche ; fil d'Ariane « Courtiers / Nouveau ». |
+
+**Pourquoi normaliser le téléphone à l'API ?** Twilio et la recherche de prospects comparent les numéros **exactement** (format E.164). Un numéro saisi « 5145550199 » ne correspondrait jamais. La règle du dépôt dit : valider à la frontière. Le navigateur fait aussi une vérification simple (`pattern`) pour une erreur immédiate.
+
+**Bogue corrigé en passant.** Dans la barre latérale, le test `item.title === "Chat"` ne correspondait plus au titre réel (« Chat IA ») : le panneau mobile des conversations IA ne s'ouvrait jamais. Le test compare maintenant l'adresse (`/chat`), pas le libellé.
+
+**Comment refaire.**
+1. Ouvrir **Courtiers** dans la barre latérale, puis **Ajouter un courtier**.
+2. Remplir les champs. Cocher au moins un type de propriété (sinon : message « Choisissez au moins un type de propriété »).
+3. **Ajouter le courtier**. Suivre les étapes affichées.
+4. Script : `node scripts/realtors-flow.cjs "<cookie>" screenshots/apres`.
+
+**Vérification.**
+- `packages/validation/test/phone.spec.ts` : 3 tests (formats acceptés, refusés, message en français).
+- Tests d'intégration immobiliers : 16 réussis (dont l'état de configuration par courtier). Tests de l'application : 181 réussis. `tsc` sans erreur (app, ui, api).
+- Parcours navigateur : ajout de « Julie Lavoie » avec « 514 555-0199 » → affiché « (514) 555-0199 » dans la liste ; SMS coché « Déjà en place » ; 0 erreur console (bureau 1440 px et mobile 390 px). Les courtiers de test ont été supprimés ensuite.
+
+**Captures.** `p5-courtiers.png`, `p5-courtiers-infobulle.png`, `p5-courtiers-mobile.png`, `p5-nouveau.png`, `p5-succes.png`, `p5-onboarding.png`, `p5-onboarding-mobile.png`.
+
+![Courtiers](screenshots/apres/p5-courtiers-infobulle.png)
+![Succès](screenshots/apres/p5-succes.png)
+
+**Patch.** `patches/phase-9-courtiers-onboarding.patch` (fichiers touchés par cette phase) et `patches/TOUT-cumulatif.patch` (tout).
+EOF
+echo ok

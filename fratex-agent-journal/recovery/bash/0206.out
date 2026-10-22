@@ -1,0 +1,252 @@
+export function LeadAppointments({
+	appointments,
+	index,
+}: {
+	appointments: LeadProfileAppointment[];
+	index?: number;
+}) {
+	return (
+		<LeadPanel index={index} title="Rendez-vous">
+			{appointments.length === 0 ? (
+				<Muted>Aucun rendez-vous planifié.</Muted>
+			) : (
+				<ul className="flex flex-col divide-y text-sm">
+					{appointments.map((appointment) => (
+						<li
+							key={appointment.id}
+							className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
+						>
+							<span className="flex min-w-0 flex-col">
+								<span className="font-medium">{formatDateTime(appointment.startTime)}</span>
+								<span className="truncate text-muted-foreground">
+									{appointment.title} · {appointment.clientName}
+								</span>
+							</span>
+							<Badge variant="outline">{labelOf(APPOINTMENT_STATUS_LABELS, appointment.status)}</Badge>
+						</li>
+					))}
+				</ul>
+			)}
+		</LeadPanel>
+	);
+}
+
+export function LeadSuggestedListings({
+	listings,
+"use client";
+
+import { Button } from "@crm/ui/components/button";
+import { CrmExportForm } from "@crm/ui/components/crm-export-form";
+import {
+	LeadAppointments,
+	LeadDisclosure,
+	LeadFollowUp,
+	LeadHistory,
+	LeadKeyFacts,
+	LeadLastMessages,
+	LeadProfileHeader,
+	LeadQualification,
+	LeadSuggestedListings,
+} from "@crm/ui/components/lead-profile";
+import {
+	LEAD_STATUS_OPTIONS,
+	type LeadStatus,
+} from "@crm/ui/components/lead-status-badge";
+import {
+	RealEstateWorkspace,
+	WorkspaceLoading,
+	WorkspaceNotice,
+	WorkspaceSelect,
+} from "@crm/ui/components/real-estate-workspace";
+import {
+	CRM_LABELS,
+	DELIVERY_STATUS_LABELS,
+	formatDateTime,
+	labelOf,
+} from "@crm/ui/lib/real-estate";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useTRPC } from "@/lib/trpc/client";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+import { useAgency } from "../../use-agency";
+import { REAL_ESTATE } from "../../workspace-config";
+
+const iso = (value: Date | string | null) =>
+	value === null ? null : new Date(value).toISOString();
+
+export function LeadDetailView({ leadId }: { leadId: string }) {
+	const trpc = useTRPC();
+	const cache = useQueryClient();
+	const href = useWorkspaceUrl();
+	const scope = useAgency();
+	const detail = useQuery(
+		trpc.realEstate.byId.queryOptions(
+			{ agencyId: scope.agencyId, id: leadId },
+			{
+				enabled: Boolean(scope.agencyId),
+				refetchInterval: REAL_ESTATE.pollingMs,
+			},
+		),
+	);
+	const status = useMutation(
+		trpc.realEstate.updateStatus.mutationOptions({
+			onSuccess: async () => {
+				await detail.refetch();
+				await cache.invalidateQueries(trpc.realEstate.list.pathFilter());
+			},
+		}),
+	);
+	const exportCrm = useMutation(trpc.realEstate.syncDualCrm.mutationOptions());
+
+	if (scope.query.isPending || (scope.agencyId && detail.isPending))
+		return (
+			<RealEstateWorkspace>
+				<WorkspaceLoading />
+			</RealEstateWorkspace>
+		);
+	if (scope.query.error || !scope.agencyId)
+		return (
+			<RealEstateWorkspace>
+				<WorkspaceNotice
+					title="Aucune agence accessible"
+					error={scope.query.error?.message}
+				/>
+			</RealEstateWorkspace>
+		);
+	if (detail.error || !detail.data)
+		return (
+			<RealEstateWorkspace>
+				<WorkspaceNotice
+					title="Prospect introuvable"
+					error={detail.error?.message}
+					onRetry={() => {
+						void detail.refetch();
+					}}
+				/>
+			</RealEstateWorkspace>
+		);
+
+	const { lead, profile } = detail.data;
+	const role = scope.query.data?.agencies.find(
+		(agency) => agency.id === lead.agencyId,
+	)?.role;
+	const conversationHref = href(
+		`/real-estate/inbox?agencyId=${lead.agencyId}&leadId=${lead.id}`,
+	);
+	const profileLead = {
+		...lead,
+		...profile,
+		consentedAt: iso(lead.consentedAt),
+		unsubscribedAt: iso(lead.unsubscribedAt),
+		automationPausedAt: iso(lead.automationPausedAt),
+		firstContactedAt: iso(lead.firstContactedAt),
+		lastInteractedAt: iso(lead.lastInteractedAt),
+		createdAt: new Date(lead.createdAt).toISOString(),
+	};
+	const appointments = detail.data.appointments.map((appointment) => ({
+		...appointment,
+		startTime: new Date(appointment.startTime).toISOString(),
+	}));
+
+	return (
+		<RealEstateWorkspace>
+			<LeadProfileHeader
+				lead={profileLead}
+				actions={
+					<>
+						{detail.data.canWrite && (
+							<WorkspaceSelect
+								compact
+								label="Statut"
+								value={lead.status}
+								options={LEAD_STATUS_OPTIONS}
+								onChange={(value) => {
+									status.mutate({
+										agencyId: lead.agencyId,
+										id: lead.id,
+										status: value as LeadStatus,
+									});
+								}}
+							/>
+						)}
+						<Button asChild variant="outline">
+							<a href={`tel:${lead.phone}`}>Appeler</a>
+						</Button>
+						<Button asChild>
+							<Link href={conversationHref}>Ouvrir la conversation</Link>
+						</Button>
+					</>
+				}
+			/>
+			{status.error && (
+				<WorkspaceNotice
+					title="Statut non modifié"
+					error={status.error.message}
+				/>
+			)}
+			<LeadKeyFacts lead={profileLead} appointments={appointments} />
+			<LeadQualification
+				index={5}
+				lead={profileLead}
+				evidence={detail.data.evidence}
+			/>
+			<LeadAppointments index={6} appointments={appointments} />
+			<LeadLastMessages
+				index={7}
+				messages={detail.data.messages.map((message) => ({
+					...message,
+					sentAt: new Date(message.sentAt).toISOString(),
+				}))}
+				conversationLink={
+					<Button asChild variant="outline" size="sm">
+						<Link href={conversationHref}>Voir la conversation</Link>
+					</Button>
+				}
+			/>
+			<LeadSuggestedListings
+				index={8}
+				listings={detail.data.suggestedListings}
+			/>
+			<LeadFollowUp index={9} lead={profileLead} />
+			<LeadHistory
+				index={10}
+				events={detail.data.events.map((event) => ({
+					...event,
+					occurredAt: new Date(event.occurredAt).toISOString(),
+				}))}
+			/>
+			{(role === "OWNER" || role === "ADMIN") && (
+				<LeadDisclosure
+					index={11}
+					title="Export CRM"
+					description={
+						detail.data.deliveries.length
+							? `${detail.data.deliveries.length} export${detail.data.deliveries.length > 1 ? "s" : ""} enregistré${detail.data.deliveries.length > 1 ? "s" : ""}`
+							: "Envoyer la fiche vers le CRM du courtier"
+					}
+				>
+					<CrmExportForm
+						key={`export:${lead.id}`}
+						onExport={async (input) => {
+							const result = await exportCrm.mutateAsync({
+								...input,
+								agencyId: lead.agencyId,
+								leadId: lead.id,
+							});
+							await detail.refetch();
+							return result.status;
+						}}
+					/>
+					{detail.data.deliveries.map((delivery) => (
+						<WorkspaceNotice
+							key={delivery.id}
+							title={`${labelOf(CRM_LABELS, delivery.crmType)} : ${labelOf(DELIVERY_STATUS_LABELS, delivery.status)} · ${formatDateTime(delivery.createdAt)}`}
+							error={delivery.errorCode ?? undefined}
+						/>
+					))}
+				</LeadDisclosure>
+			)}
+		</RealEstateWorkspace>
+	);
+}
+Shell cwd was reset to /home/user/ai_engineering

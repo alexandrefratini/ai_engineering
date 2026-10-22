@@ -1,0 +1,80 @@
+add-connection-dialog.tsx
+connection-page.tsx
+gemini
+gemini-connection.tsx
+google
+google-connection.tsx
+intake
+meta-ads
+meta-ads-connection.tsx
+microsoft
+microsoft-connection.tsx
+oauth-connection-page.tsx
+page.tsx
+realtor-calendar
+slack
+twilio
+twilio-connection.tsx
+use-sdr-connections.tsx
+apps/app/app/(app)/[slug]/settings/connections/add-connection-dialog.tsx
+apps/app/app/(app)/[slug]/settings/connections/connection-page.tsx
+apps/app/app/(app)/[slug]/settings/connections/gemini-connection.tsx
+apps/app/app/(app)/[slug]/settings/connections/google-connection.tsx
+apps/app/app/(app)/[slug]/settings/connections/meta-ads-connection.tsx
+apps/app/app/(app)/[slug]/settings/connections/microsoft-connection.tsx
+apps/app/app/(app)/[slug]/settings/connections/oauth-connection-page.tsx
+apps/app/app/(app)/[slug]/settings/connections/page.tsx
+apps/app/app/(app)/[slug]/settings/connections/twilio-connection.tsx
+apps/app/app/(app)/[slug]/settings/connections/use-sdr-connections.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/gemini:
+page.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/google:
+page.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/intake:
+page.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/meta-ads:
+page.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/microsoft:
+page.tsx
+
+apps/app/app/(app)/[slug]/settings/connections/realtor-calendar:
+page.tsx
+realtor-calendar-connection.tsx
+
+728:	async createClient(userId: string, input: CreateClientInput) {
+729-		const scope = await this.access(userId, input.agencyId);
+730-		this.write(scope.role);
+731-		if (scope.role === "REALTOR")
+732-			throw new ForbiddenException("Agency staff create realtor clients.");
+733-		try {
+734-			new Intl.DateTimeFormat("fr-CA", { timeZone: input.timezone });
+735-		} catch {
+736-			throw new BadRequestException("Invalid timezone.");
+737-		}
+738-		const { agencyId: _agencyId, ...data } = input;
+739-		return this.db.client.create({
+740-			data: { ...data, agencyId: scope.agencyId },
+741-		});
+742-	}
+743-	async getPortalStats(userId: string, input: RealtorPortalInput) {
+744-		const scope = await this.access(userId, input.agencyId, input.clientId);
+745-		const client = await this.db.client.findFirst({
+746-			where: { agencyId: scope.agencyId, id: scope.clientId },
+747-			orderBy: { createdAt: "asc" },
+748-		});
+749-		if (!client)
+750-			throw new NotFoundException(
+751-				"Ajoutez un courtier avant d'ouvrir le portail.",
+752-			);
+753-		const agency = await this.db.agency.findUniqueOrThrow({
+754-			where: { id: scope.agencyId },
+755-		});
+756-		const periodEnd = new Date();
+757-		const periodStart =
+758-			input.period === "MONTH"
+Shell cwd was reset to /home/user/ai_engineering

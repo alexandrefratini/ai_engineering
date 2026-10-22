@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1,110p packages/ui/src/components/lead-profile.tsx; sed -n 126,240p packages/ui/src/components/lead-profile.tsx

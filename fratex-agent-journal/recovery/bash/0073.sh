@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/api/src/meta/meta.controller.ts | head -60; grep -rn "CALENDAR_SCOPE =" -A3 packages apps/api/src --include=*.ts | grep -v node_modules | head; grep -rn "calendar.events\|freeBusy\|freebusy" apps/agent/src packages --include=*.ts -l 2>/dev/null | grep -v node_modules | head

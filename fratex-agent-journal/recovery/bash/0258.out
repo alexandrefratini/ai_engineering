@@ -1,0 +1,28 @@
+2:46-	className,
+3-47-	...props
+4-48-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+5-49-	return (
+--
+8:52-			className={cn(
+9-53-				"flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[size=xs]/avatar:text-[10px]",
+10:54-				className,
+11-55-			)}
+12-56-			{...props}
+13-57-		/>
+--
+17:61:function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+18-62-	return (
+19-63-		<span
+20-64-			data-slot="avatar-badge"
+21:65-			className={cn(
+22-66-				"absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground bg-blend-color ring-2 ring-background select-none",
+23-67-				"group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
+24-68-				"group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
+--
+26:70-				className,
+27-71-			)}
+28-72-			{...props}
+29-73-		/>
+--
+33:77-function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+Shell cwd was reset to /home/user/ai_engineering

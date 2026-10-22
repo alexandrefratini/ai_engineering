@@ -1,0 +1,1 @@
+ls -la /tmp/claude-0/ 2>&1 | head; ls /tmp/claude-0/-home-user-ai-engineering/ 2>&1 | head; ls -la /root/.claude/projects/ 2>&1 | head; ls -la /root/.claude/projects/-home-user-ai-engineering/ 2>&1 | head -20

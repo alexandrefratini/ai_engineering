@@ -1,0 +1,14 @@
+ico ok
+total 48
+drwxr-xr-x 2 root root 4096 Oct 22 09:17 .
+drwx------ 6 root root 4096 Oct 22 09:17 ..
+-rw-r--r-- 1 root root 2284 Oct 22 09:17 apple-touch-icon.png
+-rw-r--r-- 1 root root 1242 Oct 22 09:17 favicon-96x96.png
+-rw-r--r-- 1 root root  876 Oct 22 09:17 favicon.ico
+-rw-r--r-- 1 root root  299 Oct 22 09:17 ico-16.png
+-rw-r--r-- 1 root root  539 Oct 22 09:17 ico-32.png
+-rw-r--r-- 1 root root  381 Oct 22 09:17 icon.svg
+-rw-r--r-- 1 root root 2000 Oct 22 09:17 preview.png
+-rw-r--r-- 1 root root 2380 Oct 22 09:17 web-app-manifest-192x192.png
+-rw-r--r-- 1 root root 6721 Oct 22 09:17 web-app-manifest-512x512.png
+Shell cwd was reset to /home/user/ai_engineering

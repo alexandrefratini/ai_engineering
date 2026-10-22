@@ -1,0 +1,7 @@
+10:24-  sessions      Session[]
+11:25-  accounts      Account[]
+13:27-  ownedCompanies Company[]           @relation("CompanyOwner")
+14:28-  ownedContacts  Contact[]           @relation("ContactOwner")
+15:29-  ownedDeals     Deal[]              @relation("DealOwner")
+15:model User {
+Shell cwd was reset to /home/user/ai_engineering

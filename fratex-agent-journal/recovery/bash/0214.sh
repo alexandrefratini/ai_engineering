@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/real-estate/leads" && cat page.tsx | sed -n 1,80p; grep -n "export function LeadsView" -A40 leads-view.tsx | head -60

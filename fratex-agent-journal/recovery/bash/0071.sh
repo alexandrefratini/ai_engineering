@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1298,1340p apps/api/src/real-estate/real-estate.service.ts; grep -n "model CalendarConnection\|model RealtorCalendar" -A25 packages/db/prisma/schema.prisma | head -40; cat apps/api/src/google/google.constants.ts | head -40

@@ -1,0 +1,5 @@
+     email      | role  | client 
+----------------+-------+--------
+ demo@fratex.ca | OWNER | 
+(1 row)
+Shell cwd was reset to /home/user/ai_engineering

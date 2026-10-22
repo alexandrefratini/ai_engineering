@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 8,30p biome.json

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "leadListItemOutput" apps/api/src/real-estate/real-estate.contracts.ts; grep -n "leadItem(" apps/api/src/real-estate/real-estate.service.ts | head

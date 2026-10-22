@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -i 's/aria-label={`Choose #${channel.name}`}/aria-label={`Choisir #${channel.name}`}/' apps/app/components/slack/channel-picker.tsx && grep -n "\"[A-Z][a-z][^\"]*\"\|\`[A-Z][a-z]" apps/app/lib/agent-transcript.ts | head -60; wc -l apps/app/lib/agent-transcript.ts

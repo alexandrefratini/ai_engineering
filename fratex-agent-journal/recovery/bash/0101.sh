@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings/connections" && cat twilio/page.tsx gemini/page.tsx | head -60

@@ -1,0 +1,16 @@
+       ]
+     })
+
+Invalid value for argument `role`. Expected AgencyRole.
+ clientVersion: "7.9.1",
+
+      at ar (/home/user/endsi3g/fratex-agent/node_modules/.bun/@prisma+client@7.9.1+83eeba4555bf322b/node_modules/@prisma/client/runtime/client.js:10:1374)
+      at handleRequestError (/home/user/endsi3g/fratex-agent/node_modules/.bun/@prisma+client@7.9.1+83eeba4555bf322b/node_modules/@prisma/client/runtime/client.js:65:7929)
+      at handleAndLogRequestError (/home/user/endsi3g/fratex-agent/node_modules/.bun/@prisma+client@7.9.1+83eeba4555bf322b/node_modules/@prisma/client/runtime/client.js:65:7581)
+      at request (/home/user/endsi3g/fratex-agent/node_modules/.bun/@prisma+client@7.9.1+83eeba4555bf322b/node_modules/@prisma/client/runtime/client.js:65:7288)
+(fail) (unnamed) [281.62ms]
+
+ 0 pass
+ 1 fail
+Ran 1 test across 1 file. [713.00ms]
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1826,1845p packages/db/prisma/schema.prisma; sed -n 1963,1990p packages/db/prisma/schema.prisma; grep -n "async updateLeadStatus" -A45 apps/api/src/real-estate/real-estate.service.ts | head -60

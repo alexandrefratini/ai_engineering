@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rn "phone" apps/api/src/meta/*.ts apps/api/src/messaging/messaging.service.ts | grep -v spec | head -20

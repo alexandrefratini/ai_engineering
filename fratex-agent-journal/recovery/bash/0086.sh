@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "enum AgencyRole" -A8 packages/db/prisma/schema.prisma; grep -n "canManageAgency\|canWriteAgency" -A4 packages/db/src/agency-access.ts | head -20

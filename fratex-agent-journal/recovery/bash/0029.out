@@ -1,0 +1,66 @@
+17:export function ScoreRing({
+59:export type JourneyStep = { id: string; label: string };
+61:export function LeadJourney({
+103:export function SegmentMeter({
+133:export type FunnelRow = {
+142:export function FunnelBars({
+206:export function Sparkline({
+234:export function InfoHint({ label, children }: { label: string; children: ReactNode }) {
+251:export function MetricTile({
+282:export function MetricGrid({ children }: { children: ReactNode }) {
+286:export function StageIndicator({
+303:export type StageGroup = {
+317:export function StageBreakdown({
+251:export function MetricTile({
+252-	label,
+253-	value,
+254-	hint,
+255-	info,
+256-	index = 0,
+257-	children,
+258-}: {
+259-	label: string;
+260-	value: ReactNode;
+261-	hint?: ReactNode;
+262-	info?: ReactNode;
+263-	index?: number;
+264-	children?: ReactNode;
+265-}) {
+266-	return (
+267-		<div
+268-			className={cn("flex min-w-0 flex-col gap-1 rounded-lg border bg-card p-3", REVEAL)}
+269-			style={staggerStyle(index)}
+270-		>
+271-			<span className="flex items-center justify-between gap-2">
+272-				<span className="line-clamp-2 text-xs text-muted-foreground">{label}</span>
+273-				{info && <InfoHint label={label}>{info}</InfoHint>}
+274-			</span>
+275-			<span className="text-lg leading-tight font-medium tracking-tight break-words tabular-nums md:text-xl">{value}</span>
+276-			{hint && <span className="text-pretty text-xs text-muted-foreground">{hint}</span>}
+277-			{children}
+278-		</div>
+279-	);
+280-}
+281-
+282-export function MetricGrid({ children }: { children: ReactNode }) {
+283-	return <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{children}</div>;
+284-}
+285-
+286-export function StageIndicator({
+287-	position,
+288-	total,
+289-	label,
+290-}: {
+291-	position: number;
+282:export function MetricGrid({ children }: { children: ReactNode }) {
+283-	return <div className="grid grid-cols-2 gap-2 md:grid-cols-4">{children}</div>;
+284-}
+285-
+286-export function StageIndicator({
+287-	position,
+288-	total,
+289-	label,
+290-}: {
+291-	position: number;
+292-	total: number;
+Shell cwd was reset to /home/user/ai_engineering

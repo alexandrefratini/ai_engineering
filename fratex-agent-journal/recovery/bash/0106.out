@@ -1,0 +1,30 @@
+15:import { AgentModel } from "./agent-model";
+21:	title: "General",
+65:				<AgentModel />
+11:	title: string;
+12:	href: string;
+18:	{ title: "General", href: ROOT },
+19:	{ title: "Tracking & Analytics", href: `${ROOT}/tracking` },
+20:	{ title: "Connections", href: `${ROOT}/connections` },
+21:	{ title: "Currencies", href: `${ROOT}/currencies` },
+22:	{ title: "Members", href: `${ROOT}/members` },
+23:	{ title: "API Keys", href: `${ROOT}/api-keys` },
+24:	{ title: "SSO", href: `${ROOT}/sso` },
+27:function isActive(href: string, root: string, pathname: string): boolean {
+28:	return href === root ? pathname === href : pathname.startsWith(href);
+52:				href={item.href}
+57:				{item.title}
+68:					aria-label="Workspace settings"
+74:							key={item.href}
+79:							{item.title}
+86:				aria-label="Workspace settings"
+92:						key={item.href}
+97:						{item.title}
+111:		() => ITEMS.map((item) => ({ ...item, href: workspaceUrl(item.href) })),
+119:					aria-label="Workspace settings"
+124:							key={item.href}
+126:							active={isActive(item.href, root, pathname)}
+134:				aria-label="Workspace settings"
+139:						key={item.href}
+141:						active={isActive(item.href, root, pathname)}
+Shell cwd was reset to /home/user/ai_engineering

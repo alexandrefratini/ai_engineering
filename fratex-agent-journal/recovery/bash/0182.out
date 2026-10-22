@@ -1,0 +1,81 @@
+import { createHash } from "node:crypto";
+import { db } from "@crm/db";
+import { lockIdempotencyKey } from "@crm/db/idempotency";
+import { queueSdrTask } from "@crm/db/real-estate";
+import { metaLeadDetails, metaReceiptPayload } from "@crm/validation/meta-ads";
+import {
+	metaConversionResponse,
+	sdrDeliveryPayload,
+	twilioMessageResponse,
+} from "@crm/validation/real-estate";
+import { metaFields } from "./meta-fields";
+import { SDR } from "./sdr-config";
+import { deliverCrmExport } from "./sdr-export";
+import { providerResponse } from "./sdr-http";
+import type { LeasedTask } from "./tasks";
+
+export async function runSdrJob(task: LeasedTask) {
+	const payload = sdrDeliveryPayload.parse(task.payload);
+	if (task.kind === "real-estate-meta" && payload.receiptId)
+		await ingestMeta(payload.agencyId, payload.receiptId);
+	else if (task.kind === "real-estate-sms-send" && payload.messageId)
+		await sendSms(payload.agencyId, payload.messageId);
+	else if (task.kind === "real-estate-capi" && payload.eventId)
+		await sendConversion(payload.agencyId, payload.eventId);
+	else if (task.kind === "real-estate-crm-export" && payload.deliveryId)
+		await deliverCrmExport(payload.agencyId, payload.deliveryId);
+	else throw new Error("Invalid real estate job.");
+}
+
+async function ingestMeta(agencyId: string, receiptId: string) {
+	const receipt = await db.metaWebhookEvent.findFirst({
+		where: { id: receiptId, agencyId },
+	});
+	if (!receipt || receipt.processedAt) return;
+	const payload = metaReceiptPayload.parse(receipt.payload);
+	const form = await db.metaLeadForm.findFirst({
+		where: { agencyId, metaFormId: payload.formId },
+		include: { campaign: { include: { adAccount: true } } },
+	});
+	if (
+		!form ||
+		form.campaign.agencyId !== agencyId ||
+		form.campaign.adAccount.agencyId !== agencyId ||
+		!form.campaign.adAccount.accessToken
+	)
+		throw new Error("META_CONNECTION_UNAVAILABLE");
+	const response = await fetch(
+		`https://graph.facebook.com/${process.env.META_GRAPH_API_VERSION ?? "v23.0"}/${encodeURIComponent(payload.leadgenId)}?fields=id,created_time,form_id,field_data`,
+		{
+			headers: {
+				Authorization: `Bearer ${form.campaign.adAccount.accessToken}`,
+			},
+			signal: AbortSignal.timeout(SDR.transport.timeoutMs),
+		},
+	);
+	if (!response.ok) throw new Error(`META_FETCH_${response.status}`);
+	const data = await providerResponse(response, metaLeadDetails);
+	if (
+		data.id !== payload.leadgenId ||
+		(data.form_id && data.form_id !== payload.formId)
+	)
+		throw new Error("META_LEAD_MISMATCH");
+	const mapped = metaFields(data);
+	await db.$transaction(async (tx) => {
+		await lockIdempotencyKey(tx, `meta:${receipt.id}`);
+		const current = await tx.metaWebhookEvent.findFirst({
+			where: { id: receipt.id, agencyId },
+		});
+		if (current?.processedAt) return;
+		await lockIdempotencyKey(tx, `phone:${agencyId}:${mapped.phone}`);
+		let lead = await tx.lead.findFirst({
+			where: { agencyId, phone: mapped.phone },
+		});
+		if (!lead)
+			lead = await tx.lead.create({
+				data: {
+					agencyId,
+					clientId: form.clientId ?? form.campaign.clientId,
+					campaignId: form.campaignId,
+					metaFormId: form.id,
+Shell cwd was reset to /home/user/ai_engineering

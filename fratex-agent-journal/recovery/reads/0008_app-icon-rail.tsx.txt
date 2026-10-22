@@ -1,0 +1,41 @@
+/home/user/endsi3g/fratex-agent/apps/app/components/app-icon-rail.tsx
+196		);
+197	}
+198	
+199	function MobileRailLink({
+200		item,
+201		active,
+202		onNavigate,
+203		onPrefetch,
+204	}: {
+205		item: RailItem & { section: string };
+206		active: boolean;
+207		onNavigate: () => void;
+208		onPrefetch: () => void;
+209	}) {
+210		return (
+211			<Button
+212				asChild
+213				variant="ghost"
+214				className={cn(
+215					"justify-start gap-3 text-muted-foreground",
+216					active &&
+217						"bg-muted text-foreground hover:bg-muted hover:text-foreground",
+218				)}
+219			>
+220				<Link
+221					href={item.href}
+222					prefetch
+223					onMouseEnter={onPrefetch}
+224					onFocus={onPrefetch}
+225					aria-current={active ? "page" : undefined}
+226					onClick={onNavigate}
+227					transitionTypes={[
+228						item.title === "Chat" ? "nav-forward" : "nav-lateral",
+229					]}
+230				>
+231					<Icon icon={item.icon} className={item.iconClassName} />
+232					<span>{item.title}</span>
+233				</Link>
+234			</Button>
+235		);

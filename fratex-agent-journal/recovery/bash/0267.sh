@@ -1,0 +1,1 @@
+ls -la /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/ 2>&1; ls -la /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad 2>&1 | head; ls -la /tmp/claude-0/bash-edit-diff 2>&1 | head; ls /root/.claude/projects/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/ | head

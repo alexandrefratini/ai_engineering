@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/app/components/app-breadcrumb.tsx | head -60; grep -n "^model Member " -A12 packages/db/prisma/schema.prisma

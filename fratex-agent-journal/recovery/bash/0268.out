@@ -1,0 +1,24 @@
+total 8
+drwxr-xr-x 2 root root 4096 Oct 22 13:53 .
+drwx------ 4 root root 4096 Oct 22 13:52 ..
+-rw-r--r-- 1 root root    0 Oct 22 13:53 bnx3lvo43.output
+total 12
+drwx------ 2 root root 4096 Oct 22 13:52 .
+drwx------ 3 root root 4096 Oct 22 13:51 ..
+-rw------- 1 root root   89 Oct 22 13:52 ccr-tip.json
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-AdWhispr-Ads/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Granola/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Resend/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-claude-code-remote/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Figma/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Google-Drive/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Notion/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Airtable/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Gmail/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Lovable/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Miro/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Google-Calendar/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Supabase/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Anthropic-Economic-Index/2026-10-22T13-51-53-973Z.jsonl
+/root/.cache/claude-cli-nodejs/-home-user-ai-engineering/mcp-logs-Claude-Docs/2026-10-22T13-51-53-973Z.jsonl
+/root/.claude/projects/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58.jsonl

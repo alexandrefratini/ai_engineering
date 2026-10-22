@@ -1,0 +1,1 @@
+mkdir -p /home/user/endsi3g && GIT_LFS_SKIP_SMUDGE=1 git clone --depth 50 https://github.com/Endsi3g/fratex-agent /home/user/endsi3g/fratex-agent 2>&1 | tail -2; cd /home/user/endsi3g/fratex-agent && git log --oneline -8 && git log -1 --format="%H %cd"

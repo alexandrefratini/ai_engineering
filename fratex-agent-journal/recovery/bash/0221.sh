@@ -1,0 +1,53 @@
+for i in $(seq 1 50); do a=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/health); b=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/agenda-connecte); [ "$a" = 200 ] && [ "$b" = 200 ] && break; sleep 3; done; echo "api $a app $b"; S=/tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad; cat > $S/tools-flow.cjs <<'EOF'
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const [, , cookie, out] = process.argv;
+(async () => {
+  const b = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+  const errors = [];
+  const c = await b.newContext({ viewport: { width: 1440, height: 1000 }, locale: "fr-CA", timezoneId: "America/Toronto" });
+  await c.addCookies([{ name: "crm.session_token", value: cookie, domain: "localhost", path: "/" }]);
+  const p = await c.newPage();
+  p.on("pageerror", (e) => errors.push(e.message.slice(0, 200)));
+  p.on("console", (m) => m.type() === "error" && errors.push("console: " + m.text().slice(0, 200)));
+  await p.goto("http://localhost:3000/crm/real-estate/leads", { waitUntil: "networkidle", timeout: 90000 });
+  await p.waitForTimeout(1500);
+  await p.getByRole("button", { name: "Nouveau prospect" }).click();
+  await p.waitForTimeout(800);
+  await p.getByLabel("Prénom").fill("Louis");
+  await p.getByLabel("Nom").fill("Bélanger");
+  const n = String(Date.now()).slice(-4);
+  await p.getByLabel("Cellulaire").fill(`(438) 555-${n}`);
+  await p.getByLabel("Note").fill("Référé par M. Gagnon. Cherche un plex à Rosemont, préautorisé à 850 000 $.");
+  await p.screenshot({ path: `${out}/p7b-nouveau-prospect.png` });
+  await p.getByRole("button", { name: "Créer le prospect" }).click();
+  await p.waitForURL(/real-estate\/leads\/c/, { timeout: 20000 });
+  await p.waitForTimeout(2500);
+  console.log("fiche :", p.url().replace(/\?.*/, ""));
+  await p.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await p.getByLabel("Objet").fill("Visite du plex");
+  await p.getByLabel("Date").fill("2026-10-30");
+  await p.getByLabel("Heure").fill("14:00");
+  await p.getByLabel("Lieu").fill("4520, rue Saint-Denis, Montréal");
+  await p.getByRole("button", { name: "Enregistrer le rendez-vous" }).click();
+  await p.waitForTimeout(2500);
+  await p.getByLabel("Nouvelle note").fill("Rappelé à 17 h : disponible jeudi, veut voir 2 plex.");
+  await p.getByRole("button", { name: "Ajouter la note" }).click();
+  await p.waitForTimeout(2000);
+  const panel = p.getByText("Rendez-vous", { exact: true }).first();
+  await panel.scrollIntoViewIfNeeded();
+  await p.screenshot({ path: `${out}/p7b-fiche-outils.png`, fullPage: false });
+  console.log("statut :", await p.getByLabel("Statut").first().textContent().catch(() => "?"));
+  await p.goto("http://localhost:3000/crm/real-estate/leads", { waitUntil: "networkidle" });
+  await p.waitForTimeout(1500);
+  await p.getByRole("button", { name: "Nouveau prospect" }).click();
+  await p.getByLabel("Prénom").fill("Louis");
+  await p.getByLabel("Cellulaire").fill(`438 555 ${n}`);
+  await p.getByRole("button", { name: "Créer le prospect" }).click();
+  await p.waitForTimeout(2000);
+  console.log("doublon :", await p.getByText("Ce numéro existe déjà").count());
+  await p.screenshot({ path: `${out}/p7b-doublon.png` });
+  console.log("erreurs:", errors.length ? errors : "aucune");
+  await b.close();
+})();
+EOF
+cd $S && node tools-flow.cjs "$(cat cookie.txt)" /home/user/ai_engineering/fratex-agent-journal/screenshots/apres 2>&1 | tail -8

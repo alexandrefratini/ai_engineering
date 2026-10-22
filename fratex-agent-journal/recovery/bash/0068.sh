@@ -1,0 +1,1 @@
+cd /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/icons/x/package/icons && for n in meta twilio googlegemini googlecalendar; do echo "== $n"; grep -o ' d="[^"]*"' $n.svg; done; cat ../LICENSE.md 2>/dev/null | head -3; ls ..

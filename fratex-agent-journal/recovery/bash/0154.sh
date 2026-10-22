@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && set -a && . ./.env && set +a && DB="${DATABASE_URL%%\?*}" && psql "$DB" -At -c "select id from \"user\" where email='demo-marie@fratex.ca';" && psql "$DB" -At -c "select id, \"agencyId\" from client where email='marie@courtage.ca';" && psql "$DB" -c "\d \"agencyUser\"" | head -14

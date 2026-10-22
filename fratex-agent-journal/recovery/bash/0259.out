@@ -1,0 +1,6 @@
+123:								className={cn("bg-background ring-2 ring-background", !member.online && "[&_[data-slot=avatar-fallback]]:text-muted-foreground/70")}
+ui 0
+app 0
+clic → http://localhost:3000/crm/real-estate/portal
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

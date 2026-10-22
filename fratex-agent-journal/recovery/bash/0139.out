@@ -1,0 +1,5 @@
+api 200 app 200
+leads -> http://localhost:3000/crm/real-estate/leads
+google -> http://localhost:3000/crm/settings/connections/google
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && for f in packages/ui/src/components/lead-tools.tsx packages/ui/src/components/lead-profile.tsx packages/ui/src/lib/real-estate.ts; do bunx biome check --write $f 2>&1 | tail -1; done; grep -n "includes\|ignore" biome.json* | head

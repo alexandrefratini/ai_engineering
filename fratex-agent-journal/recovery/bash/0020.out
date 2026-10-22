@@ -1,0 +1,45 @@
+105:export function formatPhone(value: string): string {
+106-	const match = phoneDigits.exec(value);
+107-	return match ? `(${match[1]}) ${match[2]}-${match[3]}` : value;
+108-}
+109-
+110-export function formatDuration(minutes: number): string {
+111-	if (minutes < 60) return `${Math.max(1, Math.round(minutes))} min`;
+112-	const hours = minutes / 60;
+113-	if (hours < 48) return `${Math.round(hours * 10) / 10} h`;
+114-	return `${Math.round(hours / 24)} j`;
+115-}
+116-
+117-export const INTENT_LABELS: Record<string, string> = {
+118-	BUY: "Achat",
+119-	SELL: "Vente",
+120-	BUY_AND_SELL: "Achat et vente",
+224:export const createClientInput = z.object({
+419:export type CreateClientInput = z.infer<typeof createClientInput>;
+224:export const createClientInput = z.object({
+225-	agencyId: z.string().optional(),
+226-	name: z.string().min(2).max(120),
+227-	email: z.string().email(),
+228-	phone: z.string().optional(),
+229-	targetZones: z.array(z.string().trim().min(1)).min(1),
+230-	brokerage: z.string().trim().min(1).max(120),
+231-	licenseNumber: z.string().trim().min(1).max(80),
+232-	propertyTypes: z.array(z.string().trim().min(1)).min(1),
+233-	crmChoice: z
+234-		.enum(["NONE", "FOLLOW_UP_BOSS", "KVCORE", "HUBSPOT", "OTHER"])
+235-		.default("NONE"),
+236-	calendarLink: z.string().url().optional(),
+237-	timezone: z.string().default("America/Toronto"),
+238-});
+239-
+240-export const clientDetailOutput = z.object({
+241-	id: z.string(),
+242-	agencyId: z.string(),
+243-	name: z.string(),
+244-	email: z.string(),
+245-	phone: z.string().nullable(),
+246-	status: z.enum(["ACTIVE", "PAUSED", "CHURNED"]),
+247-	targetZones: z.array(z.string()),
+248-});
+249-
+Shell cwd was reset to /home/user/ai_engineering

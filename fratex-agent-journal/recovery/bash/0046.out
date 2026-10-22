@@ -1,0 +1,10 @@
+ Julie Lavoie
+(2 rows)
+
+DELETE 2
+
+ 16 pass
+ 0 fail
+ 66 expect() calls
+Ran 16 tests across 2 files. [1406.00ms]
+Shell cwd was reset to /home/user/ai_engineering

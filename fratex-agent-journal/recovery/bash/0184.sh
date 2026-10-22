@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "\"db:\|\"prisma\|migrate" packages/db/package.json package.json | head; ls packages/db/prisma/migrations | tail -3; cat packages/db/prisma/migrations/20261022044450_add_user_last_seen/migration.sql; grep -n "^model AgencyUser" -A16 packages/db/prisma/schema.prisma

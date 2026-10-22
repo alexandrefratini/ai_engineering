@@ -1,0 +1,27 @@
+							Every customer, one place.
+						</h1>
+					</div>
+				</div>
+
+						<p className="font-mono text-xs/4 text-muted-foreground uppercase">
+							Fratex Agent
+						</p>
+						<h1 className="max-w-[14ch] text-5xl/14 font-semibold text-balance">
+							Every customer, one place.
+						</h1>
+					</div>
+				</div>
+
+				<p className="relative font-mono text-xs/4 text-muted-foreground">
+					Fratex · Québec
+				</p>
+			</section>
+
+			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">
+				<div className="flex gap-2 text-sm/5 max-lg:hidden lg:invisible">
+					<Logo className="size-5 shrink-0" />
+				</div>
+
+				<div className="flex flex-1 items-center justify-center py-12">
+					<div className="flex w-full max-w-sm flex-col gap-8">{children}</div>
+Shell cwd was reset to /home/user/ai_engineering

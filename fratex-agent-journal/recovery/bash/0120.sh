@@ -1,0 +1,2 @@
+pkill -f "turbo run dev" ; pkill -f "next dev" ; pkill -f "nest start"; pkill -f "bun.*main.ts"; sleep 3; cd /home/user/endsi3g/fratex-agent && GOOGLE_CLIENT_ID=fratex-demo.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=demo-secret nohup bun run dev --filter=app --filter=api > /tmp/dev.log 2>&1 &
+sleep 2; echo restarted

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "updateLeadStatus\|async getLead\b\|async getLead(" apps/api/src/real-estate/real-estate.service.ts | head; grep -n "events:" -B3 -A25 apps/api/src/real-estate/real-estate.service.ts | head -60

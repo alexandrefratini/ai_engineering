@@ -1,0 +1,1 @@
+grep -n "cookie\|session\|signIn\|sign-in" /home/user/ai_engineering/fratex-agent-journal/JOURNAL.md | head -12; grep -n "session\|password" /home/user/ai_engineering/fratex-agent-journal/scripts/demo-seed.ts | head

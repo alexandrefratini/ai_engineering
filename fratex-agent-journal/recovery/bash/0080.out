@@ -1,0 +1,20 @@
+1:import { randomUUID } from "node:crypto";
+2:import type { Db, LeadModel, Prisma } from "@crm/db";
+3:import {
+7:} from "@crm/db/agency-access";
+8:import { lockIdempotencyKey } from "@crm/db/idempotency";
+9:import { pauseLeadTasks, queueSdrTask } from "@crm/db/real-estate";
+10:import { resolvesToPublicHost } from "@crm/db/safe-fetch";
+11:import { queueLeadSms } from "@crm/db/sdr-messages";
+12:import { readAgentModel } from "@crm/db/settings";
+13:import {
+17:} from "@crm/validation/real-estate";
+18:import {
+23:} from "@nestjs/common";
+24:import { z } from "zod";
+25:import { AgentTriggerService } from "../agent/agent-trigger.service";
+26:import { InjectDatabase } from "../database/database.constants";
+27:import type {
+37:} from "./real-estate.contracts";
+38:import {
+Shell cwd was reset to /home/user/ai_engineering

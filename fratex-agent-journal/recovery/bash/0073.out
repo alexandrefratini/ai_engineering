@@ -1,0 +1,65 @@
+import { timingSafeEqual } from "node:crypto";
+import type { MetaWebhookPayload } from "@crm/validation/meta-ads";
+import {
+	Body,
+	Controller,
+	ForbiddenException,
+	Get,
+	Headers,
+	HttpCode,
+	Post,
+	Query,
+	Req,
+	Res,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { ApiExcludeEndpoint, ApiTags } from "@nestjs/swagger";
+import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
+import type { Request, Response } from "express";
+import type { EnvironmentVariables } from "../config/env.validation";
+import { MetaService } from "./meta.service";
+
+@ApiTags("Meta")
+@Controller("api/meta")
+export class MetaController {
+	constructor(
+		private readonly metaService: MetaService,
+		private readonly config: ConfigService<EnvironmentVariables, true>,
+	) {}
+	@Get("webhook")
+	@AllowAnonymous()
+	@ApiExcludeEndpoint()
+	verifyWebhook(
+		@Query("hub.mode") mode: string,
+		@Query("hub.verify_token") token: string,
+		@Query("hub.challenge") challenge: string,
+		@Res() res: Response,
+	) {
+		const configured = this.config.get("META_VERIFY_TOKEN", { infer: true });
+		if (
+			!configured ||
+			!token ||
+			mode !== "subscribe" ||
+			Buffer.byteLength(token) !== Buffer.byteLength(configured) ||
+			!timingSafeEqual(Buffer.from(token), Buffer.from(configured))
+		)
+			throw new ForbiddenException("Invalid verification token.");
+		return res.status(200).send(challenge);
+	}
+	@Post("webhook")
+	@AllowAnonymous()
+	@HttpCode(200)
+	@ApiExcludeEndpoint()
+	async handleWebhook(
+		@Body() payload: MetaWebhookPayload,
+		@Req() request: Request & { rawBody?: Buffer },
+		@Headers("x-hub-signature-256") signature?: string,
+	) {
+		if (
+			!request.rawBody ||
+			!this.metaService.verifySignature(request.rawBody, signature)
+packages/auth/src/scopes.ts:15:export const CALENDAR_SCOPE =
+packages/auth/src/scopes.ts-16-	"https://www.googleapis.com/auth/calendar.readonly";
+packages/auth/src/scopes.ts-17-export const OUTLOOK_MAIL_SCOPE = "Mail.Read";
+packages/auth/src/scopes.ts-18-
+Shell cwd was reset to /home/user/ai_engineering

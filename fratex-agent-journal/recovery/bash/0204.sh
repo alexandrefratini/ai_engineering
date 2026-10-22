@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "^export function\|^function\|^export type" packages/ui/src/components/lead-profile.tsx; wc -l packages/ui/src/components/lead-profile.tsx "apps/app/app/(app)/[slug]/real-estate/leads/[leadId]/lead-detail-view.tsx"

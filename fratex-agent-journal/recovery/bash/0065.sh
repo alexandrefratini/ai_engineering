@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/ui/src/components/brand-logos && for f in meta twilio gemini google; do echo "== $f"; head -c 900 $f.tsx; echo; done; wc -c *.tsx

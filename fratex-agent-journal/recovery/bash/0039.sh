@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && bunx biome check packages/ui/src/components/realtor-roster.tsx packages/ui/src/components/realtor-onboarding-form.tsx "apps/app/app/(app)/[slug]/real-estate/realtors" packages/validation apps/api/src/real-estate/real-estate.contracts.ts 2>&1 | head -20

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -nE "[A-Z][a-z]+ [a-z]+ [a-z]+" apps/app/lib/agent-transcript.ts | awk -F: '$1<60 || $1>107' | head -60

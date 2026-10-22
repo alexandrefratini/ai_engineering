@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/db && set -a && . ../../.env && set +a && bunx prisma migrate deploy 2>&1 | tail -2 && bunx prisma generate 2>&1 | tail -1 && cd ../.. && bun run db:test 2>&1 | tail -2

@@ -1,0 +1,1 @@
+ls /home/user/ 2>&1; ls /home/user/ai_engineering 2>&1 | head; ls -la /home/user/ai_engineering/fratex-agent-journal/patches 2>&1; cd /home/user/ai_engineering && git status --short 2>&1 | head -20; git log --oneline -5 2>&1

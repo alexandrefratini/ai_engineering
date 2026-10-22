@@ -1,0 +1,46 @@
+import { z } from "zod";
+
+export const realEstateIntentEnum = z.enum([
+	"BUY",
+	"SELL",
+	"BUY_AND_SELL",
+	"RENT",
+	"INVEST",
+	"UNKNOWN",
+]);
+export const realEstateLeadStatusEnum = z.enum([
+	"NEW",
+	"CONTACTED",
+	"QUALIFYING",
+	"QUALIFIED",
+	"APPOINTMENT_BOOKED",
+	"APPOINTMENT_HELD",
+	"NURTURE",
+	"LOST",
+	"INVALID",
+]);
+export const qualificationField = z.enum([
+	"intent",
+	"propertyType",
+	"budgetMin",
+	"budgetMax",
+	"timeline",
+	"financing",
+	"targetArea",
+	"currentSituation",
+]);
+export const qualificationEvidence = z.object({
+	messageId: z.string().min(1),
+	field: qualificationField,
+	quote: z.string().trim().min(1).max(2000),
+});
+export const realEstateQualificationInput = z.object({
+	leadId: z.string().min(1),
+	intent: realEstateIntentEnum.optional(),
+	propertyType: z.string().trim().min(1).max(80).optional(),
+packages/validation/package.json:18:		"./real-estate": "./src/real-estate.ts",
+packages/validation/src/index.ts:10:import * as realEstate from "./real-estate";
+packages/validation/src/index.ts:77:} from "./real-estate";
+packages/validation/src/index.ts:86:} from "./real-estate";
+4:} from "@crm/validation/real-estate";
+Shell cwd was reset to /home/user/ai_engineering

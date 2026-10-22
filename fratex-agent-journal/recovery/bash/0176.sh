@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "^model Lead \|^model Appointment \|^model LeadEvent \|^enum LeadEventType\|^enum LeadSource\|^enum LeadStatus" -A40 packages/db/prisma/schema.prisma | grep -v "^\-\-$" | head -150

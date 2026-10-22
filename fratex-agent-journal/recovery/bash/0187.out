@@ -1,0 +1,26 @@
+-- AlterTable
+ALTER TABLE "lead" ADD COLUMN     "source" TEXT;
+
+-- CreateTable
+CREATE TABLE "leadNote" (
+    "id" TEXT NOT NULL,
+    "agencyId" TEXT NOT NULL,
+    "leadId" TEXT NOT NULL,
+    "authorId" TEXT,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "leadNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "leadNote_leadId_createdAt_idx" ON "leadNote"("leadId", "createdAt");
+
+-- AddForeignKey
+ALTER TABLE "leadNote" ADD CONSTRAINT "leadNote_leadId_agencyId_fkey" FOREIGN KEY ("leadId", "agencyId") REFERENCES "lead"("id", "agencyId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "leadNote" ADD CONSTRAINT "leadNote_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ packages/db/prisma/schema.prisma | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
+Shell cwd was reset to /home/user/ai_engineering

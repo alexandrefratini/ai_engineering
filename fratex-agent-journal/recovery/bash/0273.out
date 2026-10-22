@@ -1,0 +1,11 @@
+Cloning into '/home/user/endsi3g/fratex-agent'...
+7fc4914 feat: transform into Fratex Agent AI SDR real estate platform
+6d4793d Merge pull request #177 from trycompai/main
+3c3e07a chore(main): release 1.15.3 (#176)
+2946580 fix: stop a finished enrichment reading as failed (#173)
+1cebe1e fix(app): prevent url param collision between fields sheet and table filter (#175)
+77089e4 Merge pull request #172 from trycompai/main
+7c21d2c chore(main): release 1.15.2 (#171)
+630f2c9 docs(api): explain runtime openapi document and vendoring rules (#170)
+7fc4914e142f44a86d8bd6a8fcf1afcede973c39 Thu Oct 22 00:18:44 2026 -0400
+Shell cwd was reset to /home/user/ai_engineering

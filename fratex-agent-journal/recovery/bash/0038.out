@@ -1,0 +1,7 @@
+Checked 24 files in 151ms. Fixed 2 files.
+Found 1 warning.
+ui 0
+app 0
+api 0
+Shell cwd was reset to /home/user/ai_engineering
+[This command modified 1 file you've previously read: ../endsi3g/fratex-agent/packages/ui/src/components/realtor-roster.tsx. Call Read before editing.]

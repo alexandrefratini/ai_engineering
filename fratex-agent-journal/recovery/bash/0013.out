@@ -1,0 +1,12 @@
+sans type : 1
+étapes : [
+  '/crm',
+  '/crm/real-estate/realtors',
+  '/crm/settings/connections/meta-ads?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4hi6e0000cr7dqewa796n',
+  '/crm/settings/connections/realtor-calendar?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4hi6e0000cr7dqewa796n',
+  '/crm/settings/connections/twilio?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4hi6e0000cr7dqewa796n',
+  '/crm/real-estate/portal?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4hi6e0000cr7dqewa796n'
+]
+Sophie dans la liste : 1
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

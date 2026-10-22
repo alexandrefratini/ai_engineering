@@ -1,0 +1,5 @@
+apps/agent/agent/tools/book_appointment.ts
+apps/agent/agent/lib/sdr-calendar.ts
+apps/agent/test/sdr.integration.spec.ts
+apps/api/src/real-estate/real-estate.service.ts
+Shell cwd was reset to /home/user/ai_engineering

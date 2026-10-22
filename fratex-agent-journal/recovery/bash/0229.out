@@ -1,0 +1,10 @@
+packages/auth/test/slack-connect.integration.spec.ts:229:		expect(await messageOf(response)).toContain("Sign in to the CRM");
+10:	{ days: 395, label: "13 months" },
+11:	{ days: 180, label: "6 months" },
+12:	{ days: 0, label: "Session only" },
+104:									{channel.inviteRequestedAt ? "Ask again" : "Request"}
+128:	if (channel.isMember) return `Comp AI is in${people}`;
+130:	if (!channel.isPrivate) return `Comp AI can join this one${people}`;
+131:	if (canInviteItself) return `Private. Comp AI joins as you${people}`;
+134:	return `Private. Someone inside has to invite Comp AI${people}`;
+Shell cwd was reset to /home/user/ai_engineering

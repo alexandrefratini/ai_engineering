@@ -1,0 +1,16 @@
+M11.109 11.934v-.065c.272-.144.5-.349.68
+M13.202 10.003l.602.913L15 10.045v5.744h
+M18.816 23.5l4.684-4.684h-4.684V23.5z
+import type * as React from "react";
+
+const GoogleCalendarLogo = (props: React.SVGProps<SVGSVGElement>) => (
+	<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" {...props}>
+		<path fill="#FBBC04" d="M18.316 5.684H24v12.632h-5.684V5.684z" />
+		<path fill="#34A853" d="M5.684 24h12.632v-5.684H5.684V24z" />
+		<path fill="#4285F4" d="M18.316 5.684V0H1.895A1.894 1.894 0 0 0 0 1.895v16.421h5.684V5.684h12.632z" />
+		<path fill="#4285F4" d="M11.109 11.934v-.065c.272-.144.5-.349.687-.617s.279-.595.279-.982c0-.379-.099-.72-.3-1.025a2.0
+		<path fill="#4285F4" d="M13.202 10.003l.602.913L15 10.045v5.744h1.187V8.446h-.827l-2.158 1.557z" />
+		<path fill="#1967D2" d="M22.105 0h-3.289v5.184H24V1.895A1.894 1.894 0 0 0 22.105 0z" />
+		<path fill="#EA4335" d="M18.816 23.5l4.684-4.684h-4.684V23.5z" />
+		<path fill="#188038" d="M0 22.105C0 23.152.848 24 1.895 24h3.289v-5.184H0v3.289z" />
+Shell cwd was reset to /home/user/ai_engineering

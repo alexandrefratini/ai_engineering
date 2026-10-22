@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 366,400p packages/ui/src/components/lead-profile.tsx; cat "apps/app/app/(app)/[slug]/real-estate/leads/[leadId]/lead-detail-view.tsx"

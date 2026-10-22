@@ -1,0 +1,3 @@
+1101 [('assistant', 489), ('attachment', 325), ('user', 277), ('atis-latch', 3), ('queue-operation', 2), ('last-prompt', 2), ('mode', 2), ('system', 1)]
+[('Bash', 218), ('Read', 36), ('TaskUpdate', 6), ('Grep', 3), ('Agent', 3), ('SendMessage', 2), ('Edit', 1), ('ToolSearch', 1)]
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1322,1400p apps/api/src/real-estate/real-estate.service.ts; grep -n "connectionsStatusOutput = " -A40 apps/api/src/real-estate/real-estate.contracts.ts | head -45; grep -n "configureCalendarInput = " -A16 apps/api/src/real-estate/real-estate.contracts.ts

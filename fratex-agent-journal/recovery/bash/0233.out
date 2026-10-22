@@ -1,0 +1,3 @@
+apps/app/test/agent-results.spec.ts
+apps/app/test/agent-transcript.spec.ts
+Shell cwd was reset to /home/user/ai_engineering

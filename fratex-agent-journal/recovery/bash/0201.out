@@ -1,0 +1,32 @@
+	async listLeads(userId: string, input: ListLeadsInput) {
+		const scope = await this.access(userId, input.agencyId, input.clientId);
+		const where: Prisma.LeadWhereInput = {
+			agencyId: scope.agencyId,
+			clientId: scope.clientId,
+			status: input.status,
+		};
+		if (input.search?.trim()) {
+			const search = input.search.trim();
+			where.OR = [
+				{ firstName: { contains: search, mode: "insensitive" } },
+				{ lastName: { contains: search, mode: "insensitive" } },
+				{ phone: { contains: search } },
+				{ email: { contains: search, mode: "insensitive" } },
+				{ targetArea: { contains: search, mode: "insensitive" } },
+			];
+		}
+		if (
+			input.cursor &&
+			!(await this.db.lead.findFirst({
+				where: {
+					id: input.cursor,
+					agencyId: scope.agencyId,
+					clientId: scope.clientId,
+				},
+			}))
+			recentLeads,
+			escalated,
+			aiMessages,
+7:146-				include: { client: { select: { name: true } } },
+26:425-					select: { createdAt: true, firstContactedAt: true, status: true },
+Shell cwd was reset to /home/user/ai_engineering

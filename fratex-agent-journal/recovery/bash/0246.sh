@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/api/src/presence/presence.router.ts | sed -n 1,60p

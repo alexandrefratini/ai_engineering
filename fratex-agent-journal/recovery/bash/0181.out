@@ -1,0 +1,36 @@
+		if (!parsed.success)
+			throw new BadRequestException("Invalid Meta webhook payload.");
+		for (const entry of parsed.data.entry) {
+			for (const change of entry.changes) {
+				const { leadgen_id: leadgenId, form_id: formId } = change.value;
+				if (change.field !== "leadgen" || !leadgenId || !formId) continue;
+				const form = await this.db.metaLeadForm.findUnique({
+					where: { metaFormId: formId },
+				});
+				if (!form) continue;
+				await this.db.$transaction(async (tx) => {
+					const receipt = await tx.metaWebhookEvent.upsert({
+						where: { metaLeadId: leadgenId },
+						update: {},
+						create: {
+							agencyId: form.agencyId,
+							metaLeadId: leadgenId,
+							eventType: "leadgen",
+							payload: { leadgenId, formId, pageId: entry.id },
+						},
+					});
+					if (receipt.agencyId !== form.agencyId || receipt.processedAt) return;
+					await queueSdrTask(tx, {
+						agencyId: form.agencyId,
+						kind: "real-estate-meta",
+						key: `meta:${receipt.id}`,
+						payload: { agencyId: form.agencyId, receiptId: receipt.id },
+					});
+				});
+			}
+		}
+		this.agentTrigger.poke();
+	}
+}
+apps/agent/agent/lib/sdr-jobs.ts:19:	if (task.kind === "real-estate-meta" && payload.receiptId)
+Shell cwd was reset to /home/user/ai_engineering

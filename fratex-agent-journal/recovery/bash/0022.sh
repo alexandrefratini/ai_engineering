@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "phone\|Phone\|E164\|e164" packages/validation/src/real-estate.ts packages/validation/src/meta-ads.ts | head -20; grep -rn "function.*[Pp]hone" packages/db/src apps/api/src --include=*.ts | grep -v spec | head

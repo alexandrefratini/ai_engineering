@@ -1,0 +1,7 @@
+1648:model Client {
+1649-  id              String           @id @default(cuid())
+1650-  agencyId        String
+1651-  name            String
+1674:  @@map("client")
+ public | client                      | table | postgres
+Shell cwd was reset to /home/user/ai_engineering

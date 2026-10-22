@@ -1,0 +1,25 @@
+31:export type LeadProfileLead = {
+67:export type LeadProfileEvidence = { field: string; quote: string };
+69:export type LeadProfileListing = {
+77:export type LeadProfileEvent = {
+83:export type LeadProfileAppointment = {
+91:export type LeadProfileMessage = {
+110:function criterionValue(lead: LeadProfileLead, field: CriterionField): string | null {
+116:function evidenceFor(evidence: LeadProfileEvidence[], field: CriterionField) {
+122:function minutesBetween(start: string, end: string) {
+126:function Muted({ children }: { children: ReactNode }) {
+130:export function LeadPanel({
+155:function Facts({ items }: { items: { label: string; value: ReactNode }[] }) {
+168:export function LeadProfileHeader({ lead, actions }: { lead: LeadProfileLead; actions: ReactNode }) {
+204:export function LeadKeyFacts({
+240:export function LeadQualification({
+330:export function LeadLastMessages({
+366:export function LeadAppointments({
+399:export function LeadSuggestedListings({
+443:export function LeadFollowUp({ lead, index }: { lead: LeadProfileLead; index?: number }) {
+499:export function LeadHistory({ events, index }: { events: LeadProfileEvent[]; index?: number }) {
+524:export function LeadDisclosure({
+  554 packages/ui/src/components/lead-profile.tsx
+  216 apps/app/app/(app)/[slug]/real-estate/leads/[leadId]/lead-detail-view.tsx
+  770 total
+Shell cwd was reset to /home/user/ai_engineering

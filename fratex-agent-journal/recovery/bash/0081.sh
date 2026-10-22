@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 13,50p apps/api/src/real-estate/real-estate.service.ts

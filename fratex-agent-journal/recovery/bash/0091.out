@@ -1,0 +1,184 @@
+"use client";
+import { useState } from "react";
+import { Button } from "./button";
+import {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+} from "./card";
+import { Field, FieldLabel, FieldGroup } from "./field";
+import { Input } from "./input";
+import { WorkspaceNotice } from "./real-estate-workspace";
+export function ConnectionSetup({
+	title,
+	description,
+	fields,
+	enabled,
+	onSubmit,
+	children,
+}: {
+	title: string;
+	description: string;
+	fields: {
+		name: string;
+		label: string;
+		type?: string;
+		optional?: boolean;
+		defaultValue?: string;
+	}[];
+	enabled: boolean;
+	onSubmit: (data: FormData) => Promise<void>;
+	children?: React.ReactNode;
+}) {
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [saved, setSaved] = useState(false);
+	async function submit(form: HTMLFormElement) {
+		setBusy(true);
+		setError(null);
+		setSaved(false);
+		try {
+			await onSubmit(new FormData(form));
+			form.reset();
+			setSaved(true);
+		} catch (failure) {
+			setError(
+				failure instanceof Error
+					? failure.message
+					: "Enregistrement impossible.",
+			);
+		} finally {
+			setBusy(false);
+		}
+	}
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>{title}</CardTitle>
+				<CardDescription>{description}</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<div className="flex flex-col gap-4">
+					{children}
+					{enabled ? (
+						<form
+							onSubmit={(event) => {
+								event.preventDefault();
+								void submit(event.currentTarget);
+							}}
+						>
+							<FieldGroup>
+								{fields.map((field) => (
+									<Field key={field.name}>
+										<FieldLabel htmlFor={`setup-${field.name}`}>
+											{field.label}
+										</FieldLabel>
+										<Input
+											id={`setup-${field.name}`}
+											name={field.name}
+											type={field.type ?? "text"}
+											required={!field.optional}
+											defaultValue={field.defaultValue}
+											autoComplete={
+												field.type === "password" ? "new-password" : "off"
+											}
+										/>
+									</Field>
+								))}
+								<Button disabled={busy}>Enregistrer la configuration</Button>
+							</FieldGroup>
+						</form>
+					) : (
+						<WorkspaceNotice title="La configuration nécessite un rôle propriétaire ou administrateur" />
+					)}
+					{error && (
+						<WorkspaceNotice title="Configuration refusée" error={error} />
+					)}
+					{saved && (
+						<WorkspaceNotice title="Configuration enregistrée. La réception des événements confirme le fonctionnement." />
+					)}
+				</div>
+			</CardContent>
+		</Card>
+	);
+}
+export function WebhookAddress({ url, label }: { url: string; label: string }) {
+	const [copied, setCopied] = useState(false);
+	const [failed, setFailed] = useState(false);
+	async function copy() {
+		setCopied(false);
+		setFailed(false);
+		try {
+			await navigator.clipboard.writeText(url);
+			setCopied(true);
+		} catch {
+			setFailed(true);
+		}
+	}
+	return (
+		<Field>
+			<FieldLabel>{label}</FieldLabel>
+			<Input readOnly value={url} aria-label={label} />
+			<Button
+				variant="outline"
+				onClick={() => {
+					void copy();
+				}}
+			>
+				{copied ? "Copié" : "Copier"}
+			</Button>
+			{failed && (
+				<WorkspaceNotice title="Copie impossible. Sélectionnez l’adresse." />
+			)}
+		</Field>
+	);
+}
+17:export function useAgency() {
+18-	const trpc = useTRPC();
+19-	const [selected, setSelected] = useQueryState(
+20-		"agencyId",
+21-		parseAsString.withOptions({ history: "push" }),
+22-	);
+23-	const query = useQuery(trpc.realEstate.agencies.queryOptions());
+24-	const agencies = query.data?.agencies;
+25-	const agencyId = agencies
+26-		? agencies.some((agency) => agency.id === selected)
+27-			? (selected ?? undefined)
+28-			: agencies[0]?.id
+29-		: selected || undefined;
+30-	return { agencyId, query, selected, setSelected };
+31-}
+32:export function AgencyControl({
+33-	scope,
+34-}: {
+35-	scope: ReturnType<typeof useAgency>;
+36-}) {
+37-	const trpc = useTRPC();
+38-	const cache = useQueryClient();
+39-	const [name, setName] = useState("");
+40-	const create = useMutation(
+41-		trpc.realEstate.createAgency.mutationOptions({
+42-			onSuccess: async (agency) => {
+43-				await cache.invalidateQueries(trpc.realEstate.agencies.queryFilter());
+44-				await scope.setSelected(agency.id);
+45-			},
+46-		}),
+47-	);
+48-	if (scope.query.isPending) return <WorkspaceLoading />;
+49-	if (scope.query.error)
+50-		return (
+51-			<WorkspaceNotice
+52-				title="Accès aux agences indisponible"
+53-				error={scope.query.error.message}
+54-				onRetry={() => {
+55-					void scope.query.refetch();
+56-				}}
+57-			/>
+58-		);
+59-	if (!scope.query.data?.agencies.length)
+60-		return (
+61-			<form
+62-				onSubmit={(event) => {
+Shell cwd was reset to /home/user/ai_engineering

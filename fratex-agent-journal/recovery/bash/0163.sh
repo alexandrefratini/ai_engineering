@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/app/public && ls landing | head; head -c 600 favicon.svg; echo; cat site.webmanifest; grep -rln "Comp AI\|trycomp\|comp\.ai" /home/user/endsi3g/fratex-agent/apps /home/user/endsi3g/fratex-agent/packages --include=*.ts --include=*.tsx --include=*.json --include=*.webmanifest 2>/dev/null | grep -v node_modules | head

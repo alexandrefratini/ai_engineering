@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "matchPages\|NAV_PAGES" apps/app/components/header-search.tsx apps/app/components/crm/quick-switcher.tsx | head; sed -n 1,20p apps/app/lib/navigation.ts; grep -n "export function matchPages" -A15 apps/app/lib/navigation.ts

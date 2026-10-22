@@ -1,0 +1,36 @@
+4:export function queueSdrTask(
+5-	tx: Prisma.TransactionClient,
+6-	input: {
+7-		agencyId: string;
+8-		leadId?: string;
+9-		kind: string;
+10-		key: string;
+11-		payload: Prisma.InputJsonObject;
+12-		dueAt?: Date;
+13-	},
+14-) {
+15-	return tx.agentTask.upsert({
+16-		where: { idempotencyKey: input.key },
+17-		update: {},
+18-		create: {
+19-			agencyId: input.agencyId,
+20-			leadId: input.leadId,
+21-			kind: input.kind,
+22-			idempotencyKey: input.key,
+23-			reason: "Real estate workflow",
+24-			payload: input.payload,
+25-			dueAt: input.dueAt ?? new Date(),
+26-			priority: SDR_QUEUE.priority,
+27-			budget: SDR_QUEUE.budget,
+28-		},
+29-	});
+30-}
+31-
+32-export async function pauseLeadTasks(
+33-	tx: Prisma.TransactionClient,
+34-	agencyId: string,
+apps/api/src/messaging/messaging.service.ts:175:			await queueSdrTask(tx, {
+apps/api/src/meta/meta.service.ts:52:					await queueSdrTask(tx, {
+apps/api/src/real-estate/real-estate.service.ts:1096:			await queueSdrTask(tx, {
+apps/api/src/real-estate/real-estate.service.ts:1172:				await queueSdrTask(tx, {
+Shell cwd was reset to /home/user/ai_engineering

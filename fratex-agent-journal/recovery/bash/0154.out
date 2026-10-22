@@ -1,0 +1,17 @@
+demo-marie
+cmvj1e58o0002xw7dz2ncr5ad|cmvj1e57w0000xw7ddd9sxe8i
+                                  Table "public.agencyUser"
+  Column   |              Type              | Collation | Nullable |         Default          
+-----------+--------------------------------+-----------+----------+--------------------------
+ id        | text                           |           | not null | 
+ agencyId  | text                           |           | not null | 
+ userId    | text                           |           | not null | 
+ role      | "AgencyRole"                   |           | not null | 'MARKETER'::"AgencyRole"
+ createdAt | timestamp(3) without time zone |           | not null | CURRENT_TIMESTAMP
+ updatedAt | timestamp(3) without time zone |           | not null | 
+ clientId  | text                           |           |          | 
+Indexes:
+    "agencyUser_pkey" PRIMARY KEY, btree (id)
+    "agencyUser_agencyId_userId_key" UNIQUE, btree ("agencyId", "userId")
+    "agencyUser_userId_idx" btree ("userId")
+Shell cwd was reset to /home/user/ai_engineering

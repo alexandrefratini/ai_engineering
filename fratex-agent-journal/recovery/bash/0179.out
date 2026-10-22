@@ -1,0 +1,114 @@
+		};
+	}
+	async getLead(userId: string, input: GetLeadInput) {
+		const scope = await this.access(userId, input.agencyId);
+		const lead = await this.db.lead.findFirst({
+			where: {
+				id: input.id,
+				agencyId: scope.agencyId,
+				clientId: scope.clientId,
+			},
+			include: {
+				client: { select: { name: true } },
+				campaign: { select: { name: true } },
+				form: { select: { name: true } },
+				propertyInterest: true,
+				attributions: {
+					where: { agencyId: scope.agencyId },
+					orderBy: { occurredAt: "desc" },
+					take: REAL_ESTATE.lead.eventLimit,
+					select: { id: true, eventType: true, occurredAt: true },
+				},
+				appointments: {
+					where: { agencyId: scope.agencyId },
+					include: { client: { select: { name: true } } },
+					orderBy: { startTime: "asc" },
+				},
+			},
+		});
+		if (!lead) throw new NotFoundException("Lead not found.");
+		const [messages, deliveries, emails, channels] = await Promise.all([
+			this.db.message.findMany({
+				where: { agencyId: scope.agencyId, conversation: { leadId: lead.id } },
+				orderBy: [{ sentAt: "asc" }, { id: "asc" }],
+				select: {
+					id: true,
+					sender: true,
+					content: true,
+					sentAt: true,
+					status: true,
+					failureCode: true,
+				},
+			}),
+			this.db.crmDelivery.findMany({
+				where: { agencyId: scope.agencyId, leadId: lead.id },
+				orderBy: { createdAt: "desc" },
+				take: REAL_ESTATE.portal.recentLimit,
+				select: {
+					id: true,
+					crmType: true,
+					status: true,
+					errorCode: true,
+					createdAt: true,
+				},
+			}),
+			this.leadEmails(scope.agencyId, lead.email),
+			this.leadChannels(scope.agencyId),
+		]);
+		return {
+			lead: leadItem(lead),
+			profile: {
+				language: lead.language,
+				budgetMin: lead.budgetMin,
+				timeline: lead.timeline,
+				financing: lead.financing,
+				currentSituation: lead.currentSituation,
+				escalationReason: lead.escalationReason,
+				consentSource: lead.consentSource,
+				campaignName: lead.campaign?.name ?? null,
+				formName: lead.form?.name ?? null,
+				property: lead.propertyInterest,
+			},
+			evidence:
+				lead.qualificationEvidence === null
+					? []
+					: storedQualificationEvidence.parse(lead.qualificationEvidence),
+			suggestedListings:
+				lead.suggestions === null
+647:	async updateStatus(userId: string, input: UpdateLeadStatusInput) {
+648-		const scope = await this.access(userId, input.agencyId);
+649-		this.write(scope.role);
+650-		return this.db.$transaction(async (tx) => {
+651-			await lockIdempotencyKey(tx, `lead:${scope.agencyId}:${input.id}`);
+652-			const lead = await tx.lead.findFirst({
+653-				where: {
+654-					id: input.id,
+655-					agencyId: scope.agencyId,
+656-					clientId: scope.clientId,
+657-				},
+658-			});
+659-			if (!lead) throw new NotFoundException("Lead not found.");
+660-			return tx.lead.update({
+661-				where: { id: lead.id, agencyId: scope.agencyId },
+662-				data: { status: input.status },
+663-				select: { id: true, status: true },
+664-			});
+665-		});
+666-	}
+667-	async getPipelineSummary(userId: string, input: PipelineSummaryInput) {
+668-		const scope = await this.access(userId, input.agencyId, input.clientId);
+669-		const rows = await this.db.lead.groupBy({
+670-			by: ["status"],
+671-			where: { agencyId: scope.agencyId, clientId: scope.clientId },
+672-			_count: { id: true },
+673-		});
+674-		const counts = new Map(rows.map((row) => [row.status, row._count.id]));
+675-		const totalLeads = rows.reduce((sum, row) => sum + row._count.id, 0);
+676-		const appointmentCount =
+677-			(counts.get("APPOINTMENT_BOOKED") ?? 0) +
+678-			(counts.get("APPOINTMENT_HELD") ?? 0);
+679-		return {
+680-			stages: leadStatusEnum.options.map((status) => ({
+681-				status,
+682-				count: counts.get(status) ?? 0,
+Shell cwd was reset to /home/user/ai_engineering

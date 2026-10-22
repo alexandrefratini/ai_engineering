@@ -1,0 +1,8 @@
+packages/ui/package.json:2:	"name": "@crm/ui",
+packages/ui/package.json:21:		"@crm/db": "workspace:*",
+packages/ui/package.json:49:		"@crm/typescript-config": "workspace:*",
+packages/validation/package.json:2:	"name": "@crm/validation",
+packages/validation/package.json:28:		"@crm/db": "workspace:*",
+packages/validation/package.json:29:		"zod": "^4.4.3"
+packages/validation/package.json:32:		"@crm/typescript-config": "workspace:*",
+Shell cwd was reset to /home/user/ai_engineering

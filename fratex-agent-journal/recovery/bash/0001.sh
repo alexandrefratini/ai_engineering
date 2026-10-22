@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat "apps/app/app/(landing)/onboarding/realtor/page.tsx" && ls apps/app/lib | grep -i workspace && (cd apps/app && bunx tsc --noEmit; echo "app tsc exit $?") && (cd packages/ui && bunx tsc --noEmit; echo "ui tsc exit $?")

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/app/proxy.ts | head -80; ls "apps/app/app/(landing)" "apps/app/app"

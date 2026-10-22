@@ -1,0 +1,19 @@
+52:	updateLeadStatusInput,
+156:		input: updateLeadStatusInput,
+163:	async updateStatus(
+165:		@Input() input: z.infer<typeof updateLeadStatusInput>,
+167:		return this.realEstateService.updateStatus(ctx.user.id, input);
+151-	) {
+152-		return this.realEstateService.listClients(ctx.user.id, input.agencyId);
+153-	}
+154-
+155-	@Mutation({
+156-		input: updateLeadStatusInput,
+157-		output: z.object({
+158-			id: z.string(),
+159-			status: z.string(),
+160-		}),
+161-		meta: restMeta("PATCH", "/real-estate/leads/{id}/status", ["RealEstate"]),
+162-	})
+163:	async updateStatus(
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,6 @@
+api-proxy-response.spec.ts
+onboarding-gate.spec.ts
+app 200
+api 302
+Location: http://localhost:3000/agenda-connecte?statut=refused
+Location: http://localhost:3000/agenda-connecte?statut=config

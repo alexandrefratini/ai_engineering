@@ -1,0 +1,6 @@
+4:PGBIN=/usr/lib/postgresql/16/bin
+6:mkdir -p /tmp/pgdata && chown postgres:postgres /tmp/pgdata
+7:su postgres -c "$PGBIN/initdb -D /tmp/pgdata -A trust"
+8:su postgres -c "$PGBIN/pg_ctl -D /tmp/pgdata -l /tmp/pg.log -o '-p 5432' start"
+10:psql -U postgres -h localhost -c "create database crm;" -c "create database crm_test;"
+26:psql -U postgres -h localhost -d crm -c "update organization set metadata='{\"onboardedAt\":\"2026-10-22T00:00:00.000Z\"}' where metadata is null or metadata not like '%onboardedAt%';" || true

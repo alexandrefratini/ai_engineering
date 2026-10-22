@@ -1,0 +1,5 @@
+30:import { listLeadsInput, listLeadsOutput, getLeadInput, leadDetailOutput, homeInput, homeOutput, inboxInput, inboxOutput, suggestListingInput, suggestListingOutput, markReadInput, pipelineSummaryInput, pipelineSummaryOutput, agencyClientsInput, agencyClientsOutput, updateLeadStatusInput, createClientInput, clientDetailOutput, realtorPortalInput, realtorPortalStatsOutput, analyzeListingInput, analyzeListingOutput, syncDualCrmInput, syncDualCrmOutput, agencyScopeInput, connectionsStatusOutput, agenciesOutput, createAgencyInput, createAgencyOutput, sendMessageInput, sendMessageOutput, setAutomationInput, configurationOutput, configureSmsInput, configureMetaInput, configureCalendarInput } from "../real-estate/real-estate.contracts";
+629:    createClient: publicProcedure
+630:      .input(createClientInput)
+apps/api/test/real-estate-e2e.integration.spec.ts:241:		const client = await service.createClient(userA, {
+Shell cwd was reset to /home/user/ai_engineering

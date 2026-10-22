@@ -1,0 +1,58 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { randomUUID } from "node:crypto";
+import { db } from "@crm/db";
+import { PresenceService } from "../src/presence/presence.service";
+import { PRESENCE } from "../src/presence/presence-config";
+
+const suffix = randomUUID();
+const organization = `presence-org-${suffix}`;
+const active = `presence-active-${suffix}`;
+const idle = `presence-idle-${suffix}`;
+const outsider = `presence-outsider-${suffix}`;
+const service = new PresenceService(db);
+
+beforeAll(async () => {
+	await db.user.createMany({
+		data: [active, idle, outsider].map((id) => ({
+			id,
+			name: id,
+			email: `${id}@example.test`,
+			lastSeenAt: new Date(Date.now() - 2 * PRESENCE.onlineWindowMs),
+		})),
+	});
+	await db.organization.create({
+		data: {
+			id: organization,
+			name: "Presence",
+			slug: organization,
+			createdAt: new Date(),
+		},
+	});
+	await db.member.createMany({
+		data: [active, idle].map((userId) => ({
+			id: `${userId}-member`,
+			organizationId: organization,
+			userId,
+			createdAt: new Date(),
+		})),
+	});
+});
+
+afterAll(async () => {
+	await db.organization.deleteMany({ where: { id: organization } });
+	await db.user.deleteMany({ where: { id: { in: [active, idle, outsider] } } });
+});
+
+describe("team presence", () => {
+	it("marks a member online after a heartbeat and leaves the others away", async () => {
+		await service.heartbeat(active);
+		const team = await service.team(active);
+		const byId = new Map(team.members.map((member) => [member.id, member]));
+
+		expect(byId.get(active)?.online).toBe(true);
+		expect(byId.get(active)?.isSelf).toBe(true);
+		expect(byId.get(idle)?.online).toBe(false);
+		expect(byId.has(outsider)).toBe(false);
+	});
+});
+Shell cwd was reset to /home/user/ai_engineering

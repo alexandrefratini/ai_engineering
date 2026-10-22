@@ -1,0 +1,1 @@
+ps aux | grep -E "next|nest|turbo" | grep -v grep | head -5; curl -s -o /dev/null -w "app %{http_code}\n" http://localhost:3000/agenda-connecte

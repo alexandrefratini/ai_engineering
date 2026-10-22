@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/api/test/presence.integration.spec.ts | head -80

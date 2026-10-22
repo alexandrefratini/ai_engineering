@@ -1,0 +1,39 @@
+import {
+	listingSuggestions,
+	storedQualificationEvidence,
+	workingHours,
+} from "@crm/validation/real-estate";
+import {
+	BadRequestException,
+	ForbiddenException,
+	Injectable,
+	NotFoundException,
+} from "@nestjs/common";
+import { z } from "zod";
+import { AgentTriggerService } from "../agent/agent-trigger.service";
+import { InjectDatabase } from "../database/database.constants";
+import type {
+	AnalyzeListingInput,
+	CreateClientInput,
+	GetLeadInput,
+	InboxInput,
+	ListLeadsInput,
+	PipelineSummaryInput,
+	RealtorPortalInput,
+	SyncDualCrmInput,
+	UpdateLeadStatusInput,
+} from "./real-estate.contracts";
+import {
+	calendarConnectLinkInput,
+	configureCalendarInput,
+	configureMetaInput,
+	configureSmsInput,
+	leadStatusEnum,
+	sendMessageInput,
+	setAutomationInput,
+	suggestListingInput,
+} from "./real-estate.contracts";
+import { DAY_MS, HOUR_MS, MINUTE_MS, REAL_ESTATE } from "./real-estate-config";
+
+const leadItem = (lead: LeadModel & { client: { name: string } | null }) => ({
+Shell cwd was reset to /home/user/ai_engineering

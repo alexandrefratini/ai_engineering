@@ -1,0 +1,22 @@
+7:function Avatar({
+8-	className,
+9-	size = "default",
+10-	...props
+11-}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+12-	size?: "default" | "xs" | "sm" | "lg";
+13-}) {
+14-	return (
+15-		<AvatarPrimitive.Root
+16-			data-slot="avatar"
+17-			data-size={size}
+18-			className={cn(
+19-				"group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 data-[size=xs]:size-5 dark:after:mix-blend-lighten",
+20-				className,
+21-			)}
+22-			{...props}
+23-		/>
+24-	);
+25-}
+26-
+27-function AvatarImage({
+Shell cwd was reset to /home/user/ai_engineering

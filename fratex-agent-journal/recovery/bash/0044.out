@@ -1,0 +1,4 @@
+ERROR:  relation "Client" does not exist
+LINE 1: DELETE FROM "Client" WHERE email LIKE 'sophie.%@courtage.ca'...
+                    ^
+Shell cwd was reset to /home/user/ai_engineering

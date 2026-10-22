@@ -1,0 +1,309 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "@/lib/trpc/client";
+import { useAgency } from "../../real-estate/use-agency";
+export function useSdrConnections() {
+	const trpc = useTRPC();
+	const scope = useAgency();
+	const query = useQuery(
+		trpc.realEstate.connectionsStatus.queryOptions(
+			{ agencyId: scope.agencyId },
+			{ enabled: Boolean(scope.agencyId) },
+		),
+	);
+	const clients = useQuery(
+		trpc.realEstate.clients.queryOptions(
+			{ agencyId: scope.agencyId },
+			{ enabled: Boolean(scope.agencyId) },
+		),
+	);
+	return { scope, query, clients };
+}
+"use client";
+import {
+	ConnectionSetup,
+	WebhookAddress,
+} from "@crm/ui/components/connection-setup";
+import {
+	RealEstateWorkspace,
+	WorkspaceLoading,
+	WorkspaceNotice,
+	WorkspaceSelect,
+} from "@crm/ui/components/real-estate-workspace";
+import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useTRPC } from "@/lib/trpc/client";
+import { AgencyControl } from "../../real-estate/use-agency";
+import { useSdrConnections } from "./use-sdr-connections";
+export function MetaAdsConnection({ slug: _slug }: { slug: string }) {
+	const trpc = useTRPC();
+	const { scope, query, clients } = useSdrConnections();
+	const [clientId, setClientId] = useState("");
+	const mutation = useMutation(trpc.realEstate.configureMeta.mutationOptions());
+	return (
+		<RealEstateWorkspace>
+			<AgencyControl scope={scope} />
+			{scope.agencyId &&
+				(query.isPending ? (
+					<WorkspaceLoading />
+				) : query.error ? (
+					<WorkspaceNotice
+						title="Connexion indisponible"
+						error={query.error.message}
+					/>
+				) : (
+					<ConnectionSetup
+						title="Meta Lead Ads"
+						description={
+							query.data.meta.webhookActive
+								? "Un webhook signé est enregistré pour cette agence."
+								: "Associez explicitement le formulaire au courtier. Aucun webhook reçu pour cette agence."
+						}
+						enabled={
+							query.data.canManage && Boolean(clients.data?.clients.length)
+						}
+						fields={[
+							{ name: "metaAccountId", label: "ID du compte publicitaire" },
+							{ name: "metaCampaignId", label: "ID de campagne" },
+							{ name: "metaFormId", label: "ID du formulaire" },
+							{ name: "accessToken", label: "Jeton Meta", type: "password" },
+							{
+								name: "pixelId",
+								label: "ID du pixel CAPI facultatif",
+								optional: true,
+							},
+						]}
+						onSubmit={async (data) => {
+							if (!clientId) throw new Error("Sélectionnez un courtier.");
+							await mutation.mutateAsync({
+								agencyId: scope.agencyId,
+								clientId,
+								metaAccountId: String(data.get("metaAccountId")),
+								metaCampaignId: String(data.get("metaCampaignId")),
+								metaFormId: String(data.get("metaFormId")),
+								accessToken: String(data.get("accessToken")),
+								pixelId: String(data.get("pixelId") ?? "") || undefined,
+							});
+							await query.refetch();
+						}}
+					>
+						<WebhookAddress
+							label="Webhook Meta"
+							url={query.data.metaWebhookUrl}
+						/>
+						{clients.data && (
+							<WorkspaceSelect
+								label="Courtier destinataire"
+								value={clientId}
+								options={clients.data.clients}
+								onChange={setClientId}
+							/>
+						)}
+						{clients.error && (
+							<WorkspaceNotice
+								title="Courtiers indisponibles"
+								error={clients.error.message}
+							/>
+						)}
+					</ConnectionSetup>
+				))}
+		</RealEstateWorkspace>
+	);
+}
+"use client";
+import {
+	ConnectionSetup,
+	WebhookAddress,
+} from "@crm/ui/components/connection-setup";
+import {
+	RealEstateWorkspace,
+	WorkspaceLoading,
+	WorkspaceNotice,
+} from "@crm/ui/components/real-estate-workspace";
+import { useMutation } from "@tanstack/react-query";
+import { useTRPC } from "@/lib/trpc/client";
+import { AgencyControl } from "../../real-estate/use-agency";
+import { useSdrConnections } from "./use-sdr-connections";
+export function TwilioConnection({ slug: _slug }: { slug: string }) {
+	const trpc = useTRPC();
+	const { scope, query } = useSdrConnections();
+	const mutation = useMutation(trpc.realEstate.configureSms.mutationOptions());
+	return (
+		<RealEstateWorkspace>
+			<AgencyControl scope={scope} />
+			{scope.agencyId &&
+				(query.isPending ? (
+					<WorkspaceLoading />
+				) : query.error ? (
+					<WorkspaceNotice
+						title="Connexion indisponible"
+						error={query.error.message}
+					/>
+				) : (
+					<ConnectionSetup
+						title="SMS Twilio"
+						description={
+							query.data.twilio.connected
+								? "Identifiants enregistrés. Les accusés Twilio confirment la livraison."
+								: "Enregistrez le compte et le numéro utilisés par cette agence."
+						}
+						enabled={query.data.canManage}
+						fields={[
+							{ name: "accountSid", label: "Account SID" },
+							{ name: "authToken", label: "Auth Token", type: "password" },
+							{ name: "phoneNumber", label: "Numéro au format +15145551234" },
+						]}
+						onSubmit={async (data) => {
+							await mutation.mutateAsync({
+								agencyId: scope.agencyId,
+								accountSid: String(data.get("accountSid")),
+								authToken: String(data.get("authToken")),
+								phoneNumber: String(data.get("phoneNumber")),
+							});
+							await query.refetch();
+						}}
+					>
+						<WebhookAddress
+							label="Webhook SMS entrant"
+							url={query.data.twilio.inboundWebhookUrl}
+						/>
+					</ConnectionSetup>
+				))}
+		</RealEstateWorkspace>
+	);
+}
+"use client";
+import {
+	RealEstateWorkspace,
+	WorkspaceLoading,
+	WorkspaceNotice,
+} from "@crm/ui/components/real-estate-workspace";
+import { AgencyControl } from "../../real-estate/use-agency";
+import { useSdrConnections } from "./use-sdr-connections";
+export function GeminiConnection({ slug: _slug }: { slug: string }) {
+	const { scope, query } = useSdrConnections();
+	return (
+		<RealEstateWorkspace>
+			<AgencyControl scope={scope} />
+			{scope.agencyId &&
+				(query.isPending ? (
+					<WorkspaceLoading />
+				) : query.error ? (
+					<WorkspaceNotice
+						title="Modèle indisponible"
+						error={query.error.message}
+					/>
+				) : (
+					<>
+						<WorkspaceNotice
+							title={
+								query.data.ai.configured
+									? "Modèle configuré"
+									: "Modèle non configuré"
+							}
+						/>
+						<p>
+							Fournisseur : {query.data.ai.provider}. Modèle :{" "}
+							{query.data.ai.model}.
+						</p>
+						<p>Le fournisseur local utilise les variables LLM du serveur.</p>
+						<p>
+							La configuration indique les capacités disponibles. Une exécution
+							confirme leur fonctionnement.
+						</p>
+					</>
+				))}
+		</RealEstateWorkspace>
+	);
+}
+import { Spinner } from "@crm/ui/components/spinner";
+import { cn } from "@crm/ui/lib/utils";
+
+export function ConnectionPage({
+	centered = false,
+	className,
+	children,
+}: {
+	centered?: boolean;
+	className?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-(--spacing-page-inline) pt-(--spacing-page-top) pb-(--spacing-page-bottom)">
+			<div
+				className={cn(
+					"mx-auto flex w-full max-w-(--container-page) flex-col gap-(--spacing-page-gap)",
+					centered && "flex-1 justify-center",
+					className,
+				)}
+			>
+				{children}
+			</div>
+		</main>
+	);
+}
+
+export function ConnectionPageLoading() {
+	return (
+		<main className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+			<Spinner size="lg" />
+		</main>
+	);
+}
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { ConnectionPage, ConnectionPageLoading } from "../connection-page";
+import { MetaAdsConnection } from "../meta-ads-connection";
+
+export const metadata: Metadata = { title: "Meta Lead Ads & CAPI" };
+
+export default function MetaAdsConnectionPage(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	return (
+		<Suspense fallback={<ConnectionPageLoading />}>
+			<MetaAdsConnectionPageContent {...props} />
+		</Suspense>
+	);
+}
+
+async function MetaAdsConnectionPageContent(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	const { slug } = await props.params;
+
+	return (
+		<ConnectionPage>
+			<MetaAdsConnection slug={slug} />
+		</ConnectionPage>
+	);
+}
+import { WorkspaceLoading } from "@crm/ui/components/real-estate-workspace";
+import { Suspense } from "react";
+import { requireSession } from "@/lib/session";
+import { RealtorCalendarConnection } from "./realtor-calendar-connection";
+export const instant = false;
+
+export default async function RealtorCalendarPage() {
+	await requireSession();
+	return (
+		<Suspense fallback={<WorkspaceLoading />}>
+			<RealtorCalendarConnection />
+		</Suspense>
+	);
+}
+claude.tsx
+docusign.tsx
+eve.tsx
+gemini.tsx
+github.tsx
+google.tsx
+meta.tsx
+microsoft.tsx
+nextjs.tsx
+posthog.tsx
+slack.tsx
+stripe.tsx
+twilio.tsx
+vercel.tsx
+Shell cwd was reset to /home/user/ai_engineering

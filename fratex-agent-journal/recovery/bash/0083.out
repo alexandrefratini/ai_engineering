@@ -1,0 +1,81 @@
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { randomUUID } from "node:crypto";
+import { db } from "@crm/db";
+import { AgentTriggerService } from "../src/agent/agent-trigger.service";
+import { RealEstateService } from "../src/real-estate/real-estate.service";
+
+const suffix = randomUUID();
+const agency = `inbox-agency-${suffix}`;
+const owner = `inbox-owner-${suffix}`;
+const outsider = `inbox-outsider-${suffix}`;
+const quiet = `inbox-quiet-${suffix}`;
+const busy = `inbox-busy-${suffix}`;
+const email = `prospect-${suffix}@example.test`;
+const trigger = new AgentTriggerService(db);
+trigger.poke = () => {};
+const service = new RealEstateService(db, trigger);
+
+beforeAll(async () => {
+	await db.user.createMany({
+		data: [owner, outsider].map((id) => ({
+			id,
+			name: id,
+			email: `${id}@example.test`,
+		})),
+	});
+	await db.agency.create({ data: { id: agency, name: "Inbox", slug: agency } });
+	await db.agencyUser.create({
+		data: { agencyId: agency, userId: owner, role: "OWNER" },
+	});
+	await db.lead.createMany({
+		data: [
+			{
+				id: quiet,
+				agencyId: agency,
+				firstName: "Quiet",
+				phone: "+15145550301",
+				lastInteractedAt: new Date(Date.now() - 3_600_000),
+			},
+			{
+				id: busy,
+				agencyId: agency,
+				firstName: "Busy",
+				phone: "+15145550302",
+				email,
+				lastInteractedAt: new Date(),
+			},
+		],
+	});
+	const conversation = await db.conversation.create({
+		data: { agencyId: agency, leadId: busy, unreadCount: 2 },
+	});
+	await db.message.create({
+		data: {
+			agencyId: agency,
+			conversationId: conversation.id,
+			sender: "LEAD",
+			content: "Êtes-vous disponible demain ?",
+		},
+	});
+	for (const [syncedByUserId, subject] of [
+		[owner, "Visite du condo"],
+		[outsider, "Message privé d'une autre équipe"],
+	] as const) {
+		const thread = await db.emailThread.create({
+			data: {
+				rootMessageId: `<${randomUUID()}@example.test>`,
+				subject,
+				firstMessageAt: new Date(),
+				lastMessageAt: new Date(),
+				messageCount: 1,
+			},
+		});
+		await db.emailMessage.create({
+			data: {
+				threadId: thread.id,
+				rfcMessageId: `<${randomUUID()}@example.test>`,
+				syncedByUserId,
+				direction: "INBOUND",
+				fromEmail: email,
+				recipients: [
+Shell cwd was reset to /home/user/ai_engineering

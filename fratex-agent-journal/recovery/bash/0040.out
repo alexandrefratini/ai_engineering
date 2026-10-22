@@ -1,0 +1,12 @@
+api:dev: [trpc] [05:54:49] ✓ Generated AppRouter (23 routers, 183 procedures) in 1678ms
+api:dev: [trpc] [05:54:51] ✓ Generated AppRouter (23 routers, 183 procedures) in 1618ms
+api:dev: [trpc] [05:54:53] ✓ Generated AppRouter (23 routers, 183 procedures) in 1630ms
+  '/crm/real-estate/realtors',
+  '/crm/settings/connections/meta-ads?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4n1o70000cr7dhfrdd9m5',
+  '/crm/settings/connections/realtor-calendar?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4n1o70000cr7dhfrdd9m5',
+  '/crm/settings/connections/twilio?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4n1o70000cr7dhfrdd9m5',
+  '/crm/real-estate/portal?agencyId=cmvj1e57w0000xw7ddd9sxe8i&client=cmvj4n1o70000cr7dhfrdd9m5'
+]
+Sophie dans la liste : 1
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

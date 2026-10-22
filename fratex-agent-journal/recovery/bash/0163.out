@@ -1,0 +1,38 @@
+avatar-dan.png
+avatar-patrick.jpg
+avatar-user.png
+logos
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="1000" height="1000"><g clip-path="url(#SvgjsClipPath1010)"><rect width="1000" height="1000" fill="#ffffff"></rect><g transform="matrix(12.5,0,0,12.5,150,150)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="56" height="56"><svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M41 13.3327L39.3682 12.16L28.5853 4.41
+{
+	"name": "Comp AI CRM",
+	"short_name": "Comp AI CRM",
+	"icons": [
+		{
+			"src": "/web-app-manifest-192x192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/web-app-manifest-512x512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"theme_color": "#ffffff",
+	"background_color": "#ffffff",
+	"display": "standalone"
+}
+/home/user/endsi3g/fratex-agent/apps/app/components/agent-builder/create-channel-dialog.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/agent-builder/agent-capabilities.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/agent-builder/new-agent-dialog.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/agent-builder/share-chat-dialog.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/crm/record-sheet/quick-add.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/landing/product-shot/product-shot.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/landing/product-shot/companies.ts
+/home/user/endsi3g/fratex-agent/apps/app/components/landing/product-shot/company-sheet.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/slack/channel-picker.tsx
+/home/user/endsi3g/fratex-agent/apps/app/components/auth-shell.tsx
+Shell cwd was reset to /home/user/ai_engineering

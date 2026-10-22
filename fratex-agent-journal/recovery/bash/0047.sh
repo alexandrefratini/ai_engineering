@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/app && bun test 2>&1 | tail -4; cd ../../packages/ui && bun test 2>&1 | tail -4

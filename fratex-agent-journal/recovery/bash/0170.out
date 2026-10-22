@@ -1,0 +1,76 @@
+MIT License
+
+Copyright (c) 2026 Comp AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+import Logo from "@crm/ui/components/logo";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { AuthShader } from "@/components/auth-shader";
+
+export function AuthShell({ children }: { children: ReactNode }) {
+	return (
+		<main className="dark grid min-h-svh bg-background text-foreground lg:grid-cols-[minmax(0,1fr)_minmax(420px,520px)]">
+			<section className="relative hidden min-h-svh overflow-hidden bg-muted p-8 lg:flex lg:flex-col lg:justify-between xl:p-12">
+				<AuthShader />
+
+				<div className="relative flex gap-2 text-sm/5">
+					<Link href="/" aria-label="Homepage" className="flex">
+						<Logo className="size-5 shrink-0" />
+					</Link>
+				</div>
+
+				<div className="relative flex max-w-lg flex-col gap-8">
+					<div className="flex flex-col gap-4">
+						<p className="font-mono text-xs/4 text-muted-foreground uppercase">
+							CRM
+						</p>
+						<h1 className="max-w-[14ch] text-5xl/14 font-semibold text-balance">
+							Every customer, one place.
+});
+
+const fontMono = Geist_Mono({
+	variable: "--font-geist-mono",
+	subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+	title: {
+		default: "Comp AI - CRM",
+		template: "%s · Comp AI CRM",
+	},
+	description: "Customer Relationship Management for Comp AI",
+	icons: {
+		icon: [
+			{ url: "/favicon.svg", type: "image/svg+xml" },
+			{ url: "/favicon-96x96.png", type: "image/png", sizes: "96x96" },
+		],
+		apple: "/apple-touch-icon.png",
+	},
+	manifest: "/site.webmanifest",
+};
+
+export default function RootLayout({
+	children,
+}: Readonly<{
+	children: React.ReactNode;
+}>) {
+	return (
+		<html
+			lang="en"
+			suppressHydrationWarning
+			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
+		>
+			<body className="flex min-h-full flex-col font-sans">
+				<NuqsAdapter>
+					<TRPCReactProvider>
+						<ThemeProvider>
+							<TooltipProvider>{children}</TooltipProvider>
+							<Toaster richColors />
+						</ThemeProvider>
+					</TRPCReactProvider>
+				</NuqsAdapter>
+				<LocalDateTimeHydrator />
+			</body>
+		</html>
+Shell cwd was reset to /home/user/ai_engineering

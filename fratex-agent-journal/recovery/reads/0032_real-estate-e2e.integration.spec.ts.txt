@@ -1,0 +1,41 @@
+/home/user/endsi3g/fratex-agent/apps/api/test/real-estate-e2e.integration.spec.ts
+230					.unsubscribedAt,
+231			).not.toBeNull();
+232			const refused = await service.sendMessage(userA, {
+233				agencyId: agencyA,
+234				leadId: leadA,
+235				requestId: randomUUID(),
+236				text: "Encore.",
+237			});
+238			expect(refused.queued).toBe(false);
+239		});
+240		it("persists onboarding fields and returns honest empty portal metrics", async () => {
+241			const client = await service.createClient(userA, {
+242				agencyId: agencyA,
+243				name: "New Realtor",
+244				email: `${suffix}@new.test`,
+245				targetZones: ["Laval"],
+246				brokerage: "Agency",
+247				licenseNumber: "TEST123",
+248				propertyTypes: ["Condo"],
+249				crmChoice: "HUBSPOT",
+250				calendarLink: "https://example.test/calendar",
+251				timezone: "America/Toronto",
+252			});
+253			expect(client.licenseNumber).toBe("TEST123");
+254			expect(client.crmChoice).toBe("HUBSPOT");
+255			const portal = await service.getPortalStats(userA, {
+256				agencyId: agencyA,
+257				clientId: client.id,
+258				period: "30D",
+259			});
+260			expect(portal.client.id).toBe(client.id);
+261			expect(portal.afterFratex.totalLeads).toBe(0);
+262			expect(portal.beforeFratex).toBeNull();
+263			expect(portal.afterFratex.projectedCommission).toBeNull();
+264			expect(portal.funnel.every((stage) => stage.count === 0)).toBe(true);
+265			expect(portal.speed.medianMinutes).toBeNull();
+266			expect(portal.trend.length).toBeGreaterThanOrEqual(30);
+267			expect(portal.qualifiedBudgetTotal).toBe(0);
+268		});
+269		it("stores one Meta receipt and task before acknowledgement", async () => {

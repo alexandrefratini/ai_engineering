@@ -1,0 +1,80 @@
+						href={`/${slug}/settings/connections/microsoft`}
+					/>
+					<CatalogRow
+						logo={GoogleLogo}
+						name="Agenda immobilier"
+						description="Configurez l’agenda du courtier"
+						href={`/${slug}/settings/connections/realtor-calendar`}
+					/>
+					{!connected.includes("Slack") ? (
+						<CatalogRow
+							logo={SlackLogo}
+							name="Slack"
+							description="Envoyez des alertes à votre équipe à chaque nouveau rendez-vous"
+							href={`/${slug}/settings/connections/slack`}
+						/>
+					) : null}
+					<CatalogRow
+						logo={StripeLogo}
+						name="Stripe (Paiements)"
+						description="Facturation et abonnements en ligne (bientôt disponible)"
+					/>
+					<CatalogRow
+						logo={DocusignLogo}
+						name="Docusign"
+						description="Signature électronique de mandats (bientôt disponible)"
+					/>
+					<CatalogRow
+						logo={Plug}
+						name="Autre intégration (API)"
+						description="Connecteur webhook personnalisé pour votre CRM"
+						href={`/${slug}/settings/connections/intake`}
+					/>
+				</div>
+				<p className="px-(--spacing-block-inline) py-4 text-muted-foreground text-xs">
+					{connected.length > 0
+						? `${connected.length} outil(s) actuellement configuré(s).`
+						: "Aucun outil connecté pour l'instant."}
+				</p>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+function CatalogRow({
+	logo: Logo,
+	name,
+	description,
+	href,
+}: {
+	logo: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+	name: string;
+	description: string;
+	href?: string;
+}) {
+	const content = (
+		<>
+			<Logo className="size-5 shrink-0" />
+			<div>
+				<p className="font-medium text-sm">{name}</p>
+				<p className="text-muted-foreground text-xs">{description}</p>
+			</div>
+		</>
+	);
+	return href ? (
+		<Link
+			href={href}
+			className="flex items-center gap-3 rounded-md px-3 py-3 transition-colors hover:bg-muted"
+		>
+			{content}
+		</Link>
+	) : (
+		<div
+			aria-disabled="true"
+			className="flex items-center gap-3 rounded-md px-3 py-3 opacity-60"
+		>
+			{content}
+		</div>
+	);
+}
+Shell cwd was reset to /home/user/ai_engineering

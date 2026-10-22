@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && awk 'NR<60 || NR>107' apps/app/lib/agent-transcript.ts | grep -nE '"[^"]* [^"]*"|`[^`]* [^`]*`' | head -60

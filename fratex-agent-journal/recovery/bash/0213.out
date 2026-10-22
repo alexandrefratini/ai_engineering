@@ -1,0 +1,25 @@
+biome.jsonc
+	"files": {
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/src/generated",
+			"!packages/ui/src/components",
+			"!packages/ui/src/hooks/use-mobile.ts",
+			"!**/.next",
+			"!**/dist",
+			"!**/*.svg",
+			"!.claude",
+			"!.agents",
+			"!tools/oxlint/anti-slop",
+			"!skills-lock.json"
+		]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,14 @@
+44:export type Tone = "neutral" | "success" | "warning";
+49:	network: "linkedin" | "github" | "web";
+54:	kind: "rate-limit" | "restricted" | "credits" | "unknown";
+63:	const words = tool.replace(/_/g, " ");
+184:					return [{ kind: "said", id, mine: message.role === "user", text }];
+207:				if (part.type.startsWith("tool-") || part.type === "dynamic-tool") {
+245:	return callId ? `${messageId}:${callId}` : `${messageId}:${index}`;
+260:	return reason === null ? verb : `${verb} — ${reason}`;
+264:	if ("state" in part && part.state === "output-error") return "warning";
+300:		if (part.type !== "dynamic-tool" || part.state !== "approval-requested") {
+317:		if (event.type === "turn.completed" || event.type === "turn.started") {
+320:		if (event.type !== "turn.failed" && event.type !== "session.failed") {
+535:			if (kept.at(-1) !== "") kept.push("");
+Shell cwd was reset to /home/user/ai_engineering

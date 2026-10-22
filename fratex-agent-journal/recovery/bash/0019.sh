@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && ls "apps/app/app/(app)/[slug]/settings/connections/" && ls "apps/app/app/(app)/[slug]/settings/connections/"* | head -30; grep -n "createClient\b\|createClient:" -A30 apps/api/src/real-estate/real-estate.service.ts | head -60

@@ -1,0 +1,17 @@
+1593:enum AgencyRole {
+1594-  OWNER
+1595-  ADMIN
+1596-  MARKETER
+1597-  REALTOR
+1598-  VIEWER
+1599-}
+1600-
+1601-enum ClientStatus {
+26:export function canManageAgency(role: string): boolean {
+27-	return role === "OWNER" || role === "ADMIN";
+28-}
+29-
+30:export function canWriteAgency(role: string): boolean {
+31:	return canManageAgency(role) || role === "MARKETER" || role === "REALTOR";
+32-}
+Shell cwd was reset to /home/user/ai_engineering

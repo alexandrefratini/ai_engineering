@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/api/test && sed -n 1,80p real-estate-inbox.integration.spec.ts

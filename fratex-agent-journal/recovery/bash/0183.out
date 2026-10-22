@@ -1,0 +1,72 @@
+					metaFormId: form.id,
+					metaLeadgenId: data.id,
+					firstName: mapped.firstName,
+					lastName: mapped.lastName,
+					phone: mapped.phone,
+					email: mapped.email,
+					intent: mapped.intent,
+					budgetMin: mapped.budgetMin,
+					budgetMax: mapped.budgetMax,
+					targetArea: mapped.targetArea,
+					propertyType: mapped.propertyType,
+				},
+			});
+		const consent = mapped.fields.get("sms_consent")?.toLowerCase();
+		if (
+			["yes", "oui", "true", "1"].includes(consent ?? "") &&
+			!lead.unsubscribedAt
+		)
+			await tx.lead.update({
+				where: { id: lead.id, agencyId },
+				data: {
+					consentedAt: receipt.receivedAt,
+					consentSource: `meta:${form.metaFormId}:sms_consent`,
+				},
+			});
+		await tx.attributionEvent.upsert({
+			where: { id: `created:${lead.id}` },
+			update: {},
+			create: {
+				id: `created:${lead.id}`,
+				agencyId,
+				leadId: lead.id,
+				eventType: "LEAD_CREATED",
+			},
+		});
+		await queueSdrTask(tx, {
+			agencyId,
+			leadId: lead.id,
+			kind: "real-estate-qualify",
+			key: `qualify:${receipt.id}`,
+			payload: { agencyId, leadId: lead.id },
+		});
+		await tx.metaWebhookEvent.update({
+			where: { id: receipt.id, agencyId },
+			data: { processedAt: new Date(), error: null },
+		});
+	});
+}
+
+async function sendSms(agencyId: string, messageId: string) {
+	const message = await db.message.findFirst({
+		where: { id: messageId, agencyId },
+		include: { conversation: { include: { lead: true } } },
+	});
+	if (
+		!message ||
+		["SENT", "DELIVERED", "FAILED", "UNKNOWN", "CANCELLED"].includes(
+			message.status,
+		)
+	)
+		return;
+	if (message.status === "SENDING") {
+		await db.message.updateMany({
+			where: { id: messageId, agencyId, status: "SENDING" },
+			data: { status: "UNKNOWN", failureCode: "DELIVERY_UNCERTAIN" },
+		});
+		return;
+	}
+	const lead = message.conversation.lead;
+	const connection = await db.smsConnection.findFirst({
+		where: { agencyId },
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,21 @@
+packages/validation/src/index.ts:67:1 lint/performance/noBarrelFile ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Avoid barrel files, they slow down performance, and cause large module graphs with modules that go unused.
+  
+    65 │ 	MetaWebhookPayload,
+    66 │ } from "./meta-ads";
+  > 67 │ export {
+       │ ^^^^^^^^
+  > 68 │ 	metaLeadDetails,
+  > 69 │ 	metaWebhookPayload,
+  > 70 │ } from "./meta-ads";
+       │ ^^^^^^^^^^^^^^^^^^^^
+    71 │ export type {
+    72 │ 	BookAppointmentInput,
+  
+  i Check this thorough explanation to better understand the context.
+  
+
+Checked 24 files in 42ms. No fixes applied.
+Found 1 warning.
+Shell cwd was reset to /home/user/ai_engineering

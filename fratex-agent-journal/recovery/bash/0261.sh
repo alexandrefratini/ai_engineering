@@ -1,0 +1,6 @@
+S=/tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad; cd $S && node -e '
+const { chromium } = require("/opt/node-tools/node_modules/playwright");
+const fs=require("fs");
+(async()=>{const b=await chromium.launch({executablePath:"/opt/pw-browsers/chromium"});const c=await b.newContext({viewport:{width:1440,height:300},deviceScaleFactor:3});await c.addCookies([{name:"crm.session_token",value:fs.readFileSync("cookie.txt","utf8").trim(),domain:"localhost",path:"/"}]);const p=await c.newPage();await p.goto("http://localhost:3000/crm/real-estate/inbox",{waitUntil:"networkidle"});await p.waitForTimeout(2500);
+const btn=p.getByRole("button",{name:/^Équipe/});const box=await btn.boundingBox();await p.screenshot({path:"zoom.png",clip:{x:box.x-4,y:box.y-4,width:box.width+8,height:box.height+8}});
+console.log(await btn.evaluate(e=>[...e.querySelectorAll("[data-slot=avatar]")].map(a=>getComputedStyle(a).backgroundColor+" z="+getComputedStyle(a).zIndex+" fb="+getComputedStyle(a.querySelector("[data-slot=avatar-fallback]")).backgroundColor).join(" | ")));await b.close();})()'

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 443,500p packages/ui/src/components/lead-profile.tsx; grep -n "export const APPOINTMENT_STATUS_LABELS" -A10 packages/ui/src/lib/real-estate.ts

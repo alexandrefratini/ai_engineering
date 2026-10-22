@@ -1,0 +1,8 @@
+Datasource "db": PostgreSQL database "crm", schema "public" at "localhost:5432"
+
+Prisma Migrate created the following migration without applying it 20261022092025_add_lead_notes_and_source
+
+You can now edit it and apply it by running prisma migrate dev.
+20261022092025_add_lead_notes_and_source
+migration_lock.toml
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,21 @@
+16:	description,
+23:	description: string;
+60:				<CardDescription>{description}</CardDescription>
+
+async function MetaAdsConnectionPageContent(props: {
+	params: Promise<{ slug: string }>;
+}) {
+	const { slug } = await props.params;
+
+	return (
+		<ConnectionPage className="gap-4">
+			<ConnectionHeader
+				slug={slug}
+				title="Meta Lead Ads"
+				description="Reliez le formulaire de publicité d'un courtier. Chaque prospect qui le remplit arrive dans Fratex et reçoit un SMS en moins de 2 minutes."
+			/>
+			<MetaAdsConnection slug={slug} />
+		</ConnectionPage>
+	);
+}
+Shell cwd was reset to /home/user/ai_engineering

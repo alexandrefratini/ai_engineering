@@ -1,0 +1,18 @@
+10 | 		expect(matchPages("BOITE").map((page) => page.label)).toContain(
+11 | 			"Boîte de réception",
+12 | 		);
+13 | 		expect(matchPages("reglages").map((page) => page.label)).toContain(
+                                                                ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Paramètres généraux"
+Received: []
+
+      at <anonymous> (/home/user/endsi3g/fratex-agent/apps/app/test/navigation.spec.ts:13:60)
+(fail) page search in the switcher > ignores accents and case [2.49ms]
+
+ 3 pass
+ 1 fail
+ 22 expect() calls
+Ran 4 tests across 1 file. [9.00ms]
+Shell cwd was reset to /home/user/ai_engineering

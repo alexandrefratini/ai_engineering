@@ -1,0 +1,213 @@
+"use client";
+
+import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "./avatar";
+import { initialsFromName } from "../lib/format";
+import { Popover, PopoverContent, PopoverDescription, PopoverHeader, PopoverTitle, PopoverTrigger } from "./popover";
+
+export type TeamMember = {
+	id: string;
+	name: string;
+	image: string | null;
+	lastSeenAt: string | null;
+	online: boolean;
+	isSelf: boolean;
+};
+
+const MINUTE_MS = 60_000;
+const VISIBLE = 3;
+
+function seenLabel(member: TeamMember, now: number) {
+	if (member.online) return "En ligne";
+	if (!member.lastSeenAt) return "Jamais connecté";
+	const minutes = Math.max(1, Math.round((now - new Date(member.lastSeenAt).getTime()) / MINUTE_MS));
+	if (minutes < 60) return `Vu il y a ${minutes} min`;
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return `Vu il y a ${hours} h`;
+	return `Vu il y a ${Math.round(hours / 24)} j`;
+}
+
+function MemberAvatar({
+	member,
+	size,
+}: {
+	member: TeamMember;
+	size: "sm" | "default";
+}) {
+	return (
+		<Avatar size={size}>
+			{member.image ? <AvatarImage src={member.image} alt="" /> : null}
+			<AvatarFallback>{initialsFromName(member.name)}</AvatarFallback>
+			{member.online && <AvatarBadge />}
+		</Avatar>
+	);
+}
+
+function TeamList({ members }: { members: TeamMember[] }) {
+	const now = Date.now();
+	return (
+		<ul className="flex max-h-72 flex-col gap-2 overflow-auto">
+			{members.map((member) => (
+				<li key={member.id} className="flex items-center gap-2.5 text-sm">
+					<MemberAvatar member={member} size="default" />
+					<span className="flex min-w-0 flex-col">
+						<span className="truncate font-medium">
+							{member.name}
+							{member.isSelf && <span className="font-normal text-muted-foreground"> (vous)</span>}
+						</span>
+						<span className="text-xs text-muted-foreground">{seenLabel(member, now)}</span>
+					</span>
+				</li>
+			))}
+		</ul>
+	);
+}
+
+export function TeamPresence({ members, onlineCount }: { members: TeamMember[]; onlineCount: number }) {
+	if (!members.length) return null;
+	const visible = members.slice(0, VISIBLE);
+	const hidden = members.length - visible.length;
+	return (
+		<Popover>
+			<PopoverTrigger asChild>
+				<button
+					type="button"
+					aria-label={`Équipe : ${onlineCount} en ligne sur ${members.length}`}
+					className="hidden items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring sm:flex"
+				>
+					<span className="flex items-center gap-1">
+						{visible.map((member) => (
+							<MemberAvatar key={member.id} member={member} size="sm" />
+						))}
+						{hidden > 0 && (
+							<span className="text-xs text-muted-foreground">+{hidden}</span>
+						)}
+					</span>
+					<span className="hidden text-xs text-muted-foreground lg:inline">
+						{onlineCount} en ligne
+					</span>
+				</button>
+			</PopoverTrigger>
+			<PopoverContent align="end" className="w-72">
+				<PopoverHeader>
+					<PopoverTitle>Équipe</PopoverTitle>
+					<PopoverDescription>
+						{onlineCount} en ligne sur {members.length} membre{members.length > 1 ? "s" : ""}
+					</PopoverDescription>
+				</PopoverHeader>
+				<TeamList members={members} />
+			</PopoverContent>
+		</Popover>
+	);
+}
+"use client";
+
+import { TeamPresence } from "@crm/ui/components/team-presence";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { PRESENCE } from "@/lib/presence-config";
+import { useTRPC } from "@/lib/trpc/client";
+
+export function TeamPresenceControl() {
+	const trpc = useTRPC();
+	const cache = useQueryClient();
+	const team = useQuery(
+		trpc.presence.team.queryOptions(undefined, {
+			refetchInterval: PRESENCE.refreshMs,
+		}),
+	);
+	const { mutate } = useMutation(
+		trpc.presence.heartbeat.mutationOptions({
+			onSuccess: () =>
+				cache.invalidateQueries(trpc.presence.team.queryFilter()),
+		}),
+	);
+
+	useEffect(() => {
+		const beat = () => {
+			if (document.visibilityState === "visible") mutate();
+		};
+		beat();
+		const timer = window.setInterval(beat, PRESENCE.heartbeatMs);
+		document.addEventListener("visibilitychange", beat);
+		return () => {
+			window.clearInterval(timer);
+			document.removeEventListener("visibilitychange", beat);
+		};
+	}, [mutate]);
+
+	if (!team.data) return null;
+
+	return (
+		<TeamPresence
+			onlineCount={team.data.onlineCount}
+			members={team.data.members.map((member) => ({
+				...member,
+				lastSeenAt: member.lastSeenAt
+					? new Date(member.lastSeenAt).toISOString()
+					: null,
+			}))}
+		/>
+	);
+}
+import { z } from "zod";
+
+export const teamPresenceOutput = z.object({
+	members: z.array(
+		z.object({
+			id: z.string(),
+			name: z.string(),
+			image: z.string().nullable(),
+			lastSeenAt: z.date().nullable(),
+			online: z.boolean(),
+			isSelf: z.boolean(),
+		}),
+	),
+	onlineCount: z.number(),
+});
+
+export const heartbeatOutput = z.object({ lastSeenAt: z.date() });
+10:	async heartbeat(userId: string) {
+11-		const lastSeenAt = new Date();
+12-		await this.db.user.update({
+13-			where: { id: userId },
+14-			data: { lastSeenAt },
+15-			select: { id: true },
+16-		});
+17-		return { lastSeenAt };
+18-	}
+19-
+20:	async team(userId: string) {
+21-		const rows = await this.db.user.findMany({
+22-			where: { members: { some: {} } },
+23-			select: { id: true, name: true, image: true, lastSeenAt: true },
+24-			orderBy: [
+25-				{ lastSeenAt: { sort: "desc", nulls: "last" } },
+26-				{ name: "asc" },
+27-			],
+28-			take: PRESENCE.teamLimit,
+29-		});
+30-		const since = Date.now() - PRESENCE.onlineWindowMs;
+31-		const members = rows.map((row) => ({
+32-			...row,
+33-			online: row.lastSeenAt !== null && row.lastSeenAt.getTime() >= since,
+34-			isSelf: row.id === userId,
+35-		}));
+36-		return {
+37-			members,
+38-			onlineCount: members.filter((member) => member.online).length,
+39-		};
+40-	}
+41-}
+const MINUTE_MS = 60_000;
+
+export const PRESENCE = {
+	heartbeatMs: MINUTE_MS,
+	refreshMs: MINUTE_MS,
+} as const;
+const MINUTE_MS = 60_000;
+
+export const PRESENCE = {
+	onlineWindowMs: 2 * MINUTE_MS,
+	teamLimit: 50,
+} as const;
+Shell cwd was reset to /home/user/ai_engineering

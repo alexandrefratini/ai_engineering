@@ -1,0 +1,49 @@
+  propertyInterest      PropertyInterest?
+  attributions          AttributionEvent[]
+
+  @@unique([id, agencyId])
+  @@index([agencyId, status])
+  @@index([agencyId, createdAt])
+  @@index([clientId, status])
+  @@index([phone])
+  @@index([email])
+  @@map("lead")
+}
+
+model PropertyInterest {
+  agencyId        String
+  id              String   @id @default(cuid())
+  leadId          String   @unique
+  minBedrooms     Int?
+  minBathrooms    Int?
+  mustHaveParking Boolean  @default(false)
+  specificNotes   String?
+  metaResponse Json?
+  value        Float?
+  occurredAt   DateTime             @default(now())
+  agency       Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  lead         Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, occurredAt])
+  @@index([leadId])
+  @@map("attributionEvent")
+}
+
+model SmsConnection {
+  id          String    @id @default(cuid())
+  agencyId    String
+  accountSid  String
+  authToken   String
+  phoneNumber String
+  verifiedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([accountSid, phoneNumber])
+  @@index([agencyId])
+  @@map("smsConnection")
+}
+
+model CrmDelivery {
+  id          String    @id @default(cuid())
+Shell cwd was reset to /home/user/ai_engineering

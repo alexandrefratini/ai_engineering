@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat apps/agent/agent/lib/sdr-calendar.ts | head -120

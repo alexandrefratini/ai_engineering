@@ -1,0 +1,1 @@
+ps -eo pid,args | grep -E "turbo run dev|bun run dev|next-server|next dev|main.ts|nestjs-trpc|concurrently" | grep -v grep | awk '{print $1}' > /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/pids.txt; cat /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/pids.txt | wc -l

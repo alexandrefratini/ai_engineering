@@ -1,0 +1,1 @@
+cd /home/user/ai_engineering/fratex-agent-journal && grep -n "^## \|^### " JOURNAL.md | tail -30 && ls patches scripts && wc -l JOURNAL.md

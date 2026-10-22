@@ -1,0 +1,11 @@
+apps/app/components/agent-builder/agent-scope-badges.tsx:4:import CompLogo from "@crm/ui/components/logo";
+apps/app/components/crm/agent-panel.tsx:30:import Logo from "@crm/ui/components/logo";
+apps/app/components/app-header.tsx:18:import Logo from "@crm/ui/components/logo";
+apps/app/components/landing/product-shot/product-shot.tsx:6:import Logo from "@crm/ui/components/logo";
+apps/app/components/landing/product-shot/company-sheet.tsx:6:import Logo from "@crm/ui/components/logo";
+apps/app/components/landing/product-shot/company-mark.tsx:1:import Logo from "@crm/ui/components/logo";
+apps/app/components/landing/wordmark.tsx:1:import Logo from "@crm/ui/components/logo";
+apps/app/components/landing/landing-footer.tsx:2:import Logo from "@crm/ui/components/logo";
+apps/app/components/auth-shell.tsx:1:import Logo from "@crm/ui/components/logo";
+37:						Comp AI
+Shell cwd was reset to /home/user/ai_engineering

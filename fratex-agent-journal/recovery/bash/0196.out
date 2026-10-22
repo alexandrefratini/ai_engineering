@@ -1,0 +1,6 @@
+apps/agent/agent/instructions/task.ts:34:				sdrKind === "real-estate-qualify" ||
+apps/agent/agent/lib/sdr-jobs.ts:118:			kind: "real-estate-qualify",
+apps/agent/agent/lib/sdr-scope.ts:11:		!["real-estate-qualify", "real-estate-followup"].includes(
+apps/agent/agent/lib/dispatch.ts:254:		task.kind === "real-estate-qualify" ||
+apps/agent/agent/lib/dispatch.ts:425:		case "real-estate-qualify":
+Shell cwd was reset to /home/user/ai_engineering

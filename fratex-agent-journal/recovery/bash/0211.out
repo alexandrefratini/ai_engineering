@@ -1,0 +1,7 @@
+Checked 1 file in 20ms. No fixes applied.
+9:		"ignoreUnknown": false,
+10:		"includes": [
+71:			"includes": ["apps/app/**"],
+80:			"includes": ["apps/api/**"],
+90:			"includes": ["apps/api/src/**"],
+Shell cwd was reset to /home/user/ai_engineering

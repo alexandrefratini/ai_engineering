@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "recentLeads" -B2 -A12 apps/api/src/real-estate/real-estate.service.ts | grep -n "select\|findMany\|include" | head; grep -n "async listLeads" -A30 apps/api/src/real-estate/real-estate.service.ts | grep -n "select\|include" | head

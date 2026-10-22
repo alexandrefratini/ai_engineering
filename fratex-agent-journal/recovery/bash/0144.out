@@ -1,0 +1,10 @@
+54 files 6727 lines  apps/app/app/(app)/[slug]/settings
+0 files 0 lines  apps/app/app/(app)/[slug]/chat
+21 files 6977 lines  apps/app/components/agent-builder
+5 files 815 lines  apps/app/app/(app)/[slug]/contacts
+5 files 721 lines  apps/app/app/(app)/[slug]/companies
+5 files 902 lines  apps/app/app/(app)/[slug]/deals
+36 files 7108 lines  apps/app/components/crm
+3 files 235 lines  apps/app/app/(landing)/sign-in
+107 files 12972 lines  packages/ui/src/components
+Shell cwd was reset to /home/user/ai_engineering

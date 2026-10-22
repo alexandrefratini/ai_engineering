@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1,59p apps/app/lib/agent-transcript.ts | grep -n "\"[A-Z][a-z][^\"]*\"\|\`[^\`]*[A-Z][a-z]" | head -40; sed -n 108,200p apps/app/lib/agent-transcript.ts | grep -n "\"[A-Z][a-z][^\"]*\"\|\`[^\`]*[a-z] [a-z]" | head -50; grep -rln "agent-transcript" apps/app/test | head

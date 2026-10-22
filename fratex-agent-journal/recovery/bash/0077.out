@@ -1,0 +1,117 @@
+	async getConnectionsStatus(userId: string, requestedAgencyId?: string) {
+		const scope = await this.access(userId, requestedAgencyId);
+		const [accounts, formCount, sms, receipt, model, calendar] =
+			await Promise.all([
+				this.db.metaAdAccount.findMany({
+					where: { agencyId: scope.agencyId },
+					select: { accessToken: true, pixelId: true },
+				}),
+				this.db.metaLeadForm.count({ where: { agencyId: scope.agencyId } }),
+				this.db.smsConnection.findFirst({
+					where: { agencyId: scope.agencyId },
+					select: { phoneNumber: true },
+				}),
+				this.db.metaWebhookEvent.findFirst({
+					where: { agencyId: scope.agencyId },
+					select: { id: true },
+				}),
+				readAgentModel(this.db),
+				this.db.realtorCalendar.count({
+					where: { agencyId: scope.agencyId, clientId: scope.clientId },
+				}),
+			]);
+		const origin = process.env.API_URL ?? "http://localhost:3001";
+		const local = process.env.LLM_PROVIDER === "openai-compatible";
+		return {
+			agencyId: scope.agencyId,
+			canManage: canManageAgency(scope.role),
+			metaWebhookUrl: `${origin}/api/meta/webhook`,
+			meta: {
+				connected: accounts.some((account) => Boolean(account.accessToken)),
+				webhookActive: Boolean(receipt),
+				adAccountCount: accounts.length,
+				formCount,
+				capiEnabled: accounts.some((account) =>
+					Boolean(account.accessToken && account.pixelId),
+				),
+			},
+			twilio: {
+				connected: Boolean(sms),
+				phoneNumber: sms?.phoneNumber ?? null,
+				inboundWebhookUrl: `${origin}/api/messaging/sms/webhook`,
+			},
+			ai: {
+				configured: local
+					? Boolean(process.env.LLM_BASE_URL && process.env.LLM_MODEL)
+					: Boolean(
+							process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN,
+						),
+				model: local ? (process.env.LLM_MODEL ?? "Non configuré") : model.id,
+				isFallback: false,
+				provider: local ? "openai-compatible" : "AI Gateway",
+			},
+			posthog: { configured: false, host: null },
+			google: { connected: calendar > 0 },
+			microsoft: { connected: false },
+		};
+	}
+}
+382:export const connectionsStatusOutput = z.object({
+383-	agencyId: z.string(),
+384-	canManage: z.boolean(),
+385-	metaWebhookUrl: z.string(),
+386-	meta: z.object({
+387-		connected: z.boolean(),
+388-		webhookActive: z.boolean(),
+389-		adAccountCount: z.number(),
+390-		formCount: z.number(),
+391-		capiEnabled: z.boolean(),
+392-	}),
+393-	twilio: z.object({
+394-		connected: z.boolean(),
+395-		phoneNumber: z.string().nullable(),
+396-		inboundWebhookUrl: z.string(),
+397-	}),
+398-	ai: z.object({
+399-		configured: z.boolean(),
+400-		model: z.string(),
+401-		isFallback: z.boolean(),
+402-		provider: z.string(),
+403-	}),
+404-	posthog: z.object({
+405-		configured: z.boolean(),
+406-		host: z.string().nullable(),
+407-	}),
+408-	google: z.object({
+409-		connected: z.boolean(),
+410-	}),
+411-	microsoft: z.object({
+412-		connected: z.boolean(),
+413-	}),
+414-});
+415-
+416-export type ListLeadsInput = z.infer<typeof listLeadsInput>;
+417-export type GetLeadInput = z.infer<typeof getLeadInput>;
+418-export type UpdateLeadStatusInput = z.infer<typeof updateLeadStatusInput>;
+419-export type PipelineSummaryInput = z.infer<typeof pipelineSummaryInput>;
+420-export type CreateClientInput = z.infer<typeof createClientInput>;
+421-export type RealtorPortalInput = z.infer<typeof realtorPortalInput>;
+422-export type AnalyzeListingInput = z.infer<typeof analyzeListingInput>;
+473:export const configureCalendarInput = z.object({
+474-	agencyId: z.string().optional(),
+475-	clientId: z.string().min(1),
+476-	calendarId: z.string().min(1).max(256),
+477-	accessToken: z.string().min(16),
+478-	refreshToken: z.string().min(16),
+479-	tokenExpiry: z.string().datetime(),
+480-	timezone: z.string(),
+481-	days: z.array(z.number().int().min(0).max(6)).min(1),
+482-	startHour: z.number().int().min(0).max(23),
+483-	endHour: z.number().int().min(1).max(24),
+484-	slotDuration: z.number().int().min(15).max(120),
+485-});
+486-export const configurationOutput = z.object({ configured: z.boolean() });
+487-
+488-export const inboxFilterEnum = z.enum(["ALL", "UNREAD", "HUMAN"]);
+489-export const inboxInput = z.object({
+Shell cwd was reset to /home/user/ai_engineering

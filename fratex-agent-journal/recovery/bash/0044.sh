@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && set -a && . ./.env && set +a && psql "${DATABASE_URL%%\?*}" -c "DELETE FROM \"Client\" WHERE email LIKE 'sophie.%@courtage.ca' RETURNING name;" 2>&1 | tail -4

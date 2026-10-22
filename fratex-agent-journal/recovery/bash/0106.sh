@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings" && grep -n "AgentModel\|<h2\|title\|label" page.tsx | head -20; cat settings-sidebar.tsx | grep -n "label\|title\|href" | head -30

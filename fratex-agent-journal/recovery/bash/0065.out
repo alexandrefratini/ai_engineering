@@ -1,0 +1,103 @@
+== meta
+import type * as React from "react";
+
+const MetaLogo = (props: React.SVGProps<SVGSVGElement>) => (
+	<svg
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+		preserveAspectRatio="xMidYMid"
+		aria-hidden="true"
+		fill="currentColor"
+		{...props}
+	>
+		<path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.989C18.343 21.129 22 16.99 22 12c0-5.523-4.477-10-10-10z" />
+	</svg>
+);
+
+export default MetaLogo;
+
+== twilio
+import type * as React from "react";
+
+const TwilioLogo = (props: React.SVGProps<SVGSVGElement>) => (
+	<svg
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+		preserveAspectRatio="xMidYMid"
+		aria-hidden="true"
+		fill="currentColor"
+		{...props}
+	>
+		<circle cx="6" cy="6" r="3" fill="#F22F46" />
+		<circle cx="18" cy="6" r="3" fill="#F22F46" />
+		<circle cx="6" cy="18" r="3" fill="#F22F46" />
+		<circle cx="18" cy="18" r="3" fill="#F22F46" />
+	</svg>
+);
+
+export default TwilioLogo;
+
+== gemini
+import type * as React from "react";
+
+const GeminiLogo = (props: React.SVGProps<SVGSVGElement>) => (
+	<svg
+		viewBox="0 0 24 24"
+		xmlns="http://www.w3.org/2000/svg"
+		preserveAspectRatio="xMidYMid"
+		aria-hidden="true"
+		fill="currentColor"
+		{...props}
+	>
+		<path
+			d="M12 2C12 7.523 7.523 12 2 12c5.523 0 10 4.477 10 10 0-5.523 4.477-10 10-10-5.523 0-10-4.477-10-10Z"
+			fill="url(#gemini-grad)"
+		/>
+		<defs>
+			<linearGradient id="gemini-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+				<stop stopColor="#1E88E5" />
+				<stop offset="1" stopColor="#7E57C2" />
+			</linearGradient>
+		</defs>
+	</svg>
+);
+
+export default GeminiLogo;
+
+== google
+import type * as React from "react";
+
+const GoogleLogo = (props: React.SVGProps<SVGSVGElement>) => (
+	<svg
+		viewBox="-3 0 262 262"
+		xmlns="http://www.w3.org/2000/svg"
+		preserveAspectRatio="xMidYMid"
+		aria-hidden="true"
+		{...props}
+	>
+		<path
+			d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"
+			fill="#4285f4"
+		/>
+		<path
+			d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"
+			fill="#34a853"
+		/>
+		<path
+			d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 
+ 2417 claude.tsx
+ 2678 docusign.tsx
+  591 eve.tsx
+  659 gemini.tsx
+  847 github.tsx
+ 1205 google.tsx
+  576 meta.tsx
+  463 microsoft.tsx
+  497 nextjs.tsx
+  499 posthog.tsx
+ 1606 slack.tsx
+  759 stripe.tsx
+  493 twilio.tsx
+  300 vercel.tsx
+13590 total
+Shell cwd was reset to /home/user/ai_engineering

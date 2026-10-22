@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "async listAgencies" -A20 apps/api/src/real-estate/real-estate.service.ts; grep -n "agenciesOutput = " -A12 apps/api/src/real-estate/real-estate.contracts.ts; grep -rn "AppIconRail\b" apps/app --include=*.tsx | grep -v "function AppIconRail" | head

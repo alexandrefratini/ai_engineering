@@ -1,0 +1,37 @@
+81:	async listAgencies(userId: string) {
+82-		const members = await this.db.agencyUser.findMany({
+83-			where: { userId },
+84-			include: { agency: { select: { name: true } } },
+85-			orderBy: { createdAt: "asc" },
+86-		});
+87-		return {
+88-			agencies: members.map((item) => ({
+89-				id: item.agencyId,
+90-				name: item.agency.name,
+91-				role: item.role,
+92-			})),
+93-		};
+94-	}
+95-	async createAgency(userId: string, name: string) {
+96-		return this.db.agency.create({
+97-			data: {
+98-				name,
+99-				slug: `agency-${randomUUID()}`,
+100-				users: { create: { userId, role: "OWNER" } },
+101-			},
+431:export const agenciesOutput = z.object({
+432-	agencies: z.array(
+433-		z.object({ id: z.string(), name: z.string(), role: z.string() }),
+434-	),
+435-});
+436-export const createAgencyInput = z.object({
+437-	name: z.string().trim().min(2).max(120),
+438-});
+439-export const createAgencyOutput = z.object({
+440-	id: z.string(),
+441-	name: z.string(),
+442-});
+443-export const sendMessageInput = z.object({
+apps/app/app/(app)/[slug]/layout.tsx:5:import { AppIconRail, AppIconRailFallback } from "@/components/app-icon-rail";
+apps/app/app/(app)/[slug]/layout.tsx:26:						<AppIconRail />
+Shell cwd was reset to /home/user/ai_engineering

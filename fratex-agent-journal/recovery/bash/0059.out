@@ -1,0 +1,5 @@
+app 000
+api 000
+localhost:5432 - no response
+api:dev: [trpc] [06:01:34] ✓ Generated AppRouter (23 routers, 183 procedures) in 1678ms
+api:dev: [trpc] [06:01:36] ✓ Generated AppRouter (23 routers, 183 procedures) in 1579ms

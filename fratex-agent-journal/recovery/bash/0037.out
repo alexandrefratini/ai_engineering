@@ -1,0 +1,16 @@
+103:export function SegmentMeter({
+104-	filled,
+105-	total,
+106-	label,
+107-	size = "default",
+108-}: {
+109-	filled: number;
+110-	total: number;
+111-	label: string;
+112-	size?: "default" | "sm";
+113-}) {
+114-	const mounted = useMounted();
+115-	return (
+116-		<span role="img" aria-label={label} className="flex items-center gap-0.5">
+117-			{Array.from({ length: total }, (_, position) => (
+Shell cwd was reset to /home/user/ai_engineering

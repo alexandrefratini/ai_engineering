@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 220,235p packages/auth/test/slack-connect.integration.spec.ts; grep -n "toContain\|toThrow(\"" packages/auth/test/slack-connect.integration.spec.ts | head; sed -n 60,140p apps/app/components/slack/channel-picker.tsx

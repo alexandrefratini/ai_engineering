@@ -1,0 +1,51 @@
+};
+
+type ToolVerbs = Record<string, string>;
+
+const VERBS: ToolVerbs = {
+	read_crm_history: "A lu nos courriels et rencontres avec cette personne",
+	read_company_history: "A lu tout ce que nous avons sur l'entreprise",
+	read_deal_history: "A lu l'affaire et son historique",
+	search_crm: "A cherché la fiche dans Fratex",
+	resolve_linkedin_profile: "A cherché son profil LinkedIn",
+	get_linkedin_profile: "A lu un profil LinkedIn",
+	get_contact_work_history: "A lu son parcours professionnel",
+				if (part.type.startsWith("tool-") || part.type === "dynamic-tool") {
+					const state = "state" in part ? part.state : undefined;
+					const tool = toolName(part);
+
+					return [
+						{
+							kind: "did",
+							id,
+apps/app/test/agent-transcript.spec.ts:53:			message([{ type: "text", text: "Hey!" }], "user"),
+apps/app/test/agent-transcript.spec.ts:57:		expect(first?.items[0]).toMatchObject({ kind: "said", text: "Hey!" });
+apps/app/test/agent-transcript.spec.ts:63:				{ type: "text", text: "Looking now." },
+apps/app/test/agent-transcript.spec.ts:101:				{ type: "text", text: "Checking." },
+apps/app/test/agent-transcript.spec.ts:150:			prompt: "Which account should I use?",
+apps/app/test/agent-transcript.spec.ts:151:			options: [{ id: "primary", label: "Primary account" }],
+apps/app/test/agent-transcript.spec.ts:166:			question: { requestId: "req_1", prompt: "Which account should I use?" },
+apps/app/test/agent-transcript.spec.ts:174:		name: "Notion — expansion",
+apps/app/test/agent-transcript.spec.ts:180:			name: "Notion",
+apps/app/test/agent-transcript.spec.ts:189:			name: "Priya Raman",
+apps/app/test/agent-transcript.spec.ts:232:			deals: [deal, { ...deal, id: "deal-2", name: "Linear — Comp AI" }],
+apps/app/test/agent-transcript.spec.ts:234:		if (!first || !second) throw new Error("Expected valid deal list results");
+apps/app/test/agent-transcript.spec.ts:251:		if (!open || !company) throw new Error("Expected valid deal list results");
+apps/app/test/agent-transcript.spec.ts:269:			"Follow up on Notion first.",
+apps/app/test/agent-transcript.spec.ts:288:				[{ type: "text", text: "Which one?" }],
+apps/app/test/agent-transcript.spec.ts:293:			message([{ type: "text", text: "Got it." }], "assistant", "a2", "turn-2"),
+apps/app/test/agent-transcript.spec.ts:345:			"Read our emails and meetings with them",
+apps/app/test/agent-transcript.spec.ts:358:		expect(describeStep(tool("some_new_tool") as never)).toBe("Some new tool");
+apps/app/test/agent-transcript.spec.ts:439:		prompt: "Which one?",
+apps/app/test/agent-transcript.spec.ts:440:		options: [{ id: "a", label: "The first" }],
+apps/app/test/agent-transcript.spec.ts:467:		const answered = message([{ type: "text", text: "Thanks." }]);
+apps/app/test/agent-transcript.spec.ts:501:							"GatewayRateLimitError: Free tier requests on this model are rate-limited.",
+apps/app/test/agent-transcript.spec.ts:511:				{ type: "turn.failed", data: { message: "Provider unavailable" } },
+apps/app/test/agent-transcript.spec.ts:521:				{ type: "turn.failed", data: { message: "Provider unavailable" } },
+apps/app/test/agent-transcript.spec.ts:534:						message: "Free tier users do not have access to this model.",
+apps/app/test/agent-transcript.spec.ts:546:					data: { message: "Internal provider stack and request body" },
+apps/app/test/agent-transcript.spec.ts:555:		{ id: "c2", title: "Thursday" },
+apps/app/test/agent-transcript.spec.ts:556:		{ id: "c1", title: "Monday" },
+apps/app/test/agent-transcript.spec.ts:566:		expect(current?.title).toBe("Thursday");
+apps/app/test/agent-transcript.spec.ts:576:		expect(current?.title).toBe("Monday");
+Shell cwd was reset to /home/user/ai_engineering

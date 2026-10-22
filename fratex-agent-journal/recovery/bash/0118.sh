@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/app && bun test test/navigation.spec.ts 2>&1 | grep -B5 -A25 "fail\|error" | head -60

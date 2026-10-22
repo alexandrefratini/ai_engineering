@@ -1,0 +1,7 @@
+p5-nouveau -> http://localhost:3000/crm/real-estate/realtors/new
+p5-onboarding -> http://localhost:3000/onboarding/realtor
+erreurs: aucune
+p5-courtiers-mobile -> http://localhost:3000/crm/real-estate/realtors
+p5-nouveau-mobile -> http://localhost:3000/crm/real-estate/realtors/new
+erreurs: aucune
+Shell cwd was reset to /home/user/ai_engineering

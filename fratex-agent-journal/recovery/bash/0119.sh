@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -i 's/keywords: \["espace", "nom", "settings"\],/keywords: ["espace", "nom", "settings", "réglages"],/' apps/app/lib/navigation.ts && cd apps/app && bun test 2>&1 | tail -4

@@ -1,0 +1,1 @@
+kill 262 273 477 2>/dev/null; sleep 2; ps -eo pid,args | grep -E "turbo|next-server|next dev|nest|bun run" | grep -v grep | awk '{print $1}' | xargs -r kill 2>/dev/null; sleep 2; ps -eo pid,args | grep -E "turbo|next|nest" | grep -v grep | head -3; echo done

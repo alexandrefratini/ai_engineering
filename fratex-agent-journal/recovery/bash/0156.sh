@@ -1,0 +1,1 @@
+S=/tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad; cd $S && node tall.cjs "$(cat cookie-marie.txt)" $S/audit7 1440 900 "marie-accueil=/crm" "marie-leads=/crm/real-estate/leads" "marie-portail=/crm/real-estate/portal" 2>&1 | tail -4

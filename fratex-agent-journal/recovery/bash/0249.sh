@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "HIDDEN_SEGMENTS\|export const SEGMENT_LABELS" -A3 apps/app/lib/navigation.ts | head -12; cat apps/app/test/navigation.spec.ts | head -12

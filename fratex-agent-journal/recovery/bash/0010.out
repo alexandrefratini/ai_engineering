@@ -1,0 +1,7 @@
+tsc 0
+307
+200
+api:dev: [trpc] [05:49:58] ✓ Generated AppRouter (23 routers, 183 procedures) in 1544ms
+api:dev: [trpc] [05:49:59] ✓ Generated AppRouter (23 routers, 183 procedures) in 1496ms
+api:dev: [trpc] [05:50:01] ✓ Generated AppRouter (23 routers, 183 procedures) in 1679ms
+Shell cwd was reset to /home/user/ai_engineering

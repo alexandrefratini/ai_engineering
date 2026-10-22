@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings/connections" && cat use-sdr-connections.tsx meta-ads-connection.tsx twilio-connection.tsx gemini-connection.tsx connection-page.tsx meta-ads/page.tsx realtor-calendar/page.tsx; ls /home/user/endsi3g/fratex-agent/packages/ui/src/components/brand-logos/

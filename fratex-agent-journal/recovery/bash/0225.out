@@ -1,0 +1,63 @@
+packages/auth/src/slack-config.ts:17:		reason: "Read Slack people and channels after the workspace connected",
+packages/auth/src/slack-connect.ts:36:			message: "Sign in to the CRM before you connect Slack.",
+packages/auth/src/slack-connect.ts:52:			message: "Only a member of this workspace can connect Slack.",
+packages/auth/src/slack-connect.ts:60:				"Only an owner or an admin can connect Slack. One Slack workspace is shared by everyone here, so ask one of them to connect or reconnect it.",
+packages/auth/src/slack-scopes.ts:14:		grant: "See the people in your workspace",
+packages/auth/src/slack-scopes.ts:20:		grant: "See their email addresses, so it can match them to CRM records",
+packages/auth/src/slack-scopes.ts:26:		grant: "See the name and topic of every public channel",
+packages/auth/src/slack-scopes.ts:32:		grant: "See private channels it has been added to",
+packages/auth/src/slack-scopes.ts:38:		grant: "Read messages in public channels it has been added to",
+packages/auth/src/slack-scopes.ts:44:		grant: "Read messages in private channels it has been added to",
+packages/auth/src/slack-scopes.ts:50:		grant: "Post messages as the app",
+packages/auth/src/slack-scopes.ts:56:		grant: "Post to any public channel, including ones it has not joined",
+packages/auth/src/slack-scopes.ts:62:		grant: "Open a direct message with a person",
+packages/auth/src/slack-scopes.ts:68:		grant: "Join a public channel by itself",
+packages/auth/src/slack-scopes.ts:74:		grant: "Create public channels, and rename or archive ones it is in",
+packages/auth/src/slack-scopes.ts:80:		grant: "Create private channels, and rename or archive ones it is in",
+packages/auth/src/slack-scopes.ts:86:		grant: "Invite people to a public channel",
+packages/auth/src/slack-scopes.ts:92:		grant: "Invite people to a private channel",
+packages/auth/src/slack-scopes.ts:98:		grant: "Send and accept Slack Connect invitations",
+packages/auth/src/slack-scopes.ts:104:		grant: "Show a preview under a link it posts",
+packages/auth/src/slack-scopes.ts:120:	grant: "Add itself to a private channel on your behalf",
+packages/auth/src/slack-scopes.ts:126:	label: string;
+packages/auth/src/slack-scopes.ts:127:	summary: string;
+packages/auth/src/slack-scopes.ts:131:		label: "People",
+packages/auth/src/slack-scopes.ts:132:		summary:
+packages/auth/src/slack-scopes.ts:133:			"Names and email addresses, so it can match a Slack account to a CRM record.",
+packages/auth/src/slack-scopes.ts:137:		label: "Channels it can read",
+packages/auth/src/slack-scopes.ts:138:		summary:
+packages/auth/src/slack-scopes.ts:139:			"Names and topics of public channels, and the messages in any channel it has been added to.",
+packages/auth/src/slack-scopes.ts:143:		label: "Messages it can send",
+packages/auth/src/slack-scopes.ts:144:		summary:
+packages/auth/src/slack-scopes.ts:145:			"Post as the app, open a direct message, and preview a link it posts.",
+packages/auth/src/slack-scopes.ts:149:		label: "Channels it can change",
+packages/auth/src/slack-scopes.ts:150:		summary: "Join, create, rename, archive, and invite people to channels.",
+packages/auth/src/slack-scopes.ts:156:	label: string;
+packages/auth/src/slack-scopes.ts:157:	summary: string;
+api-keys.ts
+auth.ts
+client.ts
+cookies.ts
+env.ts
+index.ts
+organization.ts
+scopes.ts
+signed-in.ts
+slack-config.ts
+slack-connect.ts
+slack-grant.ts
+slack-scopes.ts
+slack-sync.ts
+sso.ts
+workspace.ts
+packages/auth/src/index.ts:22:	DEFAULT_WORKSPACE_NAME,
+packages/auth/src/organization.ts:6:export const DEFAULT_WORKSPACE_NAME = "CRM";
+packages/auth/src/organization.ts:49:					name: DEFAULT_WORKSPACE_NAME,
+packages/auth/src/organization.ts:50:					slug: workspaceSlug(DEFAULT_WORKSPACE_NAME),
+packages/auth/test/slack-connect.integration.spec.ts:18:	DEFAULT_WORKSPACE_NAME,
+packages/auth/test/slack-connect.integration.spec.ts:196:			name: DEFAULT_WORKSPACE_NAME,
+packages/auth/test/slack-connect.integration.spec.ts:197:			slug: workspaceSlug(DEFAULT_WORKSPACE_NAME),
+apps/app/app/(landing)/onboarding/page.tsx:1:import { DEFAULT_WORKSPACE_NAME } from "@crm/auth";
+apps/app/app/(landing)/onboarding/page.tsx:23:			<OnboardingForm placeholder={DEFAULT_WORKSPACE_NAME} />
+apps/app/test/workspace-label.spec.ts:2:import { DEFAULT_WORKSPACE_NAME } from "@crm/auth";
+Shell cwd was reset to /home/user/ai_engineering

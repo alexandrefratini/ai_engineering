@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && cat packages/ui/src/components/connection-setup.tsx; grep -n "export function AgencyControl\|export function useAgency" -A30 "apps/app/app/(app)/[slug]/real-estate/use-agency.tsx" | head -80

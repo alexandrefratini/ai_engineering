@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && git status --short | head -80 && git diff --stat | tail -3

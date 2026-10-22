@@ -1,0 +1,12 @@
+Exit code 56
+simple-icons-13.21.0.tgz
+simple-icons-13.21.0.tgz
+curl: (56) CONNECT tunnel failed, response 403
+jsdelivr 000
+curl: (56) CONNECT tunnel failed, response 403
+wikimedia 000
+
+[agent-proxy] While this command ran, 2 connections through the agent proxy failed:
+- upload.wikimedia.org:443 — connect_rejected (the egress proxy refused the connection or could not reach the host; a refusal most often means that the host is not allowed for this session)
+- cdn.jsdelivr.net:443 — connect_rejected (the egress proxy refused the connection or could not reach the host; a refusal most often means that the host is not allowed for this session)
+For details: curl -sS http://127.0.0.1:40687/__agentproxy/status

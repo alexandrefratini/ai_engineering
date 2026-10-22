@@ -1,0 +1,6 @@
+30:		"lucide-react": "^1.28.0",
+packages/ui/src/components/dropdown-menu.tsx:4:import { CheckIcon, ChevronRightIcon } from "lucide-react";
+packages/ui/src/components/realtor-onboarding-form.tsx:3:import { Check } from "lucide-react";
+105:				pattern={pattern}
+232:					pattern="[\\d\\s().+\\-]{10,20}"
+Shell cwd was reset to /home/user/ai_engineering

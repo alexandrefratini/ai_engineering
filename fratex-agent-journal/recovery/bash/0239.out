@@ -1,0 +1,15 @@
+Checked 1 file in 37ms. Fixed 1 file.
+Checked 1 file in 18ms. Fixed 1 file.
+Checked 1 file in 46ms. No fixes applied.
+Checked 1 file in 14ms. Fixed 1 file.
+Checked 1 file in 16ms. No fixes applied.
+Checked 1 file in 24ms. Fixed 1 file.
+Checked 1 file in 25ms. No fixes applied.
+Checked 1 file in 11ms. No fixes applied.
+app 0
+ 183 pass
+ 0 fail
+ 500 expect() calls
+Ran 183 tests across 21 files. [903.00ms]
+auth 0
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+kill 2912 2913 2920 3070 3071 3088 2>/dev/null; sleep 3; ps -eo pid,args | grep -E "turbo|next|nest|bun run dev|main.ts" | grep -v grep | awk '{print $1}' | xargs -r kill -9 2>/dev/null; sleep 1; ps -eo pid,args | grep -E "turbo|next-server|main.ts" | grep -v grep | wc -l

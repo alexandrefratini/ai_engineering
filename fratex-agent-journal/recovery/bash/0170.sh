@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && head -5 LICENSE* 2>/dev/null; sed -n 1,24p apps/app/components/auth-shell.tsx; sed -n 15,60p apps/app/app/layout.tsx

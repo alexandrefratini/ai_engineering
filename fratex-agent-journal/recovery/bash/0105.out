@@ -1,0 +1,19 @@
+agent-model.tsx
+api-keys
+archive-retention.tsx
+connections
+copy-value.tsx
+currencies
+layout.tsx
+members
+page.tsx
+research-key.tsx
+settings-sidebar.tsx
+sso
+tracking
+workspace-form.tsx
+./page.tsx
+./connections/gemini-connection.tsx
+./connections/sdr-connections-overview.tsx
+./agent-model.tsx
+Shell cwd was reset to /home/user/ai_engineering

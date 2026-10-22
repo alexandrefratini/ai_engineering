@@ -1,0 +1,93 @@
+calendar-sync.service.ts
+calendar.client.ts
+conversation.service.ts
+gmail-mime.ts
+gmail-sync.service.ts
+gmail.client.ts
+google-connection.service.ts
+google-sync.service.ts
+google.constants.ts
+google.contracts.ts
+google.module.ts
+google.router.ts
+apps/api/src/telemetry/funnel.service.ts:12:import { GOOGLE_PROVIDER_ID } from "../google/google.constants";
+apps/api/src/telemetry/funnel.service.ts:61:					process.env.GOOGLE_CLIENT_ID?.trim() &&
+apps/api/src/telemetry/funnel.service.ts:62:					process.env.GOOGLE_CLIENT_SECRET?.trim();
+apps/api/src/telemetry/funnel.service.ts:68:						where: { providerId: GOOGLE_PROVIDER_ID },
+apps/api/src/telemetry/rollup.service.ts:160:				isSet("GOOGLE_CLIENT_ID") && isSet("GOOGLE_CLIENT_SECRET"),
+apps/api/src/config/env.validation.ts:53:	GOOGLE_CLIENT_ID?: string;
+apps/api/src/config/env.validation.ts:57:	GOOGLE_CLIENT_SECRET?: string;
+apps/api/src/mailbox/mailbox.constants.ts:4:	GOOGLE_PROVIDER_ID,
+apps/api/src/mailbox/mailbox.constants.ts:13:	GOOGLE_PROVIDER_ID,
+apps/api/src/mailbox/mailbox.constants.ts:24:export const GOOGLE_SYNC_SOURCES = ["calendar", "gmail"] as const;
+apps/api/src/mailbox/mailbox.constants.ts:27:export type GoogleSyncSource = (typeof GOOGLE_SYNC_SOURCES)[number];
+apps/api/src/mailbox/mailbox.constants.ts:31:	return (GOOGLE_SYNC_SOURCES as readonly string[]).includes(source);
+apps/api/src/mailbox/mailbox.constants.ts:47:	calendar: GOOGLE_PROVIDER_ID,
+apps/api/src/mailbox/mailbox.constants.ts:48:	gmail: GOOGLE_PROVIDER_ID,
+apps/api/src/mailbox/mailbox-token.service.ts:11:	GOOGLE_PROVIDER_ID,
+apps/api/src/mailbox/mailbox-token.service.ts:23:const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
+apps/api/src/mailbox/mailbox-token.service.ts:117:			providerId === GOOGLE_PROVIDER_ID &&
+apps/api/src/mailbox/mailbox-token.service.ts:142:			where: { userId, providerId: GOOGLE_PROVIDER_ID },
+apps/api/src/mailbox/mailbox-token.service.ts:149:		const response = await fetch(GOOGLE_REVOKE_URL, {
+apps/api/src/mailbox/mailbox-token.service.ts:168:	return providerId === GOOGLE_PROVIDER_ID ? "Google" : "Microsoft";
+39:	configureCalendarInput,
+40-	configureMetaInput,
+41-	configureSmsInput,
+42-	leadStatusEnum,
+43-	sendMessageInput,
+44-	setAutomationInput,
+45-	suggestListingInput,
+46-} from "./real-estate.contracts";
+47-import { DAY_MS, HOUR_MS, MINUTE_MS, REAL_ESTATE } from "./real-estate-config";
+48-
+49-const leadItem = (lead: LeadModel & { client: { name: string } | null }) => ({
+50-	...lead,
+51-	clientName: lead.client?.name ?? null,
+52-});
+53-
+54-@Injectable()
+55-export class RealEstateService {
+56-	constructor(
+57-		@InjectDatabase() private readonly db: Db,
+58-		private readonly agentTrigger: AgentTriggerService,
+59-	) {}
+60-	private async access(userId: string, agencyId?: string, clientId?: string) {
+61-		try {
+62-			return await agencyAccess(this.db, userId, agencyId, clientId);
+63-		} catch {
+64-			throw new ForbiddenException(
+65-				"Agency membership and client access are required.",
+66-			);
+67-		}
+68-	}
+69-	private write(role: string, manage = false) {
+70-		if (!(manage ? canManageAgency(role) : canWriteAgency(role)))
+71-			throw new ForbiddenException(
+72-				"Your agency role cannot perform this action.",
+73-			);
+74-	}
+75-	async resolveAgencyForUser(userId: string, agencyId?: string) {
+76-		return (await this.access(userId, agencyId)).agencyId;
+77-	}
+78-	async listAgencies(userId: string) {
+79-		const members = await this.db.agencyUser.findMany({
+--
+1281:	async configureCalendar(
+1282-		userId: string,
+1283:		input: z.infer<typeof configureCalendarInput>,
+1284-	) {
+1285-		const scope = await this.access(userId, input.agencyId, input.clientId);
+1286-		this.write(scope.role, true);
+1287-		if (
+1288-			!(await this.db.client.findFirst({
+1289-				where: { agencyId: scope.agencyId, id: input.clientId },
+1290-			}))
+1291-		)
+1292-			throw new NotFoundException("Realtor not found.");
+1293-		const hours = workingHours.parse({
+1294-			timezone: input.timezone,
+1295-			days: input.days,
+1296-			startHour: input.startHour,
+1297-			endHour: input.endHour,
+1298-		});
+Shell cwd was reset to /home/user/ai_engineering

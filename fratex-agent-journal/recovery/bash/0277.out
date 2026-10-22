@@ -1,0 +1,35 @@
+All migrations have been successfully applied.
+@crm/db db:test: Exited with code 0
+40:		"db:seed": "bun scripts/require-local-db.ts db:seed && prisma db seed",
+packages/db/prisma/:
+migrations
+schema.prisma
+seed.ts
+
+packages/db/src:
+agency-access.ts
+agent-tasks.ts
+attribution.ts
+blob.ts
+client.ts
+crm-events.ts
+currency.ts
+deal-stage.ts
+favicon.ts
+fields-shape.ts
+fields.ts
+fx.ts
+generated
+idempotency.ts
+images.ts
+index.ts
+json.ts
+real-estate.ts
+safe-fetch.ts
+sdr-config.ts
+sdr-messages.ts
+settings.ts
+slack-inventory.ts
+tracking.ts
+workspace.ts
+Shell cwd was reset to /home/user/ai_engineering

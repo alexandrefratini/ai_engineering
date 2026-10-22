@@ -1,0 +1,12 @@
+apps/app/test/navigation.spec.ts:14:			"Réglages généraux",
+39:const TIMEZONES = [
+40-	{ id: "America/Toronto", name: "Québec et Ontario (heure de l'Est)" },
+41-	{ id: "America/Halifax", name: "Maritimes (heure de l'Atlantique)" },
+42-	{ id: "America/Winnipeg", name: "Manitoba (heure du Centre)" },
+43-	{ id: "America/Edmonton", name: "Alberta (heure des Rocheuses)" },
+44-	{ id: "America/Vancouver", name: "Colombie-Britannique (heure du Pacifique)" },
+45-];
+46-
+47-function Section({
+--
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "phoneDigits" packages/ui/src/lib/real-estate.ts | head -3; grep -rn "phone" packages/validation/src/*.ts | head -20; ls packages/validation/src

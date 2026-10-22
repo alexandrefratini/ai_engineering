@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "label\|summary\|description\|\"[A-Z][a-z].*\"" packages/auth/src/slack*.ts 2>/dev/null | head -40; ls packages/auth/src; grep -n "DEFAULT_WORKSPACE_NAME" -r packages apps --include=*.ts --include=*.tsx | grep -v node_modules | head

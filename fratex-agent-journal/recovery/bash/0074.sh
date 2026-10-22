@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -rln "realtorCalendar\|RealtorCalendar" apps packages --include=*.ts | grep -v "node_modules\|generated" | head; ls apps/agent/src 2>/dev/null | head -30

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/app && bunx tsc --noEmit; echo tsc $?; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000/ ; curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3001/health 2>/dev/null || true; tail -3 /tmp/dev.log

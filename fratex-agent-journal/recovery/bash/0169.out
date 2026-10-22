@@ -1,0 +1,28 @@
+						</h1>
+					</div>
+				</div>
+
+				<p className="relative font-mono text-xs/4 text-muted-foreground">
+					Made with love by{" "}
+					<a
+						href="https://trycomp.ai"
+						target="_blank"
+						rel="noreferrer"
+						className="underline underline-offset-4 hover:text-foreground"
+					>
+						Comp AI
+					</a>
+				</p>
+			</section>
+
+			<section className="flex min-h-svh flex-col bg-background px-6 py-8 sm:px-10 lg:px-14">
+				<div className="flex gap-2 text-sm/5 max-lg:hidden lg:invisible">
+					<Logo className="size-5 shrink-0" />
+				</div>
+61:						<Logo className="size-5" />
+92:						<Logo className="size-5" />
+145:					<Logout />
+24:		default: "Comp AI - CRM",
+25:		template: "%s · Comp AI CRM",
+27:	description: "Customer Relationship Management for Comp AI",
+Shell cwd was reset to /home/user/ai_engineering

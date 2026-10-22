@@ -1,0 +1,1 @@
+git remote -v && git branch -a && git ls-remote origin 2>&1 | head -20

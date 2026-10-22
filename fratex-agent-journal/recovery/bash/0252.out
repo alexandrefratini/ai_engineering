@@ -1,0 +1,7 @@
+ui 0
+Checked 3 files in 25ms. Fixed 1 file.
+app 0
+ 0 fail
+ 27 expect() calls
+Ran 5 tests across 1 file. [7.00ms]
+Shell cwd was reset to /home/user/ai_engineering

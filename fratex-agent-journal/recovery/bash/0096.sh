@@ -1,0 +1,1 @@
+ls /home/user/endsi3g/fratex-agent/packages/ui/src/components | tr '\n' ' '

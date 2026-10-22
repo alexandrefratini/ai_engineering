@@ -1,0 +1,124 @@
+		}
+		await db.$transaction(async (tx) => {
+			await tx.appointment.update({
+				where: { id: appointment.id, agencyId: lead.agencyId },
+				data: {
+					status: "CONFIRMED",
+					googleEventId: event.id,
+					meetingLink: event.htmlLink,
+				},
+			});
+			await tx.lead.update({
+				where: { id: lead.id, agencyId: lead.agencyId },
+				data: { status: "APPOINTMENT_BOOKED", clientId },
+			});
+			const attribution = await tx.attributionEvent.upsert({
+				where: { id: `appointment:${appointment.id}` },
+				update: {},
+				create: {
+					id: `appointment:${appointment.id}`,
+					agencyId: lead.agencyId,
+					leadId: lead.id,
+					eventType: "APPOINTMENT_SCHEDULED",
+				},
+			});
+			await queueSdrTask(tx, {
+				agencyId: lead.agencyId,
+				leadId: lead.id,
+				kind: "real-estate-capi",
+				key: `capi:${attribution.id}`,
+				payload: { agencyId: lead.agencyId, eventId: attribution.id },
+			});
+		});
+		return {
+			booked: true,
+			appointmentId: appointment.id,
+			startTime: start.toISOString(),
+			endTime: end.toISOString(),
+		};
+	},
+});
+38:export const leadListItemOutput = z.object({
+39-	id: z.string(),
+40-	agencyId: z.string(),
+41-	clientId: z.string().nullable(),
+42-	clientName: z.string().nullable(),
+43-	firstName: z.string(),
+44-	lastName: z.string().nullable(),
+45-	email: z.string().nullable(),
+46-	phone: z.string(),
+47-	status: leadStatusEnum,
+48-	score: z.number(),
+49-	intent: leadIntentEnum,
+50-	propertyType: z.string().nullable(),
+51-	budgetMax: z.number().nullable(),
+52-	targetArea: z.string().nullable(),
+53-	qualificationSummary: z.string().nullable(),
+54-	consentedAt: z.date().nullable(),
+55-	unsubscribedAt: z.date().nullable(),
+56-	automationPausedAt: z.date().nullable(),
+57-	firstContactedAt: z.date().nullable(),
+58-	lastInteractedAt: z.date().nullable(),
+59-	createdAt: z.date(),
+60-});
+--
+82:export const appointmentItemOutput = z.object({
+83-	id: z.string(),
+84-	title: z.string(),
+85-	startTime: z.date(),
+86-	endTime: z.date(),
+87-	status: z.enum([
+88-		"SCHEDULED",
+89-		"CONFIRMED",
+90-		"COMPLETED",
+91-		"NO_SHOW",
+92-		"CANCELLED",
+93-		"RESCHEDULED",
+94-	]),
+95-	clientName: z.string(),
+96-});
+97-
+98:export const leadProfileOutput = z.object({
+99-	language: z.string(),
+100-	budgetMin: z.number().nullable(),
+101-	timeline: z.string().nullable(),
+102-	financing: z.string().nullable(),
+103-	currentSituation: z.string().nullable(),
+104-	escalationReason: z.string().nullable(),
+105-	consentSource: z.string().nullable(),
+106-	campaignName: z.string().nullable(),
+107-	formName: z.string().nullable(),
+108-	property: z
+109-		.object({
+110-			minBedrooms: z.number().nullable(),
+111-			minBathrooms: z.number().nullable(),
+112-			mustHaveParking: z.boolean(),
+113-			specificNotes: z.string().nullable(),
+114-		})
+115-		.nullable(),
+116-});
+117-
+118:export const leadEventOutput = z.object({
+119-	id: z.string(),
+120-	eventType: z.enum([
+121-		"LEAD_CREATED",
+122-		"FIRST_SMS_SENT",
+123-		"LEAD_REPLIED",
+124-		"LEAD_QUALIFIED",
+125-		"APPOINTMENT_SCHEDULED",
+126-		"APPOINTMENT_HELD",
+127-		"DEAL_SIGNED",
+128-	]),
+129-	occurredAt: z.date(),
+130-});
+131-
+132-export const leadEmailOutput = z.object({
+133-	id: z.string(),
+134-	direction: z.enum(["INBOUND", "OUTBOUND"]),
+135-	fromName: z.string().nullable(),
+136-	fromEmail: z.string(),
+137-	subject: z.string().nullable(),
+138-	snippet: z.string().nullable(),
+139-	sentAt: z.date(),
+140-	webLink: z.string().nullable(),
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,19 @@
+20:export const leadIntentEnum = z.enum([
+21-	"BUY",
+22-	"SELL",
+23-	"BUY_AND_SELL",
+--
+170:export const updateLeadStatusInput = z.object({
+171-	agencyId: z.string().optional(),
+172-	id: z.string().min(1),
+173-	status: leadStatusEnum,
+1:import { Inject } from "@nestjs/common";
+2:import {
+9:} from "nestjs-trpc";
+10:import { z } from "zod";
+11:import type { AuthedTrpcContext } from "../trpc/context.types";
+12:import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
+13:import { restMeta } from "../trpc/openapi";
+14:import {
+53:} from "./real-estate.contracts";
+54:import { RealEstateService } from "./real-estate.service";

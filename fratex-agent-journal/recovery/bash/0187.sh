@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/db && cat prisma/migrations/20261022092025_add_lead_notes_and_source/migration.sql; git -C /home/user/endsi3g/fratex-agent diff --stat -- packages/db/prisma/schema.prisma

@@ -1,0 +1,8 @@
+apps/app/test/day.spec.ts:11:	it("pads single-digit months and days", () => {
+apps/api/test/enrichment-copy.spec.ts:77:	it("counts weeks from a fortnight, and months from two", () => {
+apps/api/test/enrichment-copy.spec.ts:80:		expect(enrichmentDueLabel(ahead(60), NOW)).toBe("In 2 months");
+apps/api/test/enrichment-copy.spec.ts:81:		expect(enrichmentDueLabel(ahead(90), NOW)).toBe("In 3 months");
+apps/api/test/enrichment-queue.spec.ts:119:		expect(booked?.due).toBe("In 3 months");
+104:									{channel.inviteRequestedAt ? "Redemander" : "Demander"}
+59:								aria-label={`Choose #${channel.name}`}
+Shell cwd was reset to /home/user/ai_engineering

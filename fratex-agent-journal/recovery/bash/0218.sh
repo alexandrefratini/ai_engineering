@@ -1,0 +1,1 @@
+xargs -r kill < /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/pids.txt 2>/dev/null; sleep 3; ps -eo pid,args | grep -E "turbo run dev|next-server|main.ts|nestjs-trpc" | grep -v grep | awk '{print $1}' | xargs -r kill -9 2>/dev/null; sleep 1; ps -eo args | grep -cE "turbo run dev|next-server|main.ts" 

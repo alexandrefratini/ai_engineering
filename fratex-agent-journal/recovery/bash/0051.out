@@ -1,0 +1,48 @@
+6:## 0. Accès au projet
+19:## 1. Compréhension du produit
+36:## 2. Écrans du module immobilier (`apps/app/app/(app)/[slug]/real-estate/`)
+47:## 3. BOGUE #1 — La page prospect mène à la messagerie
+60:## 4. Mise en place de l'environnement de vérification
+80:## 5. Audit visuel et fonctionnel (état « avant »)
+95:### Bogues confirmés
+106:### Vérification de la revue du 2026-10-21 (47 points)
+119:## 6. Plan d'implémentation proposé
+135:## 7. Exigences ajoutées par Alexandre en cours de route
+157:## 8. Décisions
+178:## B.0 Reprendre depuis zéro (recette complète)
+190:## B.1 Phase 1 — Lever le mur « Context API key »
+228:## B.2 Phase 2 — La fiche prospect (avant la conversation)
+296:## B.3 Barre du haut : fil d'Ariane, recherche centrale, présence d'équipe
+362:## B.4 Fondations visuelles et fiche en une seule colonne
+401:## B.5 Boîte de réception multicanal
+445:## B.6 Accueil : « Bon retour, {prénom} », CAD, bogue d'hydratation
+483:### B.6 bis — Accueil immobilier restructuré (deuxième retour d'Alexandre)
+501:## B.7 Phase 3 — Portail courtier densifié avec de vraies métriques
+548:## C.1 Le courtier immobilier (le client de Fratex)
+576:## C.2 L'équipe Fratex (agence, opérations)
+589:## C.3 Le CEO de Fratex
+599:## C.4 Plan révisé (ajouts issus de l'analyse)
+610:## B.8 Phase 4 — Estimateur et multi-offres refait
+patches:
+TOUT-cumulatif.patch
+phase-1-research-gate.patch
+phase-2-fiche-prospect.patch
+phase-3-barre-du-haut.patch
+phase-4-visuel-fiche.patch
+phase-5-boite-de-reception.patch
+phase-6-accueil.patch
+phase-7-portail.patch
+phase-8-estimateur.patch
+
+scripts:
+click.cjs
+demo-seed.ts
+flow-fiche.cjs
+inbox-flow.cjs
+portal-flow.cjs
+setup-local.sh
+shot.cjs
+tall.cjs
+topbar.cjs
+valuation-flow.cjs
+652 JOURNAL.md

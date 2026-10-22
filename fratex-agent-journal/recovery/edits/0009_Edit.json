@@ -1,0 +1,6 @@
+{
+ "replace_all": false,
+ "file_path": "/home/user/endsi3g/fratex-agent/apps/app/components/app-icon-rail.tsx",
+ "old_string": "\t\t\t\t\titem.title === \"Chat\" ? \"nav-forward\" : \"nav-lateral\",",
+ "new_string": "\t\t\t\t\titem.section === CHAT_HREF ? \"nav-forward\" : \"nav-lateral\","
+}

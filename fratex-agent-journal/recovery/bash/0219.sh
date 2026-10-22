@@ -1,0 +1,1 @@
+ps -eo pid,args | grep -E "turbo run dev|next-server|main.ts" | grep -v grep | cut -c1-120

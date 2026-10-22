@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/ui/src/components && grep -n "^function\|^export" dialog.tsx textarea.tsx switch.tsx | head -20; grep -n "export function formatRelative\|export function relativeTime\|formatShortStamp" ../lib/*.ts | head

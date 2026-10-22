@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && ls biome.json*; sed -n 8,30p biome.jsonc

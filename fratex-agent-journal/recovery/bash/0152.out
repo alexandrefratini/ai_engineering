@@ -1,0 +1,10 @@
+31:  - Aucun `Co-Authored-By` dans les commits (conflit avec la consigne de la session : la règle du dépôt gagne, voir D1).
+67:| 4.4 | Connexion impossible en local | `emailAndPassword` est désactivé, seul Google/Microsoft/SSO existe. Je crée une session de test en base et je signe le cookie `crm.session_token` (HMAC-SHA256 avec `BETTER_AUTH_SECRET`). Aucun code du dépôt n'est modifié. |
+183:3. Captures d'écran : `node scripts/shot.cjs "<cookie>" <dossier> nom=/chemin ...`
+184:   Le cookie est affiché à la fin du script `demo-seed.ts` (ligne `COOKIE=`).
+188:**Pourquoi un cookie signé à la main ?** La connexion réelle passe par Google. En local on n'a pas de compte Google autorisé. On crée une ligne `session` en base et on signe son jeton avec `BETTER_AUTH_SECRET` (HMAC-SHA256, base64). Better Auth reconnaît alors le cookie `crm.session_token` comme valide. C'est un outil de test, jamais du code de production.
+466:| `apps/app/app/(app)/[slug]/overview-greeting.tsx` | Composant **serveur** : lit la session et affiche « Bon retour, Alexandre ». |
+690:4. Script : `node scripts/realtors-flow.cjs "<cookie>" screenshots/apres`.
+14:const token = "demo-session-token-0123456789abcdef";
+15:await db.session.upsert({
+18:	create: { id: "demo-session", token, userId: user.id, expiresAt: ahead(24 * 7) },

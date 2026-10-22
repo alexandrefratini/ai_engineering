@@ -1,0 +1,45 @@
+16:	variant: "default",
+21:function ToggleGroup({
+23:	variant,
+35:		() => ({ variant, size, spacing, orientation }),
+36:		[variant, size, spacing, orientation],
+42:			data-variant={variant}
+60:function ToggleGroupItem({
+63:	variant = "default",
+73:			data-variant={context.variant || variant}
+77:				"shrink-0 group-data-[spacing=0]/toggle-group:rounded-none group-data-[spacing=0]/toggle-group:px-2 focus:z-10 focus-visible:z-10 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-end]:pr-1.5 group-data-[spacing=0]/toggle-group:has-data-[icon=inline-start]:pl-1.5 group-data-horizontal/toggle-group:data-[spacing=0]:first:rounded-none group-data-vertical/toggle-group:data-[spacing=0]:first:rounded-none group-data-horizontal/toggle-group:data-[spacing=0]:last:rounded-none group-data-vertical/toggle-group:data-[spacing=0]:last:rounded-none group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:border-l-0 group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:border-t-0 group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-l group-data-vertical/toggle-group:data-[spacing=0]:data-[variant=outline]:first:border-t",
+79:					variant: context.variant || variant,
+91:export { ToggleGroup, ToggleGroupItem };
+33:export { Collapsible, CollapsibleTrigger, CollapsibleContent }
+69:export function WorkspaceSelect({
+70-	label,
+71-	value,
+72-	options,
+73-	onChange,
+74-	compact,
+75-}: {
+76-	label: string;
+77-	value: string;
+78-	options: { id: string; name: string }[];
+79-	onChange: (value: string) => void;
+80-	compact?: boolean;
+81-}) {
+82-	return (
+83-		<Field className={compact ? "w-auto" : undefined}>
+84-			<FieldLabel className={compact ? "sr-only" : undefined}>{label}</FieldLabel>
+85-			<Select value={value} onValueChange={onChange}>
+86-				<SelectTrigger aria-label={label}>
+87-					<SelectValue placeholder={label} />
+88-				</SelectTrigger>
+89-				<SelectContent>
+90-					<SelectGroup>
+91-						{options.map((option) => (
+92-							<SelectItem key={option.id} value={option.id}>
+93-								{option.name}
+94-							</SelectItem>
+95-						))}
+96-					</SelectGroup>
+97-				</SelectContent>
+98-			</Select>
+99-		</Field>
+Shell cwd was reset to /home/user/ai_engineering

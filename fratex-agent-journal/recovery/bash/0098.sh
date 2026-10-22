@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/ui/src/components && sed -n 1,12p toggle-group.tsx; grep -rn "ToggleGroup " ../../../../apps/app --include=*.tsx | head -3

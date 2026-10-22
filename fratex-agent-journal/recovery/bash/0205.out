@@ -1,0 +1,226 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { REVEAL, staggerStyle } from "../lib/motion";
+import {
+	APPOINTMENT_STATUS_LABELS,
+	ESCALATION_LABELS,
+	EVENT_LABELS,
+	INTENT_LABELS,
+	LANGUAGE_LABELS,
+	LEAD_JOURNEY,
+	MESSAGE_STATUS_LABELS,
+	OFF_JOURNEY_LABELS,
+	QUALIFICATION_CRITERIA,
+	formatBudget,
+	formatCad,
+	formatDateTime,
+	formatDuration,
+	formatPhone,
+	labelOf,
+} from "../lib/real-estate";
+import { cn } from "../lib/utils";
+import { Badge } from "./badge";
+import { Button } from "./button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "./card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible";
+import { LeadStatusBadge } from "./lead-status-badge";
+import { LeadJourney, MetricGrid, MetricTile, ScoreRing, SegmentMeter } from "./real-estate-visuals";
+import { SourcedValue, SOURCED_VALUE } from "./sourced-value";
+
+export type LeadProfileLead = {
+	firstName: string;
+	lastName: string | null;
+	phone: string;
+	email: string | null;
+	status: string;
+	score: number;
+	intent: string;
+	propertyType: string | null;
+	budgetMin: number | null;
+	budgetMax: number | null;
+	targetArea: string | null;
+	timeline: string | null;
+	financing: string | null;
+	currentSituation: string | null;
+	qualificationSummary: string | null;
+	language: string;
+	clientName: string | null;
+	consentedAt: string | null;
+	consentSource: string | null;
+	unsubscribedAt: string | null;
+	automationPausedAt: string | null;
+	escalationReason: string | null;
+	firstContactedAt: string | null;
+	lastInteractedAt: string | null;
+	createdAt: string;
+	campaignName: string | null;
+	formName: string | null;
+	property: {
+		minBedrooms: number | null;
+		minBathrooms: number | null;
+		mustHaveParking: boolean;
+		specificNotes: string | null;
+	} | null;
+};
+
+export type LeadProfileEvidence = { field: string; quote: string };
+
+export type LeadProfileListing = {
+	url: string;
+	address: string | null;
+	askingPrice: number | null;
+	bedrooms: number | null;
+	bathrooms: number | null;
+};
+
+export type LeadProfileEvent = {
+	id: string;
+	eventType: string;
+	occurredAt: string;
+};
+
+export type LeadProfileAppointment = {
+	id: string;
+	title: string;
+	startTime: string;
+	status: string;
+	clientName: string;
+};
+
+export type LeadProfileMessage = {
+	id: string;
+	sender: "LEAD" | "AI_SDR" | "HUMAN_AGENT" | "SYSTEM";
+	content: string;
+	sentAt: string;
+	status: string;
+};
+
+const SENDER_LABELS: Record<LeadProfileMessage["sender"], string> = {
+	LEAD: "Prospect",
+	AI_SDR: "Assistant IA",
+	HUMAN_AGENT: "Courtier",
+	SYSTEM: "Système",
+};
+
+const UPCOMING_STATUSES = new Set(["SCHEDULED", "CONFIRMED", "RESCHEDULED"]);
+
+type CriterionField = (typeof QUALIFICATION_CRITERIA)[number]["field"];
+
+function criterionValue(lead: LeadProfileLead, field: CriterionField): string | null {
+function Muted({ children }: { children: ReactNode }) {
+	return <span className="text-sm text-muted-foreground">{children}</span>;
+}
+
+export function LeadPanel({
+	title,
+	description,
+	action,
+	index = 0,
+	children,
+}: {
+	title: string;
+	description?: string;
+	action?: ReactNode;
+	index?: number;
+	children: ReactNode;
+}) {
+	return (
+		<Card className={REVEAL} style={staggerStyle(index)}>
+			<CardHeader>
+				<CardTitle>{title}</CardTitle>
+				{description && <CardDescription>{description}</CardDescription>}
+				{action && <CardAction>{action}</CardAction>}
+			</CardHeader>
+			<CardContent>{children}</CardContent>
+		</Card>
+	);
+}
+
+function Facts({ items }: { items: { label: string; value: ReactNode }[] }) {
+	return (
+		<dl className="grid grid-cols-[8rem_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+			{items.map((item) => (
+				<div key={item.label} className="contents">
+					<dt className="text-muted-foreground">{item.label}</dt>
+					<dd className="min-w-0 break-words">{item.value}</dd>
+				</div>
+			))}
+		</dl>
+	);
+}
+
+export function LeadProfileHeader({ lead, actions }: { lead: LeadProfileLead; actions: ReactNode }) {
+	const offJourney = OFF_JOURNEY_LABELS[lead.status];
+	return (
+		<header className={cn("flex flex-col gap-4 rounded-lg border bg-card p-4", REVEAL)}>
+			<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+				<div className="flex min-w-0 items-center gap-3">
+					<ScoreRing value={lead.score} label="Score de qualification" />
+					<div className="flex min-w-0 flex-col gap-1">
+						<div className="flex min-w-0 flex-wrap items-center gap-2">
+							<h2 className="truncate text-lg font-medium tracking-tight">
+								{lead.firstName} {lead.lastName ?? ""}
+							</h2>
+							<LeadStatusBadge status={lead.status} />
+							<Badge variant="outline">{labelOf(INTENT_LABELS, lead.intent)}</Badge>
+							{lead.automationPausedAt && <Badge variant="secondary">IA en pause</Badge>}
+						</div>
+						<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+							<a className="transition-colors hover:text-foreground" href={`tel:${lead.phone}`}>
+								{formatPhone(lead.phone)}
+							</a>
+							{lead.email && (
+								<a className="truncate transition-colors hover:text-foreground" href={`mailto:${lead.email}`}>
+									{lead.email}
+								</a>
+							)}
+							<span>{lead.clientName ?? "Courtier non assigné"}</span>
+						</div>
+					</div>
+				</div>
+				<div className="flex flex-wrap items-center gap-2">{actions}</div>
+			</div>
+			<LeadJourney steps={[...LEAD_JOURNEY]} current={lead.status} aside={offJourney} />
+		</header>
+	);
+}
+
+export function LeadKeyFacts({
+	lead,
+	appointments,
+}: {
+	lead: LeadProfileLead;
+	appointments: LeadProfileAppointment[];
+}) {
+	const next = appointments.find(
+		(appointment) =>
+			UPCOMING_STATUSES.has(appointment.status) && new Date(appointment.startTime).getTime() > Date.now(),
+	);
+	return (
+		<MetricGrid>
+			<MetricTile
+				index={1}
+				label="Budget"
+				value={formatBudget(lead.budgetMin, lead.budgetMax) ?? "—"}
+				hint={lead.financing ?? "Financement non confirmé"}
+			/>
+			<MetricTile
+				index={2}
+				label="Secteur"
+				value={lead.targetArea ?? "—"}
+				hint={lead.propertyType ?? "Type non confirmé"}
+			/>
+			<MetricTile index={3} label="Échéance" value={lead.timeline ?? "—"} hint={labelOf(INTENT_LABELS, lead.intent)} />
+			<MetricTile
+				index={4}
+				label="Prochain rendez-vous"
+				value={next ? formatDateTime(next.startTime) : "Aucun"}
+				hint={next ? labelOf(APPOINTMENT_STATUS_LABELS, next.status) : "À planifier"}
+			/>
+		</MetricGrid>
+	);
+}
+
+export function LeadQualification({
+Shell cwd was reset to /home/user/ai_engineering

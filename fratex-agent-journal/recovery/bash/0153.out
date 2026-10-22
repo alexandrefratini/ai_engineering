@@ -1,0 +1,45 @@
+import { createHmac } from "node:crypto";
+import { db } from "../src/client";
+
+const SECRET = process.env.BETTER_AUTH_SECRET ?? "";
+const now = Date.now();
+const ago = (h: number) => new Date(now - h * 3600_000);
+const ahead = (h: number) => new Date(now + h * 3600_000);
+
+const user = await db.user.upsert({
+	where: { email: "demo@fratex.ca" },
+	update: {},
+	create: { id: "demo-user", name: "Alexandre Fratini", email: "demo@fratex.ca", emailVerified: true },
+});
+const token = "demo-session-token-0123456789abcdef";
+await db.session.upsert({
+	where: { token },
+	update: { expiresAt: ahead(24 * 7) },
+	create: { id: "demo-session", token, userId: user.id, expiresAt: ahead(24 * 7) },
+});
+
+const agency = await db.agency.upsert({
+	where: { slug: "fratex-demo" },
+	update: {},
+	create: { name: "Agence Fratex", slug: "fratex-demo" },
+});
+await db.agencyUser.upsert({
+	where: { agencyId_userId: { agencyId: agency.id, userId: user.id } },
+	update: {},
+	create: { agencyId: agency.id, userId: user.id, role: "OWNER" },
+});
+let client = await db.client.findFirst({ where: { agencyId: agency.id } });
+client ??= await db.client.create({
+	data: {
+		agencyId: agency.id,
+		name: "Marie Tremblay, courtière",
+		email: "marie@courtage.ca",
+		phone: "+15145550100",
+		targetZones: ["Montréal", "Laval"],
+		brokerage: "Courtage Plateau",
+		propertyTypes: ["Condo", "Maison"],
+178-	}
+179-}
+180-
+181-const sig = createHmac("sha256", SECRET).update(token).digest("base64");
+182:console.log(`COOKIE=${encodeURIComponent(`${token}.${sig}`)}`);

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 1,200p packages/auth/src/slack-scopes.ts | grep -n "grant:\|label:\|summary:\|\"[A-Z]" | head -60; grep -rn "slack-scopes\|describeSlackScopes" packages/auth/test apps/app/test 2>/dev/null | head

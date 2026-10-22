@@ -1,0 +1,5 @@
+1:		summary: "Rejoindre, créer, renommer et archiver des canaux, et y inviter des personnes.",
+49:				grant: `Une autorisation non documentée nommée ${scope}`,
+apps/api/test/deal-contacts.spec.ts:57:		data: { name: `People Co ${suffix}`, domain },
+apps/api/test/deal-contacts.spec.ts:137:		).rejects.toThrow(`That contact does not work at People Co ${suffix}.`);
+Shell cwd was reset to /home/user/ai_engineering

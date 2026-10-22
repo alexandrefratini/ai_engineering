@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/packages/auth && grep -n "\"test" package.json; ls test; timeout 200 bun test test/slack-connect.integration.spec.ts 2>&1 | tail -5

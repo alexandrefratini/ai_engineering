@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -n "googleRefreshResponse\|workingHours = " -A8 packages/validation/src/real-estate.ts | head -30; cat apps/api/src/real-estate/real-estate.module.ts; grep -n "connectionsStatus\|configureCalendar" -B2 -A12 apps/api/src/real-estate/real-estate.router.ts | head -50; cat apps/api/src/real-estate/real-estate-config.ts

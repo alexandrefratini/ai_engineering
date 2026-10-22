@@ -1,0 +1,10 @@
+api 200 app 200
+    2) <input name="lastName" data-slot="input" autocomplete="off" id="lead-last-name" class="h-8 w-full min-w-0 rounded-md border border-input bg-background px-2.5 py-1 text-xs transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground placeholder:text-muted-foreground hover:border-ring/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-not-allowed disabl…/> aka getByRole('textbox', { name: 'Nom (facultatif)' })
+
+Call log:
+[2m  - waiting for getByLabel('Nom')[22m
+
+    at /tmp/claude-0/-home-user-ai-engineering/c993277d-f1c4-5244-883e-a4d59bd72f58/scratchpad/tools-flow.cjs:16:29
+
+Node.js v22.22.0
+Shell cwd was reset to /home/user/ai_engineering

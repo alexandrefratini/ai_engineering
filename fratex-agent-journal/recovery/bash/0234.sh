@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && grep -nE "\"[A-Z][a-z]+( [a-z']+)+[^\"]*\"|\`[A-Z][a-z]+ [^\`]*\`" apps/app/lib/agent-transcript.ts | grep -v "^\(6[0-9]\|[7-9][0-9]\|10[0-7]\):" | head -60

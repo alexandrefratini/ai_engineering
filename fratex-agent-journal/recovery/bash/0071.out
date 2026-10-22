@@ -1,0 +1,79 @@
+		});
+		try {
+			new Intl.DateTimeFormat("fr-CA", { timeZone: hours.timezone });
+		} catch {
+			throw new BadRequestException("Invalid timezone.");
+		}
+		const data = {
+			agencyId: scope.agencyId,
+			clientId: input.clientId,
+			provider: "google",
+			calendarId: input.calendarId,
+			accessToken: input.accessToken,
+			refreshToken: input.refreshToken,
+			tokenExpiry: new Date(input.tokenExpiry),
+			workingHours: hours,
+			slotDuration: input.slotDuration,
+		};
+		await this.db.realtorCalendar.upsert({
+			where: { clientId: input.clientId },
+			create: data,
+			update: data,
+		});
+		return { configured: true };
+	}
+	async getConnectionsStatus(userId: string, requestedAgencyId?: string) {
+		const scope = await this.access(userId, requestedAgencyId);
+		const [accounts, formCount, sms, receipt, model, calendar] =
+			await Promise.all([
+				this.db.metaAdAccount.findMany({
+					where: { agencyId: scope.agencyId },
+					select: { accessToken: true, pixelId: true },
+				}),
+				this.db.metaLeadForm.count({ where: { agencyId: scope.agencyId } }),
+				this.db.smsConnection.findFirst({
+					where: { agencyId: scope.agencyId },
+					select: { phoneNumber: true },
+				}),
+				this.db.metaWebhookEvent.findFirst({
+					where: { agencyId: scope.agencyId },
+					select: { id: true },
+				}),
+				readAgentModel(this.db),
+				this.db.realtorCalendar.count({
+1897:model RealtorCalendar {
+1898-  agencyId     String
+1899-  id           String   @id @default(cuid())
+1900-  clientId     String   @unique
+1901-  provider     String   @default("google")
+1902-  calendarId   String
+1903-  accessToken  String
+1904-  refreshToken String
+1905-  tokenExpiry  DateTime
+1906-  workingHours Json
+1907-  slotDuration Int      @default(30)
+1908-  client       Client   @relation(fields: [clientId, agencyId], references: [id, agencyId], onDelete: Cascade)
+1909-
+1910-  @@unique([clientId, agencyId])
+1911-  @@map("realtorCalendar")
+1912-}
+1913-
+1914-enum AppointmentStatus {
+1915-  SCHEDULED
+1916-  CONFIRMED
+1917-  COMPLETED
+1918-  NO_SHOW
+1919-  CANCELLED
+1920-  RESCHEDULED
+1921-}
+1922-
+export {
+	CALENDAR_SCOPE,
+	GMAIL_SCOPE,
+	GOOGLE_PROVIDER_ID,
+	GOOGLE_SYNC_SOURCES,
+	type GoogleSyncSource,
+	SCOPE_FOR_SOURCE,
+	SYNC_SCOPES,
+} from "../mailbox/mailbox.constants";
+Shell cwd was reset to /home/user/ai_engineering

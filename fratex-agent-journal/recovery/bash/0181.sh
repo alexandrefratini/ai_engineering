@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 30,80p apps/api/src/meta/meta.service.ts; grep -rn "kind === \"\|case \"" apps/agent/agent/lib/sdr*.ts apps/agent/agent/*.ts 2>/dev/null | grep -i "meta\|lead\|first" | head

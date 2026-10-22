@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent/apps/api && CRM_TELEMETRY_DISABLED=1 bun test --preload ./test/setup.ts test/real-estate-tools.integration.spec.ts test/real-estate-calendar.integration.spec.ts test/real-estate-e2e.integration.spec.ts test/real-estate-inbox.integration.spec.ts test/presence.integration.spec.ts 2>&1 | tail -5

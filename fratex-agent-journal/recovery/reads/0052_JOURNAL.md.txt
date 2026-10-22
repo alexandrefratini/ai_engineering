@@ -1,0 +1,55 @@
+/home/user/ai_engineering/fratex-agent-journal/JOURNAL.md
+600	
+601	| Phase | Ajouts |
+602	|-------|--------|
+603	| 4 Estimateur | Calculs réels du Québec (mise de fonds minimale, prime SCHL + taxe de 9 % sur la prime, mensualité à capitalisation semestrielle, taxe de bienvenue provinciale ou Montréal, fonds à la signature, commission + TPS/TVQ), 3 offres comparées, résumé à copier, lien avec un prospect (propriété suggérée). |
+604	| 5 Onboarding | Colonne réparée, champs réellement enregistrés, **liste des courtiers**. |
+605	| 6 Connexions | Vrais logos, français, état réel par agence, **liste de contrôle de configuration**. |
+606	| 7 Identité | Navigation courtier, français complet, moins de pilules, moins d'espace blanc, infobulles. |
+607	| **7b Outils du courtier** | **Nouveau prospect**, **notes** sur la fiche, **rendez-vous manuels** et issue du rendez-vous, **réassignation** du courtier. |
+608	| 8 Vérification | Tout, de bout en bout, avec captures. |
+609	
+610	## B.8 Phase 4 — Estimateur et multi-offres refait
+611	
+612	**Quoi.** Avant : « Estimateur & Multi-Offres Centris ». Un formulaire de 4 champs, un bouton « Calculer », et trois prix (prix moins 9 %, 2 % ou 4 %). Rien ne lisait Centris, malgré le nom. Après : un **outil de préparation d'offres** qui répond aux questions réelles d'un acheteur québécois, en temps réel, et qui se relie à la fiche du prospect.
+613	
+614	**La question du courtier, et la réponse de l'outil.**
+615	
+616	| Question de l'acheteur | Ligne du tableau | Règle appliquée |
+617	|------------------------|------------------|-----------------|
+618	| « Combien dois-je mettre de côté au minimum ? » | Mise de fonds + alerte rouge | 5 % des premiers 500 000 $, 10 % au-delà ; 20 % à partir de 1,5 M$ |
+619	| « Vais-je payer l'assurance SCHL ? » | Prime SCHL | Sous 20 % : 4,00 % (5–9,99 %), 3,10 % (10–14,99 %), 2,80 % (15–19,99 %) du prêt, +0,20 % sur 30 ans. Ajoutée au prêt. Impossible à 1,5 M$ et plus. |
+620	| « Combien par mois ? » | Mensualité | Prêt canadien à taux fixe : intérêts composés **deux fois par an**, paiements mensuels |
+621	| « Et la taxe de bienvenue ? » | Taxe de bienvenue | Barème 2026 : provincial (0,5 % / 1 % / 1,5 %, seuils 62 900 $ et 315 000 $) ou Montréal (tranches jusqu'à 4 % au-delà de 3 113 000 $) |
+622	| « Qu'est-ce que je paie comptant chez le notaire ? » | Taxe sur la prime + Fonds requis à la signature | Au Québec, la taxe de 9 % sur la prime SCHL se paie comptant. Fonds = mise de fonds + taxe de bienvenue + taxe sur la prime. |
+623	| (le courtier) « Combien je touche ? » | Commission (taxes incluses) | Commission × prix offert, plus TPS 5 % et TVQ 9,975 % |
+624	
+625	**Où.**
+626	
+627	| Fichier | Rôle |
+628	|---------|------|
+629	| `packages/ui/src/lib/real-estate-finance-config.ts` | **Toutes les règles** (taux, seuils, barèmes, valeurs par défaut) et la date de vérification. Une indexation annuelle = un seul fichier à modifier. |
+630	| `packages/ui/src/lib/real-estate-finance.ts` | Fonctions **pures** (sans interface) : `minimumDownPayment`, `insurancePremiumPct`, `monthlyPayment`, `welcomeTax`, `commissionWithTaxes`, `analyzeOffer`. |
+631	| `packages/ui/src/components/property-valuation-calculator.tsx` | Interface : Propriété · Financement · Comparer les offres (tableau aligné, rabais modifiables, « ? » par ligne, « Copier le résumé ») · Lier à un prospect. |
+632	| `apps/api/src/real-estate/*` | Nouvelle mutation `realEstate.suggestListing` : ajoute la propriété aux suggestions **non confirmées** du prospect, une seule fois par lien, sans toucher son budget confirmé. |
+633	| `apps/app/app/(app)/[slug]/real-estate/valuation/*` | Vue et page (« Estimateur et offres »). |
+634	
+635	**Pourquoi calculer dans le navigateur ?** Ce sont des formules arithmétiques publiques, pas de l'« intelligence ». Les calculer côté client donne un résultat **à chaque frappe**, sans bouton ni attente. Elles vivent dans un module pur, testé séparément. L'ancienne route API `analyzeListing` est conservée pour les intégrations existantes.
+636	
+637	**Honnêteté des chiffres.**
+638	- Les règles SCHL viennent de sources concordantes (voir ci-dessous). Les seuils 2026 de la taxe de bienvenue sont le **barème le plus cohérent** entre les sources consultées : le site officiel n'était pas joignable depuis le conteneur. L'écran l'indique et demande de confirmer avec la municipalité.
+639	- Aucune « valeur marchande » n'est estimée.
+640	
+641	**Sources consultées (22 oct. 2026).**
+642	- Primes SCHL et plafond de 1,5 M$ : [bestrates.ca](https://bestrates.ca/blog/cmhc-insurance-premiums-2026-complete-guide), [pegasuslending.com](https://pegasuslending.com/blog/cmhc-mortgage-rules-2026-canada/), [hellosafe.ca](https://hellosafe.ca/en/mortgage-life/cmhc).
+643	- Taxe de bienvenue 2026 : [enduranceimmobilier.com](https://enduranceimmobilier.com/calculateur-de-taxe-de-bienvenue/), [courticonnect.ca (Montréal)](https://courticonnect.ca/fr/blog/taxe-bienvenue-montreal-2026), [courticonnect.ca (Québec)](https://courticonnect.ca/fr/blog/taxe-de-bienvenue-quebec-2026), [fraisdecloture.com](https://fraisdecloture.com/taxe-de-bienvenue/montreal).
+644	
+645	**Vérification.**
+646	- `apps/app/test/real-estate-finance.spec.ts` : **11 tests** à valeurs calculées à la main. Exemples : 400 000 $ à 5 % sur 25 ans ≈ 2 326 $/mois ; taxe de bienvenue de 800 000 $ à Montréal = 11 349 $ ; commission de 4 % sur 500 000 $ = 22 995 $ taxes incluses.
+647	- Test d'intégration `suggestListing` (une seule suggestion par lien, budget confirmé intact).
+648	- Parcours navigateur (`scripts/valuation-flow.cjs`), annonce réaliste à 649 000 $ (Montréal, 10 %, 4,79 %). Chaque ligne a été recalculée à la main : mise de fonds 64 900 $, prime 18 107 $, mensualité 3 431 $, taxe de bienvenue 8 329 $, taxe sur la prime 1 630 $, fonds requis 74 859 $. Résumé copié correct. Propriété liée à Karim, visible sur sa fiche. Mobile vérifié : alerte « Sous le minimum » à 5 % de mise de fonds.
+649	
+650	**Captures.** `screenshots/apres/p4-estimateur-vide.png`, `p4-estimateur-offres.png`, `p4-estimateur-lie.png`, `p4-estimateur-mobile.png`, `p4-fiche-karim-suggestion.png`.
+651	
+652	![Estimateur](screenshots/apres/p4-estimateur-lie.png)
+653	

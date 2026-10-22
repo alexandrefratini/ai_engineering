@@ -1,0 +1,5 @@
+Exit code 7
+root       262  0.0  0.2 748356 43028 ?        Sl   08:52   0:00 node /home/user/endsi3g/fratex-agent/node_modules/.bin/turbo run dev --filter=app --filter=api
+root       273  0.0  0.5 1113628 90788 ?       Sl   08:52   0:00 /home/user/endsi3g/fratex-agent/node_modules/.bun/@turbo+linux-64@2.10.8/node_modules/@turbo/linux-64/bin/turbo run dev --filter=app --filter=api
+root       477 98.9  0.0 283396 12664 ?        Rl   08:52  14:36 /home/user/endsi3g/fratex-agent/node_modules/.bun/nestjs-trpc@2.13.0+7013f21c29e1b37c/node_modules/nestjs-trpc/native/x86_64-unknown-linux-gnu/nestjs-trpc watch -e src/app.module.ts -r **/*.router.ts -o src/generated
+app 000

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 80,150p apps/agent/agent/lib/sdr-jobs.ts

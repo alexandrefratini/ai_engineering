@@ -1,0 +1,65 @@
+"use client";
+
+import {
+	type BreadcrumbCrumb,
+	BreadcrumbTrail,
+} from "@crm/ui/components/breadcrumb";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { HIDDEN_SEGMENTS, SEGMENT_LABELS } from "@/lib/navigation";
+import { useTRPC } from "@/lib/trpc/client";
+import { useWorkspaceUrl } from "@/lib/use-workspace-url";
+
+export function AppBreadcrumb({ rootLabel }: { rootLabel: string }) {
+	const trpc = useTRPC();
+	const href = useWorkspaceUrl();
+	const pathname = usePathname();
+	const search = useSearchParams();
+	const segments = pathname.split("/").filter(Boolean).slice(1);
+	const leadIndex = segments.indexOf("leads");
+	const leadId =
+		leadIndex >= 0 && segments[leadIndex + 1] ? segments[leadIndex + 1] : null;
+	const lead = useQuery(
+		trpc.realEstate.byId.queryOptions(
+			{ agencyId: search.get("agencyId") || undefined, id: leadId ?? "" },
+			{ enabled: Boolean(leadId) },
+		),
+	);
+	const crumbs: BreadcrumbCrumb[] = [];
+	segments.forEach((segment, index) => {
+		if (HIDDEN_SEGMENTS.has(segment)) return;
+		const path = `/${segments.slice(0, index + 1).join("/")}`;
+		const known = SEGMENT_LABELS[segment];
+		const label =
+			known ??
+			(segment === leadId
+				? lead.data
+					? `${lead.data.lead.firstName} ${lead.data.lead.lastName ?? ""}`.trim()
+					: "Fiche prospect"
+				: "Détail");
+		crumbs.push({ label, href: href(path) });
+	});
+
+	return (
+		<BreadcrumbTrail
+			root={{ label: rootLabel, href: href() }}
+			crumbs={crumbs}
+			renderLink={(crumb) => <Link href={crumb.href}>{crumb.label}</Link>}
+		/>
+	);
+}
+1516:model Member {
+1517-  id             String       @id
+1518-  organizationId String
+1519-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+1520-  userId         String
+1521-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+1522-  role           String       @default("member")
+1523-  createdAt      DateTime
+1524-
+1525-  @@unique([organizationId, userId])
+1526-  @@index([organizationId])
+1527-  @@index([userId])
+1528-  @@map("member")
+Shell cwd was reset to /home/user/ai_engineering

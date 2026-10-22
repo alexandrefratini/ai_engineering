@@ -1,0 +1,5 @@
+ 29 pass
+ 0 fail
+ 120 expect() calls
+Ran 29 tests across 5 files. [2.40s]
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && sed -n 110,135p apps/api/src/real-estate/real-estate.service.ts; sed -n 1062,1064p apps/api/src/real-estate/real-estate.service.ts; grep -n "this.db.lead.findMany({" -A8 apps/api/src/real-estate/real-estate.service.ts | sed -n 1,60p | grep -n "include: { client\|select" | head

@@ -1,0 +1,1 @@
+cd "/home/user/endsi3g/fratex-agent/apps/app/app/(app)/[slug]/settings/connections" && wc -l *.tsx */*.tsx && cat page.tsx

@@ -1,0 +1,31 @@
+152:	async getLead(userId: string, input: GetLeadInput) {
+226-				lead.suggestions === null
+227-					? []
+228-					: listingSuggestions.parse(lead.suggestions).listings,
+229:			events: lead.attributions,
+230-			emails,
+231-			channels,
+232-			messages,
+233-			deliveries,
+234-			canWrite: canWriteAgency(scope.role),
+235-			appointments: lead.appointments.map((item) => ({
+236-				...item,
+237-				clientName: item.client.name,
+238-			})),
+239-		};
+240-	}
+241-	private async leadEmails(agencyId: string, email: string | null) {
+242-		if (!email) return [];
+243-		const address = email.trim().toLowerCase();
+244-		const members = await this.db.agencyUser.findMany({
+245-			where: { agencyId },
+246-			select: { userId: true },
+247-		});
+248-		const rows = await this.db.emailMessage.findMany({
+249-			where: {
+250-				syncedByUserId: { in: members.map((member) => member.userId) },
+251-				OR: [
+252-					{ fromEmail: { equals: address, mode: "insensitive" } },
+253-					{ recipients: { array_contains: [{ email: address }] } },
+254-				],
+Shell cwd was reset to /home/user/ai_engineering

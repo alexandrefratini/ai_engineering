@@ -1,0 +1,9 @@
+import {
+	listingSuggestions,
+	storedQualificationEvidence,
+} from "@crm/validation/real-estate";
+import { z } from "zod";
+
+export const leadStatusEnum = z.enum([
+	"NEW",
+Shell cwd was reset to /home/user/ai_engineering

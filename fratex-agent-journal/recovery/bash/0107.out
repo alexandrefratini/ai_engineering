@@ -1,0 +1,9 @@
+18:	{ title: "Général", href: ROOT },
+19:	{ title: "Suivi et analyses", href: `${ROOT}/tracking` },
+20:	{ title: "Connexions", href: `${ROOT}/connections` },
+21:	{ title: "Devises", href: `${ROOT}/currencies` },
+22:	{ title: "Membres", href: `${ROOT}/members` },
+23:	{ title: "Clés API", href: `${ROOT}/api-keys` },
+24:	{ title: "SSO", href: `${ROOT}/sso` },
+63:										? "Variable AI_GATEWAY_API_KEY du serveur, et modèle dans Paramètres → Général."
+Shell cwd was reset to /home/user/ai_engineering

@@ -1,0 +1,70 @@
+export function LeadFollowUp({ lead, index }: { lead: LeadProfileLead; index?: number }) {
+	return (
+		<LeadPanel index={index} title="Suivi et consentement">
+			<div className="grid gap-x-8 gap-y-2 lg:grid-cols-2">
+				<Facts
+					items={[
+						{ label: "Reçu le", value: formatDateTime(lead.createdAt) },
+						{
+							label: "Premier contact",
+							value: lead.firstContactedAt ? (
+								`${formatDateTime(lead.firstContactedAt)} · après ${formatDuration(minutesBetween(lead.createdAt, lead.firstContactedAt))}`
+							) : (
+								<Muted>Pas encore contacté</Muted>
+							),
+						},
+						{
+							label: "Dernière activité",
+							value: lead.lastInteractedAt ? formatDateTime(lead.lastInteractedAt) : <Muted>Aucune</Muted>,
+						},
+						{
+							label: "Source",
+							value: [lead.campaignName, lead.formName].filter(Boolean).join(" · ") || (
+								<Muted>Non renseignée</Muted>
+							),
+						},
+					]}
+				/>
+				<Facts
+					items={[
+						{
+							label: "SMS",
+							value: lead.unsubscribedAt ? (
+								`Retrait reçu le ${formatDateTime(lead.unsubscribedAt)}`
+							) : lead.consentedAt ? (
+								`Consentement du ${formatDateTime(lead.consentedAt)}${lead.consentSource ? ` · ${lead.consentSource}` : ""}`
+							) : (
+								<Muted>Consentement absent. Envoi bloqué.</Muted>
+							),
+						},
+						{
+							label: "Assistant IA",
+							value: lead.automationPausedAt
+								? `En pause depuis le ${formatDateTime(lead.automationPausedAt)}`
+								: "Actif",
+						},
+						{ label: "Langue", value: labelOf(LANGUAGE_LABELS, lead.language) },
+						...(lead.escalationReason
+							? [{ label: "Escalade", value: labelOf(ESCALATION_LABELS, lead.escalationReason) }]
+							: []),
+					]}
+				/>
+			</div>
+		</LeadPanel>
+	);
+}
+
+export function LeadHistory({ events, index }: { events: LeadProfileEvent[]; index?: number }) {
+	const ordered = [...events].sort(
+147:export const APPOINTMENT_STATUS_LABELS: Record<string, string> = {
+148-	SCHEDULED: "Planifié",
+149-	CONFIRMED: "Confirmé",
+150-	COMPLETED: "Réalisé",
+151-	NO_SHOW: "Absent",
+152-	CANCELLED: "Annulé",
+153-	RESCHEDULED: "Reporté",
+154-};
+155-
+156-export const MESSAGE_STATUS_LABELS: Record<string, string> = {
+157-	RECEIVED: "Reçu",
+Shell cwd was reset to /home/user/ai_engineering

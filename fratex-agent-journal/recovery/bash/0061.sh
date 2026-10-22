@@ -1,0 +1,1 @@
+ls /tmp/pgdata >/dev/null 2>&1 && echo "data ok"; rm -f /tmp/pgdata/postmaster.pid; su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pgdata -l /tmp/pg.log -o '-p 5432' start" 2>&1 | tail -2; sleep 3; pg_isready -h localhost

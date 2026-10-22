@@ -1,0 +1,1 @@
+cd /home/user/endsi3g/fratex-agent && ls apps/api/src/google && grep -rn "GOOGLE_CLIENT\|googleClientId\|GOOGLE_" apps/api/src packages/auth/src --include=*.ts | grep -v spec | head -20; grep -n "configureCalendar" -A40 apps/api/src/real-estate/real-estate.service.ts | head -60

@@ -1,0 +1,1 @@
+sed -n 1,40p /home/user/ai_engineering/fratex-agent-journal/scripts/demo-seed.ts; grep -n "COOKIE" -B4 /home/user/ai_engineering/fratex-agent-journal/scripts/demo-seed.ts | head
