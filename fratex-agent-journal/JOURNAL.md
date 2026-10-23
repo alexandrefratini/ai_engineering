@@ -7,7 +7,7 @@
 
 - Partie 0 — Incident du 22 octobre et méthode de reconstruction
 - Partie A — Compréhension du produit, règles, décisions
-- Partie B — Phases (B.1 à B.21)
+- Partie B — Phases (B.1 à B.22)
 - Partie C — Comment tout refaire depuis zéro
 - Partie D — Problèmes restants
 - Partie E — À faire plus tard (réseaux sociaux)
@@ -162,7 +162,7 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Limite** : un faux modèle valide la tuyauterie, pas le jugement.
 
 ### B.14 — Guide navigable
-- **Quoi** : `guide/index.html` (menu latéral, filtre, 44 pages décrites, 70 captures, agrandissement au clic, mode sombre et mobile), sections : démarrer, immobilier, assistant IA, CRM général, paramètres, compte et aide, partout dans l'application, annexes.
+- **Quoi** : `guide/index.html` (menu latéral, filtre, 45 pages décrites, 74 captures, agrandissement au clic, mode sombre et mobile), sections : démarrer, immobilier, assistant IA, CRM général, paramètres, compte et aide, partout dans l'application, annexes.
 - **Comment refaire** : voir la partie C, étape 9.
 
 ### B.15 — Mêmes tailles et mêmes espacements partout, Mon compte en une colonne
@@ -217,11 +217,28 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Vérifié sur la version de production** : enregistrement du service worker (portée `/`), manifeste lu par le navigateur, puis arrêt réel du serveur : la page « Vous êtes hors ligne » s'affiche (`scripts/pwa-register.cjs`, `scripts/pwa-offline.cjs`). Le simulateur « hors ligne » de Playwright n'affecte pas les requêtes du service worker : il faut vraiment arrêter le serveur.
 - **Non fait** : Capacitor, Expo, boutiques d'applications, notifications natives. Ces outils ne sont pas disponibles dans cet environnement.
 
+### B.22 — Application mobile (Android et iOS) et mise en conformité du lint
+- **Quoi** : `apps/mobile`, une enveloppe [Capacitor](https://capacitorjs.com) 8.5.3 qui ouvre l'application web déployée dans une vue native. Identifiant `ca.fratex.agent`. Projets natifs générés **et commités** (`android/`, `ios/`), icônes et écrans de démarrage (clair et sombre) produits à partir du glyphe de la marque (`apps/mobile/assets`, `scripts/make-mobile-assets.cjs`), page « Impossible de joindre Fratex » (`offline.template.html`), schéma d'URL `ca.fratex.agent` dans `AndroidManifest.xml` et `Info.plist`, sauvegarde Android désactivée (les cookies de session ne sont pas sauvegardés), agent utilisateur `FratexMobile/1.0` pour que le serveur reconnaisse l'application. Le projet iOS utilise Swift Package Manager (pas de CocoaPods). Guide d'emploi : `docs/mobile.md` dans le dépôt du produit.
+- **Choix et raison** : Capacitor et non Expo, parce que toutes les pages existent déjà et sont adaptées au mobile ; un portage natif ne se justifie que pour le hors ligne complet. L'application web est rendue côté serveur : elle ne peut pas être empaquetée en fichiers statiques, d'où l'ouverture de l'adresse du déploiement (variable `CAPACITOR_SERVER_URL` à fournir avant `bun run sync`).
+- **Le vrai problème : la connexion.** Google refuse la connexion OAuth dans une vue web intégrée (`disallowed_useragent`). Solution construite et testée : l'application génère un **vérificateur** secret (qui reste dans l'application) et en envoie l'**empreinte** au navigateur du téléphone ; après la connexion, le navigateur dépose un jeton à usage unique sous cette empreinte (`POST /api/native-auth/handoff`) puis rouvre l'application par `ca.fratex.agent://auth/done` **sans aucun secret dans l'adresse** ; l'application présente alors son vérificateur (`POST /api/native-auth/exchange`) et reçoit le cookie de session. Une autre application qui s'enregistrerait sur le même schéma d'URL ne reçoit rien d'utile. Le jeton expire en 2 minutes, ne sert qu'une fois, un mauvais vérificateur ne le consomme pas, et le plugin `one-time-token` est configuré **sans** accès pour les scripts de page.
+- **Où** : `packages/auth/src/native-constants.ts` et `native-session.ts`, `apps/api/src/native-auth`, `apps/app/lib/native-*.ts`, `apps/app/components/native-shell.tsx` (liens profonds, bouton retour d'Android, retour au premier plan), `apps/app/app/(landing)/sign-in/native-sign-in.tsx` et `native/handoff`, `proxy.ts` (`/native` exempté de la redirection vers l'espace de travail), workflow manuel `.github/workflows/mobile.yml`.
+- **Vérifié** : 8 tests d'intégration de l'échange (`apps/api/test/native-auth.e2e.spec.ts` : succès, usage unique, double demande, mauvais vérificateur sans consommation, expiration, session requise, entrées mal formées, jeton jamais remis à un script), 8 tests des utilitaires (`apps/app/test/native.spec.ts`), 7 tests de configuration (`apps/mobile/test`), et le parcours complet dans un vrai navigateur avec la vraie pile (`scripts/native-flow.cjs` : bouton « Continuer dans le navigateur » sans bouton Google dans l'application, page de retour, tentative d'ouverture de `ca.fratex.agent://auth/done`, échange, session ouverte). `cap sync` réussit avec une adresse `https://` (texte clair désactivé) et `cap doctor` donne « Android looking great ».
+- **Défaut trouvé par la compilation de production et corrigé** : la page `/native/handoff` lisait `searchParams` hors de `<Suspense>` (règle de Next 16). Le serveur de développement ne le signale pas ; seule la compilation de production l'a refusé.
+- **NON vérifié** : (1) **aucun projet natif n'a été compilé** : cet environnement n'a ni SDK Android (le site de téléchargement de Google est bloqué) ni Xcode. La première compilation se fait avec Android Studio, Xcode ou le workflow `Mobile`, qui n'a jamais tourné. (2) Les écouteurs de `NativeShell` (lien profond, retour d'Android) n'ont pas été exécutés dans une vraie vue native : seule la partie web du parcours est prouvée. (3) Aucune notification push, aucun hors ligne complet, pas de liens universels (le domaine de production n'est pas connu), pas de publication dans les boutiques.
+
+### B.23 — `lint:slop` : 69 erreurs de ma part, corrigées
+- **Découverte** : en préparant le mobile, `bun run lint:slop` (oxlint avec des règles « anti-slop » maison, exécuté par le CI et par le hook de pré-push) donnait **69 erreurs**. Le commit de base en avait **zéro**. Je ne l'avais jamais lancé depuis le début : mes « tout est vérifié » précédents étaient donc incomplets, et le CI aurait refusé la branche.
+- **Causes** : dictionnaires de libellés annotés `Record<string, string>` (36 : la règle veut `satisfies`), paramètres `unknown` (15), `typeof` (10), spreads conditionnels `...(x ? {…} : {})` (5), types de dictionnaire ouverts, une assertion chaînée.
+- **Correction** : `satisfies` et un petit utilitaire `lookup` (`packages/ui/src/lib/lookup.ts`) pour les lectures par clé quelconque ; erreurs typées structurellement (`CodedError`) ; lecture de `localStorage` analysée avec zod ; objets Prisma construits en deux temps ; charges utiles des messages entre agents typées par leurs schémas. `PageShellTitle` n'accepte plus que du texte comme enfant (l'étiquette de l'infobulle en dépend). Résultat : `lint:slop` à 0 erreur, types, Biome (0 erreur, 26 avertissements) et tous les tests inchangés ou meilleurs.
+- **À retenir** : la liste de vérification de la partie C contient maintenant `bun run lint:slop`.
+
 ### Défauts trouvés en vérifiant le travail, tous corrigés
 1. Le patch cumulatif omettait deux fichiers supprimés (voir la partie C, étape 8).
 2. La liste d'outils de la télémétrie ignorait cinq outils de l'assistant (`list_appointments`, `list_prospects_needing_attention`, `read_prospect`, `realtor_performance`, `search_prospects`) : un test échouait depuis la phase B.4 sans que je l'aie lancé. Les tests de `packages/telemetry` sont maintenant dans la liste de vérification.
 3. Le type de tâche `agent-message` manquait dans les phrases d'état de la file (erreur de type).
 4. Les mots de désabonnement avec ponctuation n'étaient pas reconnus (voir B.18).
+5. 69 erreurs de `lint:slop`, jamais lancé jusque-là (voir B.23).
+6. La page `/native/handoff` cassait la compilation de production (voir B.22).
 
 ---
 
@@ -255,17 +272,18 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
 6. **Vérifier**
    ```bash
    (cd apps/app && bunx tsc --noEmit && bun test)
-   (cd apps/api && bunx tsc --noEmit) && (cd apps/agent && bunx tsc --noEmit)
+   (cd apps/api && bunx tsc --noEmit) && (cd apps/agent && bunx tsc --noEmit) && (cd apps/mobile && bunx tsc --noEmit)
    (cd packages/ui && bunx tsc --noEmit)
    set -a && . ./.env && set +a
    (cd packages/db && bun run db:test)
    (cd apps/api && CRM_TELEMETRY_DISABLED=1 bun test --preload ./test/setup.ts)
    (cd apps/agent && CRM_TELEMETRY_DISABLED=1 bun test)
-   (cd packages/db && bun test) && (cd packages/auth && bun test) && (cd packages/validation && bun test) && (cd packages/telemetry && bun test) && (cd packages/env && bun test)
+   (cd packages/db && bun test) && (cd packages/auth && bun test) && (cd packages/validation && bun test) && (cd packages/telemetry && bun test) && (cd packages/env && bun test) && (cd apps/mobile && bun test)
    bunx biome check .
+   bun run lint:slop
    (cd apps/app && bunx next build)
    ```
-   Résultats du 23 octobre 2026 : app 238, api 473, agent 423, db 115, auth 43, validation 8, telemetry 61, env 17 tests réussis, aucune erreur de type, Biome sans erreur (26 avertissements), compilation de production réussie.
+   Résultats du 23 octobre 2026 : app 246, api 481, agent 423, mobile 7, db 115, auth 43, validation 8, telemetry 61, env 17 tests réussis, `lint:slop` à 0 erreur, aucune erreur de type, Biome sans erreur (26 avertissements), compilation de production réussie.
    Les variables d'environnement doivent être chargées (`set -a && . ./.env`) avant `db:test` et les tests d'intégration.
 7. **Essayer l'agent IA sans clé de modèle**
    ```bash
@@ -286,6 +304,15 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    ```
    `cookie.txt` et `cookie-marie.txt` contiennent les valeurs `COOKIE=` et `COOKIE_MARIE=` de l'étape 4. Les scripts de capture utilisent Playwright (Chromium préinstallé).
 
+10. **Application mobile**
+   ```bash
+   cd apps/mobile
+   CAPACITOR_SERVER_URL=https://<domaine-de-production> bun run sync
+   bun run open:android      # Android Studio
+   bun run open:ios          # Xcode, macOS seulement
+   ```
+   Voir `docs/mobile.md` dans le dépôt du produit (pont de connexion, liste de contrôle de publication). Le workflow GitHub « Mobile » compile un APK de débogage et une version simulateur iOS à la main.
+
 ---
 
 ## Partie D — Problèmes restants
@@ -299,7 +326,7 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 | P3 | La traduction Google fonctionne (essai réel, voir B.16), mais envoie le texte affiché, noms et messages de prospects compris, à Google. | Risque de conformité (loi 25) si ce n'est pas acceptable. | Décider si c'est acceptable. Sinon : retirer le bouton ou ne l'offrir qu'aux pages sans données de prospects. | Alexandre |
 | P4 | Une nouvelle demande de support n'avertit personne par courriel ni Slack (seule la pastille dans l'application existe, B.18). L'adresse `support@fratex.ca` est une hypothèse. | Une demande peut rester sans réponse si personne n'ouvre l'application. | Confirmer l'adresse (`NEXT_PUBLIC_SUPPORT_EMAIL`). Ajouter une alerte Slack ou courriel. | Alexandre, technique |
 | P5 | Les messages d'erreur de l'API sont en anglais. | Un courtier peut voir de l'anglais. | Traduire les exceptions des services anciens. | Technique |
-| P6 | L'application mobile native n'existe pas. | Seule la version web installable (PWA, B.21) existe. | Capacitor ensuite (M3 à M5, `ETUDE-AGENTS-IA.md`, partie 7), sur une machine avec Xcode et Android Studio. | Alexandre (décision), technique |
+| P6 | Les projets mobiles (Capacitor, B.22) existent mais n'ont jamais été compilés ni lancés sur un appareil. | On ne sait pas s'ils démarrent ; les écouteurs natifs (lien profond, retour Android) n'ont pas été exécutés. | Lancer le workflow `Mobile` ou ouvrir `apps/mobile` dans Android Studio et Xcode, essayer la connexion sur un appareil, puis TestFlight et test interne Google Play. | Alexandre (comptes et appareils), technique |
 | P7 | Les agents se parlent par messages durables (B.20), mais le seul destinataire est déterministe et aucun modèle ne peut envoyer de message. | Pas encore d'agent piloté par un modèle qui réagit à « prospect qualifié ». | Ajouter l'outil `handoff_to_agent` et un premier destinataire à modèle, avec les evals correspondantes. | Technique |
 | P8 | Le registre et la page existent (B.19), mais le lien contenu → prospect → rendez-vous (`trackingCode`) n'est pas câblé et seuls trois producteurs écrivent dans le registre. | On voit ce que l'assistant a produit, pas encore ce que cela a rapporté. | Générer le code de suivi dans les liens d'annonces et le relier aux nouveaux prospects. | Technique |
 | P9 | Un SMS à l'état « incertain » n'a pas d'écran de rapprochement. | Le courtier ne sait pas quoi faire. | Écran qui propose de vérifier chez Twilio puis de renvoyer ou de fermer. | Technique |
@@ -313,6 +340,8 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 | P17 | Historique des SMS d'une personne : les SMS envoyés à la main avant le 23 octobre n'ont pas d'auteur enregistré. | Ils n'apparaissent pas dans la fiche Équipe. | Aucune correction possible a posteriori. Les nouveaux SMS sont attribués. | — |
 | P18 | La fiche Équipe ne montre pas les tâches du CRM assignées à une autre personne que leur créateur. | « Tâches » = tâches créées par la personne. | Ajouter un champ « assignée à » sur les activités si l'équipe en a besoin. | Technique |
 | P19 | Le répartiteur de l'agent ne reprend pas tout de suite un message `agent-message` déjà « loué » par une ancienne version du code. | Après un déploiement, un message en vol peut attendre la fin de son bail (quelques minutes). | Rien à faire en production ; en local, redémarrer l'agent puis libérer le bail. | — |
+| P20 | Pas de notifications push dans l'application mobile. | Un courtier ne sait pas qu'un prospect a répondu tant qu'il n'ouvre pas l'application. | `@capacitor/push-notifications`, projet Firebase et certificat APNs, table des jetons d'appareil, envoi depuis l'API. Première fonction à ajouter. | Alexandre (comptes), technique |
+| P21 | L'application mobile utilise un schéma d'URL personnalisé, pas des liens universels. | Une autre application pourrait ouvrir le même schéma (sans pouvoir se connecter : voir B.22). Les liens du courriel n'ouvrent pas l'application. | Servir `apple-app-site-association` et `assetlinks.json` sur le domaine de production. | Technique |
 
 ---
 

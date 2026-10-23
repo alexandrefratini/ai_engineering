@@ -708,7 +708,7 @@ PAGES = [
         "route": "(navigateur du téléphone)",
         "who": "Tout le monde",
         "img": "pwa-hors-ligne.jpg",
-        "purpose": "Ajouter Fratex à l'écran d'accueil du téléphone. L'application s'ouvre en plein écran, avec l'icône et la couleur de la marque.",
+        "purpose": "Ajouter Fratex à l'écran d'accueil du téléphone sans passer par une boutique. L'application s'ouvre en plein écran, avec l'icône et la couleur de la marque.",
         "features": [
             "Manifeste complet (nom, icônes, couleur, raccourcis vers la boîte de réception et les prospects).",
             "Si la connexion est coupée, une page claire « Vous êtes hors ligne » avec un bouton Réessayer remplace l'erreur du navigateur.",
@@ -717,7 +717,32 @@ PAGES = [
             "Le service worker ne garde que la page hors ligne. Aucune page connectée ni donnée de prospect n'est mise en cache.",
             "Vérifié sur la version de production : enregistrement du service worker, puis arrêt réel du serveur et affichage de la page hors ligne.",
         ],
-        "notes": ["Ce n'est que la première étape du chemin mobile (PWA, puis Capacitor, puis Expo si le hors ligne l'exige). Aucune application native n'est publiée."],
+        "notes": ["La version installable (PWA) et l'application des boutiques (page suivante) partagent le même code web."],
+    },
+    {
+        "id": "mobile",
+        "group": "transversal",
+        "title": "Application mobile (Android et iOS)",
+        "route": "apps/mobile (projets Capacitor)",
+        "who": "Tout le monde",
+        "img": "mobile-connexion.jpg",
+        "extra": ["mobile-retour.jpg", "mobile-icone.jpg", "mobile-demarrage.jpg"],
+        "purpose": "Une application des boutiques (Google Play, App Store) qui ouvre l'application web dans une vue native, avec l'icône, l'écran de démarrage, le bouton retour d'Android et les liens profonds.",
+        "features": [
+            "Un seul code : les pages sont celles de l'application web. Les corrections arrivent sans republier l'application.",
+            "Connexion dans le navigateur du téléphone (Google refuse la connexion dans une vue intégrée), puis retour automatique dans l'application (première et deuxième captures).",
+            "Page « Impossible de joindre Fratex » avec un bouton Réessayer quand le téléphone est hors ligne.",
+            "Liens profonds : ca.fratex.agent://open?path=/crm/real-estate/inbox ouvre une page précise.",
+            "Les liens téléphone, SMS et courriel de la boîte de réception ouvrent les applications du téléphone.",
+        ],
+        "how": [
+            "Le navigateur et l'application s'échangent un vérificateur secret : seule l'application le connaît et aucun secret ne passe par une adresse. Le jeton à usage unique expire en 2 minutes (8 tests d'intégration et un essai dans un vrai navigateur).",
+            "Compilation : Android Studio (Android), Xcode (iOS) ou le workflow manuel « Mobile » du dépôt. L'adresse du déploiement se règle avec CAPACITOR_SERVER_URL. Voir docs/mobile.md.",
+        ],
+        "notes": [
+            "Les projets natifs n'ont pas été compilés dans l'environnement de création (ni SDK Android ni Xcode) : la première compilation reste à faire. La logique de connexion, elle, est testée de bout en bout côté web.",
+            "Pas encore : notifications push, hors ligne complet, liens universels (le domaine de production n'est pas connu).",
+        ],
     },
     {
         "id": "agenda-connecte",
@@ -774,7 +799,7 @@ ANNEXES = [
 <li>L'envoi réel de SMS (Twilio), l'arrivée de prospects Meta et la connexion de Google Agenda : aucun service externe n'est joignable dans cet environnement.</li>
 <li>Les règles du SDR dépendent du code (désabonnement, consentement, 160 caractères, prise en main humaine : testés). Le jugement d'un vrai modèle (transfert à un humain, extraction des critères) a une suite d'évaluations prête, jamais lancée avec un vrai modèle.</li>
 <li>L'adresse courriel du support et l'avertissement de l'équipe à chaque demande.</li>
-<li>L'application mobile native : seule la version web installable (PWA) existe.</li>
+<li>L'application mobile : les projets Android et iOS existent (Capacitor) mais n'ont jamais été compilés ni lancés sur un appareil. Les notifications push et le hors ligne complet ne sont pas faits.</li>
 </ul>""",
     },
 ]
