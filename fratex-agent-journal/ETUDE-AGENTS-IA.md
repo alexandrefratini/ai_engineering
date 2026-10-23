@@ -11,6 +11,22 @@ Tout ce qui est écrit ici vient du code de `apps/agent`, de la documentation d'
 
 ---
 
+## Mise à jour du 23 octobre 2026 : ce qui a été construit depuis
+
+| Lacune | État | Où | Limite |
+| --- | --- | --- | --- |
+| L2 — evals du SDR | **Construit, jamais lancé avec un vrai modèle** | `apps/agent/evals/sdr.eval.ts`, `sdr-scenarios.ts`, `sdr-graders.ts`, `test/sdr-graders.spec.ts` | Six scénarios (STOP, humain déjà là, sujet juridique, demande d'un humain, critères donnés, simple bonjour). Lancé contre le faux modèle, il réussit les trois scénarios qui dépendent du code et **échoue** aux trois qui demandent du jugement (transfert, extraction), ce qui prouve qu'il détecte l'absence de jugement. |
+| Règles du SDR | **Prouvées par des tests, indépendamment du modèle** | `apps/agent/test/sdr-rules.integration.spec.ts`, `apps/api/test/opt-out.spec.ts` | STOP, absence de consentement, prise en main humaine, absence de numéro SMS, 160 caractères (schéma de l'outil), échelon de relance maximal 5 : tous appliqués par le code. Un modèle ne peut donc pas les contourner. Ce qui reste au modèle : quand passer la main, quoi extraire, le ton. |
+| L3/L4 — événements du SDR | **Construits (deux types)** | `qualify_lead` émet `lead.qualified`, `book_appointment` émet `appointment.booked`, après la transaction, une seule fois par prospect ou rendez-vous | Les messages passent par la file `AgentTask` (type `agent-message`), pas par le catalogue d'événements du CRM général. |
+| L5 — protocole entre agents | **Tranche construite et testée** | `packages/validation/src/agent-message.ts`, `apps/agent/agent/lib/agent-messages.ts`, `agent-message-config.ts`, `agent-message-jobs.ts`, `visit-note.ts` ; champs `correlationId`, `parentTaskId`, `hop` sur `AgentTask` (migration `20261023150000`) | Enveloppe Zod, routes autorisées, 3 sauts maximum, refus de retour vers un agent déjà dans la chaîne, 4 messages par heure et par couple d'agents pour un prospect, idempotence, expiration à 24 h, relecture et revalidation par le destinataire. **Le seul destinataire est déterministe** (note de préparation écrite depuis les faits confirmés, sans modèle). L'outil `handoff_to_agent` et les destinataires pilotés par un modèle ne sont pas construits : le modèle ne peut pas encore envoyer de message à un autre agent. |
+| L6/L7 — registre et page | **Construits** | Table `GeneratedContent` (migration `20261023140000`), `packages/db/src/generated-content.ts`, module API `assistant-activity`, page `/real-estate/activity` | Deux producteurs : annonce suggérée (`analyze_property_listing`) et note de transfert (`escalate_to_human`), plus la note de préparation du destinataire ci-dessus. Les SMS ne sont pas copiés (la table `Message` les contient). `trackingCode` existe, le lien contenu → prospect → rendez-vous n'est pas câblé. |
+| Obstacle « Cannot find package » | **Corrigé dans le dépôt** | `apps/agent/package.json` déclare `@prisma/client`, `@prisma/adapter-pg`, `@vercel/blob`, `pg` ; `bun install` crée les liens | Node 24 était déjà exigé par le dépôt (`engines`, `.node-version`, `docs/setup.md`) : seul mon environnement avait Node 22. |
+| Mobile | **Première étape faite** | PWA installable avec page hors ligne (vérifiée sur la version de production) | Capacitor et Expo ne sont pas commencés. |
+
+**Correction d'une phrase de la première version de cette étude.** Elle disait qu'on ne savait pas si un vrai modèle respecterait STOP, la prise en main humaine et la limite de 160 caractères. C'était trop prudent : ces trois règles sont appliquées par le code (voir ci-dessus). Seul le **jugement** dépend du modèle.
+
+---
+
 ## 1. En bref
 
 | Question | Réponse courte |
@@ -81,7 +97,7 @@ Même chose pour « Comment se passe mon mois ? » (carte de performance) et « 
 | --- | --- | --- |
 | `eve requires Node.js >=24` | L'environnement avait Node 22 | Node 24 téléchargé dans `/tmp/node24` (somme de contrôle vérifiée). |
 | « Cannot compile agent compaction… does not have known AI Gateway context window metadata » | Au démarrage, eve cherche la taille de contexte du modèle par défaut dans le catalogue AI Gateway. Hors ligne ou sans clé, il ne la trouve pas. | **Correction dans le code** : `modelContextWindowTokens: DEFAULT_AGENT_MODEL.contextWindowTokens` dans `agent.ts` et dans les deux sous-agents. Même valeur que le défaut, donc sans effet en production. |
-| « Cannot find package '@prisma/adapter-pg' » | Les paquets déclarés « externes » dans `agent.ts` ne sont pas des dépendances directes de `apps/agent`. eve les cherche depuis un dossier temporaire. | Environnement seulement : liens dans `apps/agent/node_modules`. **Proposition** : les déclarer dans `apps/agent/package.json`. |
+| « Cannot find package '@prisma/adapter-pg' » | Les paquets déclarés « externes » dans `agent.ts` ne sont pas des dépendances directes de `apps/agent`. eve les cherche depuis un dossier temporaire. | Liens faits à la main pendant l'essai, puis **corrigé dans le dépôt** : les quatre paquets sont déclarés dans `apps/agent/package.json`. |
 
 ---
 
@@ -283,7 +299,7 @@ bash fratex-agent-journal/scripts/run-agent-local.sh
 Ce script :
 
 1. télécharge Node 24 (vérifier la somme de contrôle sur nodejs.org) ;
-2. crée les liens de paquets dans `apps/agent/node_modules` ;
+2. lance `bun install` (les paquets de l'agent sont déclarés dans `apps/agent/package.json`) ;
 3. ajoute à `.env` les variables `AGENT_URL`, `AGENT_BRIDGE_SECRET` (aléatoire) et `LLM_*` ;
 4. démarre le faux serveur sur le port 4010 ;
 5. démarre l'agent sur le port 2000.

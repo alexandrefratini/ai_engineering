@@ -14,14 +14,7 @@ if [ ! -x "$NODE_DIR/bin/node" ]; then
 fi
 
 cd "$REPO"
-mkdir -p apps/agent/node_modules/@prisma apps/agent/node_modules/@vercel
-for pkg in @prisma/client @prisma/adapter-pg pg @vercel/blob; do
-	target="$(readlink -f "packages/db/node_modules/$pkg" 2>/dev/null || true)"
-	if [ ! -d "$target" ]; then
-		target="$(ls -d node_modules/.bun/$(echo "$pkg" | sed 's#/#+#')@*/node_modules/$pkg | head -1 | xargs readlink -f)"
-	fi
-	ln -sfn "$target" "apps/agent/node_modules/$pkg"
-done
+bun install
 
 if ! grep -q '^AGENT_BRIDGE_SECRET=' .env; then
 	cat >> .env <<ENV

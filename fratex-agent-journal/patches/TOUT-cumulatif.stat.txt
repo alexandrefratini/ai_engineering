@@ -1,25 +1,51 @@
+ .env.example                                       |   3 +
  apps/agent/agent/agent.ts                          |   1 +
  apps/agent/agent/instructions/task.ts              |  10 +-
+ apps/agent/agent/lib/agent-message-config.ts       |  35 +
+ apps/agent/agent/lib/agent-message-jobs.ts         |  52 ++
+ apps/agent/agent/lib/agent-messages.ts             | 151 ++++
  apps/agent/agent/lib/assistant-config.ts           | 140 ++++
  apps/agent/agent/lib/assistant-instructions.ts     |   1 +
  apps/agent/agent/lib/assistant-prospects.ts        | 439 ++++++++++
  apps/agent/agent/lib/assistant-reports.ts          | 237 ++++++
  apps/agent/agent/lib/assistant-scope.ts            | 108 +++
  apps/agent/agent/lib/assistant-time.ts             |  99 +++
+ apps/agent/agent/lib/dispatch.ts                   |   6 +
  apps/agent/agent/lib/qualification.ts              |   2 +-
  apps/agent/agent/lib/sdr-tool-policy.ts            |   5 +
  apps/agent/agent/lib/session-purpose.ts            |   2 +-
+ apps/agent/agent/lib/visit-note.ts                 |  67 ++
  apps/agent/agent/skills/broker-assistant.md        |  51 ++
  apps/agent/agent/subagents/agent_builder/agent.ts  |   1 +
  apps/agent/agent/subagents/agent_runner/agent.ts   |   1 +
+ apps/agent/agent/tools/analyze_property_listing.ts |  12 +
+ apps/agent/agent/tools/book_appointment.ts         |   9 +
+ apps/agent/agent/tools/escalate_to_human.ts        |  13 +
  apps/agent/agent/tools/list_appointments.ts        |  35 +
  .../tools/list_prospects_needing_attention.ts      |  23 +
+ apps/agent/agent/tools/qualify_lead.ts             |  13 +-
  apps/agent/agent/tools/read_prospect.ts            |  24 +
  apps/agent/agent/tools/realtor_performance.ts      |  33 +
  apps/agent/agent/tools/search_prospects.ts         |  32 +
+ apps/agent/evals/sdr-graders.ts                    | 107 +++
+ apps/agent/evals/sdr-scenarios.ts                  |  84 ++
+ apps/agent/evals/sdr.eval.ts                       | 169 ++++
+ apps/agent/package.json                            |   4 +
+ apps/agent/test/agent-messages.integration.spec.ts | 326 ++++++++
  apps/agent/test/assistant.integration.spec.ts      | 767 +++++++++++++++++
- apps/api/src/app.module.ts                         |   6 +
- apps/api/src/generated/server.ts                   |  80 +-
+ apps/agent/test/sdr-graders.spec.ts                | 157 ++++
+ apps/agent/test/sdr-rules.integration.spec.ts      | 234 ++++++
+ apps/agent/test/sdr.integration.spec.ts            |  20 +
+ apps/api/src/app.module.ts                         |   8 +
+ .../assistant-activity-config.ts                   |  23 +
+ .../assistant-activity.contracts.ts                |  56 ++
+ .../assistant-activity.module.ts                   |  10 +
+ .../assistant-activity.router.ts                   |  44 +
+ .../assistant-activity.service.ts                  | 224 +++++
+ apps/api/src/enrichment/enrichment-copy.ts         |   1 +
+ apps/api/src/generated/server.ts                   |  94 ++-
+ apps/api/src/messaging/messaging.service.ts        |  15 +-
+ apps/api/src/messaging/opt-out.ts                  |  49 ++
  apps/api/src/presence/presence-config.ts           |   6 +
  apps/api/src/presence/presence.contracts.ts        |  28 +
  apps/api/src/presence/presence.module.ts           |  10 +
@@ -41,21 +67,23 @@
  apps/api/src/real-estate/real-estate.router.ts     | 117 +++
  apps/api/src/real-estate/real-estate.service.ts    | 268 ++++--
  apps/api/src/support/support-config.ts             |  18 +
- apps/api/src/support/support.contracts.ts          |  53 ++
+ apps/api/src/support/support.contracts.ts          |  58 ++
  apps/api/src/support/support.module.ts             |  10 +
- apps/api/src/support/support.router.ts             |  53 ++
- apps/api/src/support/support.service.ts            | 148 ++++
+ apps/api/src/support/support.router.ts             |  59 ++
+ apps/api/src/support/support.service.ts            | 160 ++++
  apps/api/src/team/team-config.ts                   |  15 +
  apps/api/src/team/team.contracts.ts                |  94 +++
  apps/api/src/team/team.module.ts                   |  10 +
  apps/api/src/team/team.router.ts                   |  34 +
  apps/api/src/team/team.service.ts                  | 501 +++++++++++
+ .../test/assistant-activity.integration.spec.ts    | 288 +++++++
+ apps/api/test/opt-out.spec.ts                      |  43 +
  apps/api/test/presence.integration.spec.ts         |  92 +++
  .../test/real-estate-calendar.integration.spec.ts  | 212 +++++
  apps/api/test/real-estate-e2e.integration.spec.ts  | 132 +++
  .../api/test/real-estate-inbox.integration.spec.ts | 911 +++++++++++++++++++++
  .../api/test/real-estate-tools.integration.spec.ts | 252 ++++++
- apps/api/test/support.integration.spec.ts          | 117 +++
+ apps/api/test/support.integration.spec.ts          | 137 ++++
  apps/api/test/team.integration.spec.ts             | 265 ++++++
  .../(agent-builder)/agents/[agentId]/page.tsx      |   2 +-
  .../(app)/[slug]/(agent-builder)/agents/page.tsx   |   8 +-
@@ -82,6 +110,8 @@
  .../app/app/(app)/[slug]/overview-search-params.ts |   6 +
  apps/app/app/(app)/[slug]/page.tsx                 |  13 +-
  .../app/app/(app)/[slug]/real-estate-home-view.tsx | 106 +++
+ .../[slug]/real-estate/activity/activity-view.tsx  | 210 +++++
+ .../app/(app)/[slug]/real-estate/activity/page.tsx |  48 ++
  .../app/(app)/[slug]/real-estate/agency-slot.tsx   |  15 +
  .../(app)/[slug]/real-estate/inbox/inbox-view.tsx  | 474 +++++++----
  .../app/(app)/[slug]/real-estate/inbox/page.tsx    |  34 +-
@@ -171,7 +201,7 @@
  apps/app/app/(landing)/sign-in/page.tsx            |  20 +-
  apps/app/app/(landing)/sign-in/social-sign-in.tsx  |   6 +-
  apps/app/app/(landing)/sign-in/sso-sign-in.tsx     |   6 +-
- apps/app/app/layout.tsx                            |   9 +-
+ apps/app/app/layout.tsx                            |  22 +-
  .../agent-builder/agent-builder-chat.tsx           | 241 +++---
  .../agent-builder/agent-builder-home.tsx           |  47 +-
  .../agent-builder/agent-builder-route-fallback.tsx |   4 +-
@@ -197,7 +227,7 @@
  .../components/agent-clarification-composer.tsx    |  16 +-
  apps/app/components/app-breadcrumb.tsx             |  68 ++
  apps/app/components/app-header.tsx                 |  96 ++-
- apps/app/components/app-icon-rail.tsx              | 262 ++++--
+ apps/app/components/app-icon-rail.tsx              | 324 ++++++--
  apps/app/components/auth-shell.tsx                 |  20 +-
  apps/app/components/crm/agent-conversations.tsx    |  12 +-
  apps/app/components/crm/agent-panel.tsx            |  18 +-
@@ -236,6 +266,7 @@
  apps/app/components/local-date-time.tsx            |  18 +-
  apps/app/components/page-shell.tsx                 |  34 +-
  apps/app/components/page-translation.tsx           | 128 +++
+ apps/app/components/pwa-register.tsx               |  16 +
  apps/app/components/slack/channel-picker.tsx       |  22 +-
  apps/app/components/team-presence-control.tsx      |  61 ++
  apps/app/lib/account-config.ts                     |  39 +
@@ -250,18 +281,20 @@
  apps/app/lib/agent-run-failure.ts                  |  31 +-
  apps/app/lib/agent-tool-display.ts                 |  33 +-
  apps/app/lib/agent-transcript.ts                   | 103 +--
+ apps/app/lib/assistant-activity-config.ts          |  75 ++
  apps/app/lib/deal-stage.ts                         |  14 +-
  apps/app/lib/enrichment-status.ts                  |  16 +-
- apps/app/lib/navigation.ts                         | 276 +++++++
+ apps/app/lib/navigation.ts                         | 292 +++++++
  apps/app/lib/onboarding.ts                         |  16 -
- apps/app/lib/page-help.ts                          |  45 +
+ apps/app/lib/page-help.ts                          |  47 ++
  apps/app/lib/page-translation.test.ts              |  41 +
  apps/app/lib/page-translation.ts                   |  32 +
  apps/app/lib/presence-config.ts                    |   6 +
+ apps/app/lib/pwa-config.ts                         |   5 +
  apps/app/lib/search-param-keys.ts                  |   1 +
  apps/app/lib/sign-out.ts                           |   2 +-
  apps/app/lib/social-links.ts                       |   4 +-
- apps/app/lib/support-config.ts                     |  33 +
+ apps/app/lib/support-config.ts                     |  41 +
  apps/app/lib/support-pages.ts                      |  31 +
  apps/app/lib/team-config.ts                        | 128 +++
  apps/app/lib/team-roles.ts                         |  17 +
@@ -270,12 +303,14 @@
  apps/app/lib/user-agent.test.ts                    |  21 +
  apps/app/lib/user-agent.ts                         |  23 +
  apps/app/lib/workspace-label.ts                    |   8 +-
- apps/app/proxy.ts                                  |  35 +-
+ apps/app/proxy.ts                                  |  37 +-
  apps/app/public/apple-touch-icon.png               | Bin 2445 -> 2330 bytes
  apps/app/public/favicon-96x96.png                  | Bin 1122 -> 1283 bytes
  apps/app/public/favicon.ico                        | Bin 15086 -> 5430 bytes
  apps/app/public/favicon.svg                        |   4 +-
- apps/app/public/site.webmanifest                   |   6 +-
+ apps/app/public/offline.html                       |  25 +
+ apps/app/public/site.webmanifest                   |  37 +-
+ apps/app/public/sw.js                              |  35 +
  apps/app/public/web-app-manifest-192x192.png       | Bin 2647 -> 2391 bytes
  apps/app/public/web-app-manifest-512x512.png       | Bin 10855 -> 7021 bytes
  apps/app/test/agent-builder.spec.ts                |  12 +
@@ -287,25 +322,33 @@
  apps/app/test/day.spec.ts                          |   2 +-
  apps/app/test/inbox-thread.spec.tsx                | 350 ++++++++
  apps/app/test/lead-conversation-thread.spec.tsx    |  22 -
- apps/app/test/navigation.spec.ts                   |  76 ++
+ apps/app/test/navigation.spec.ts                   |  86 ++
  apps/app/test/onboarding-gate.spec.ts              | 102 +--
  apps/app/test/real-estate-finance.spec.ts          | 108 +++
  apps/app/test/workspace-label.spec.ts              |  28 +-
+ bun.lock                                           |   4 +
  docs/design.md                                     |   6 +-
  packages/auth/src/slack-connect.ts                 |   6 +-
  packages/auth/src/slack-scopes.ts                  |  56 +-
  .../auth/test/slack-connect.integration.spec.ts    |  10 +-
+ packages/db/package.json                           |   1 +
  .../migration.sql                                  |   2 +
  .../migration.sql                                  |  23 +
  .../migration.sql                                  |   3 +
  .../migration.sql                                  |  30 +
  .../migration.sql                                  |   2 +
- packages/db/prisma/schema.prisma                   |  71 +-
+ .../migration.sql                                  |  51 ++
+ .../migration.sql                                  |   8 +
+ packages/db/prisma/schema.prisma                   | 122 ++-
+ packages/db/src/agent-tasks.ts                     |   3 +
  packages/db/src/currency.ts                        |  22 +-
  packages/db/src/fields-shape.ts                    |  16 +-
+ packages/db/src/generated-content-config.ts        |   1 +
+ packages/db/src/generated-content.ts               |  44 +
  packages/db/src/sdr-messages.ts                    |  43 +-
  packages/db/src/tracking.ts                        |   6 +-
  packages/db/test/currency.spec.ts                  |   2 +-
+ packages/telemetry/src/allowlist.ts                |   5 +
  packages/ui/src/components/account-panel.tsx       |  39 +
  .../ui/src/components/assistant-result-cards.tsx   | 487 +++++++++++
  packages/ui/src/components/async-action.tsx        |   4 +-
@@ -332,6 +375,7 @@
  packages/ui/src/components/dialog.tsx              |   4 +-
  packages/ui/src/components/dot-matrix.tsx          |   2 +-
  packages/ui/src/components/empty-state.tsx         |  42 +
+ .../ui/src/components/generated-content-list.tsx   | 119 +++
  packages/ui/src/components/inbox.tsx               | 783 ++++++++++++++++++
  .../ui/src/components/lead-conversation-thread.tsx | 182 ----
  packages/ui/src/components/lead-profile.tsx        | 803 ++++++++++++++++++
@@ -381,6 +425,8 @@
  packages/ui/src/lib/real-estate-finance.ts         | 176 ++++
  packages/ui/src/lib/real-estate.ts                 | 303 +++++++
  packages/ui/src/styles/globals.css                 |  56 +-
+ packages/validation/package.json                   |   1 +
+ packages/validation/src/agent-message.ts           |  39 +
  packages/validation/src/real-estate.ts             |  38 +
  packages/validation/test/phone.spec.ts             |  27 +
- 385 files changed, 24841 insertions(+), 3946 deletions(-)
+ 431 files changed, 27976 insertions(+), 3970 deletions(-)

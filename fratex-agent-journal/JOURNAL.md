@@ -7,7 +7,7 @@
 
 - Partie 0 — Incident du 22 octobre et méthode de reconstruction
 - Partie A — Compréhension du produit, règles, décisions
-- Partie B — Phases (B.1 à B.17)
+- Partie B — Phases (B.1 à B.21)
 - Partie C — Comment tout refaire depuis zéro
 - Partie D — Problèmes restants
 - Partie E — À faire plus tard (réseaux sociaux)
@@ -162,7 +162,7 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Limite** : un faux modèle valide la tuyauterie, pas le jugement.
 
 ### B.14 — Guide navigable
-- **Quoi** : `guide/index.html` (menu latéral, filtre, 40 pages décrites, 59 captures, agrandissement au clic, mode sombre et mobile), sections : démarrer, immobilier, assistant IA, CRM général, paramètres, compte et aide, partout dans l'application, annexes.
+- **Quoi** : `guide/index.html` (menu latéral, filtre, 44 pages décrites, 70 captures, agrandissement au clic, mode sombre et mobile), sections : démarrer, immobilier, assistant IA, CRM général, paramètres, compte et aide, partout dans l'application, annexes.
 - **Comment refaire** : voir la partie C, étape 9.
 
 ### B.15 — Mêmes tailles et mêmes espacements partout, Mon compte en une colonne
@@ -189,6 +189,39 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Où** : `apps/api/src/team/*` (configuration, contrats Zod, service, routeur, module) ; `packages/ui/src/components/team-roster.tsx` et `team-member-detail.tsx` ; `apps/app/app/(app)/[slug]/team/*` ; textes dans `apps/app/lib/team-config.ts`, rôles dans `team-roles.ts` ; le nom dans le tableau des membres (Paramètres) ouvre la fiche ; le fil d'Ariane affiche le nom de la personne.
 - **Vérifié** : 7 tests d'intégration (`apps/api/test/team.integration.spec.ts`), tests de navigation, captures bureau, mobile, mode sombre, courtière (pas d'entrée dans la barre, fiche d'un autre refusée). Données de démonstration : `scripts/demo-team.ts`. Captures : `scripts/team-shots.cjs`.
 - **Limites** : la fiche n'affiche pas de « changement de rôle » (il reste dans Paramètres, Membres). Un propriétaire de l'espace qui n'est membre d'aucune agence ne voit aucune note ni aucun SMS de prospect (cohérent avec le reste de l'application : l'accès aux prospects passe par l'agence).
+
+### B.18 — Les restes : alerte de support, règles et evals du SDR, dépendances de l'agent
+- **Alerte de support** : une pastille rouge avec le nombre de demandes ouvertes sur l'icône Support, visible seulement des propriétaires et administrateurs, mise à jour chaque minute (API `support.pending`, test d'intégration). **Personne n'est encore averti par courriel ni Slack** : seul l'affichage dans l'application existe. L'adresse affichée se règle par `NEXT_PUBLIC_SUPPORT_EMAIL` (défaut `support@fratex.ca`, **hypothèse à confirmer**).
+- **Désabonnement renforcé** : « Stop. », « STOP SVP », « Arrêtez de m'écrire », « ARRÊT » sont maintenant reconnus (`apps/api/src/messaging/opt-out.ts`, 29 cas testés, dont des phrases qui ne doivent **pas** désabonner comme « L'arrêt Berri est le plus proche »). Avant, seuls les mots exacts passaient.
+- **Les règles du SDR sont dans le code, pas dans le modèle** : STOP, consentement, prise en main humaine, numéro SMS absent, 160 caractères, échelon de relance 1 à 5. `apps/agent/test/sdr-rules.integration.spec.ts` le prouve sans modèle. **Correction** : le journal disait qu'on ne savait pas si un vrai modèle respecterait STOP et les 160 caractères. Il n'a pas le choix : le code refuse.
+- **Evals du jugement** : `apps/agent/evals/sdr.eval.ts` (six scénarios) avec des correcteurs testés. Lancé contre le faux modèle sur l'agent en marche : trois scénarios réussis (ceux qui dépendent du code), trois échecs attendus (transfert à un humain, extraction des critères) : l'eval détecte bien l'absence de jugement. Commande : `eve eval sdr --url http://127.0.0.1:2000` avec les variables du `.env`. **Jamais lancé avec un vrai modèle.**
+- **Dépendances de l'agent** : `@prisma/client`, `@prisma/adapter-pg`, `@vercel/blob` et `pg` déclarés dans `apps/agent/package.json` (verrou `bun.lock` : 4 lignes). Node 24 était déjà exigé par le dépôt ; seul mon environnement avait Node 22.
+
+### B.19 — Registre du contenu généré et page « Activité de l'assistant »
+- **Table** `GeneratedContent` (migration additive `20261023140000_add_generated_content`) : agence, courtier, prospect, genre (annonce suggérée, description, courriel, publication, note), état (à vérifier, approuvé, transmis, publié, écarté), agent, session, texte, faits d'entrée, clé d'idempotence, approbateur.
+- **Qui écrit dedans** : `analyze_property_listing` (annonce suggérée, à vérifier), `escalate_to_human` (note de transfert), et le destinataire du protocole (B.20, note de préparation). Les SMS ne sont pas copiés.
+- **API** : module `assistant-activity` (`summary`, `review`), portée par agence et par courtier, révision réservée aux rôles qui peuvent écrire. 7 tests d'intégration (comptes, période, isolation d'un courtier, approbation une seule fois).
+- **Page** `/real-estate/activity` : période 7, 30 ou 90 jours, huit indicateurs (SMS envoyés, réponses, qualifiés, transferts, à vérifier, envois incertains, envois échoués, tâches en retard), liste du contenu avec Approuver / Écarter.
+- **Limites** : « transferts à un humain » ne compte que depuis le 23 octobre ; `trackingCode` n'est pas câblé (contenu → prospect → rendez-vous reste à faire).
+
+### B.20 — Protocole entre agents (tranche minimale)
+- **Quoi** : enveloppe de message validée par Zod, file durable `AgentTask` de type `agent-message`, champs `correlationId`, `parentTaskId`, `hop` (migration additive `20261023150000_add_agent_message_fields`), routes autorisées (`agent-message-config.ts`), anti-boucle (3 sauts, refus d'un retour vers un agent déjà dans la chaîne, 4 messages par heure et par couple d'agents pour un prospect), idempotence, expiration à 24 h.
+- **Émetteurs** : `qualify_lead` (`lead.qualified`) et `book_appointment` (`appointment.booked`), après la transaction, une seule fois. Un échec d'émission ne fait jamais échouer la qualification.
+- **Destinataire** : `visit_prep`, **déterministe, sans modèle** : relit le prospect avec ses propres droits, revalide l'agence et le courtier, puis écrit une note de préparation (critères confirmés seulement, jamais les mots du prospect) dans le registre.
+- **Vérifié** : 10 tests (enveloppe, rejeu, expéditeur sans route, charge utile avec champ en trop, prospect d'une autre agence, boucle, trop de sauts, limite horaire, note unique, expiré, message cassé, prospect déplacé) et **en direct** : message mis en file, agent en marche, note écrite par la voie directe du répartiteur (« Note de préparation écrite. »).
+- **Défaut trouvé en direct et corrigé** : une fourchette de budget contradictoire (minimum plus grand que maximum) apparaissait dans la note ; elle est maintenant omise au lieu d'être devinée.
+- **Non construit** : l'outil `handoff_to_agent`, les destinataires pilotés par un modèle, les jetons de continuation `msg:`. Aucun modèle ne peut donc envoyer de message à un autre agent pour l'instant.
+
+### B.21 — Application installable (PWA) et page hors ligne
+- **Quoi** : manifeste complet (`id`, portée, langue, icônes `any` et `maskable`, raccourcis), couleur de thème claire et sombre, balises iOS, service worker qui ne garde **que** la page hors ligne (aucune page connectée n'est mise en cache), page `/offline.html` en français. Le service worker et la page hors ligne sont exclus du contrôle de connexion (`proxy.ts`).
+- **Vérifié sur la version de production** : enregistrement du service worker (portée `/`), manifeste lu par le navigateur, puis arrêt réel du serveur : la page « Vous êtes hors ligne » s'affiche (`scripts/pwa-register.cjs`, `scripts/pwa-offline.cjs`). Le simulateur « hors ligne » de Playwright n'affecte pas les requêtes du service worker : il faut vraiment arrêter le serveur.
+- **Non fait** : Capacitor, Expo, boutiques d'applications, notifications natives. Ces outils ne sont pas disponibles dans cet environnement.
+
+### Défauts trouvés en vérifiant le travail, tous corrigés
+1. Le patch cumulatif omettait deux fichiers supprimés (voir la partie C, étape 8).
+2. La liste d'outils de la télémétrie ignorait cinq outils de l'assistant (`list_appointments`, `list_prospects_needing_attention`, `read_prospect`, `realtor_performance`, `search_prospects`) : un test échouait depuis la phase B.4 sans que je l'aie lancé. Les tests de `packages/telemetry` sont maintenant dans la liste de vérification.
+3. Le type de tâche `agent-message` manquait dans les phrases d'état de la file (erreur de type).
+4. Les mots de désabonnement avec ponctuation n'étaient pas reconnus (voir B.18).
 
 ---
 
@@ -222,20 +255,23 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
 6. **Vérifier**
    ```bash
    (cd apps/app && bunx tsc --noEmit && bun test)
+   (cd apps/api && bunx tsc --noEmit) && (cd apps/agent && bunx tsc --noEmit)
    (cd packages/ui && bunx tsc --noEmit)
    set -a && . ./.env && set +a
+   (cd packages/db && bun run db:test)
    (cd apps/api && CRM_TELEMETRY_DISABLED=1 bun test --preload ./test/setup.ts)
    (cd apps/agent && CRM_TELEMETRY_DISABLED=1 bun test)
-   (cd packages/db && bun test) && (cd packages/auth && bun test) && (cd packages/validation && bun test)
+   (cd packages/db && bun test) && (cd packages/auth && bun test) && (cd packages/validation && bun test) && (cd packages/telemetry && bun test) && (cd packages/env && bun test)
+   bunx biome check .
    (cd apps/app && bunx next build)
    ```
-   Résultats du 22 octobre 2026 : app 236, api 429, agent 393, db 115, auth 43, validation 8 tests réussis, aucune erreur de type, Biome sans erreur (quelques avertissements), compilation de production réussie (49 pages).
+   Résultats du 23 octobre 2026 : app 238, api 473, agent 423, db 115, auth 43, validation 8, telemetry 61, env 17 tests réussis, aucune erreur de type, Biome sans erreur (26 avertissements), compilation de production réussie.
    Les variables d'environnement doivent être chargées (`set -a && . ./.env`) avant `db:test` et les tests d'intégration.
 7. **Essayer l'agent IA sans clé de modèle**
    ```bash
    bash ../ai_engineering/fratex-agent-journal/scripts/run-agent-local.sh
    ```
-   Puis redémarrer `app` et `api`. Voir `ETUDE-AGENTS-IA.md`, partie 6.
+   Puis redémarrer `app` et `api`. Voir `ETUDE-AGENTS-IA.md`, partie 6. Pour lancer les evals du SDR contre l'agent en marche : `(cd apps/agent && set -a && . ../../.env && set +a && bunx eve eval sdr --url http://127.0.0.1:2000)` (avec le faux modèle, trois scénarios échouent : c'est attendu).
 8. **Reprendre le travail**
    - Où se trouvent les choses : `docs/design.md` (design), `docs/agent.md` (agent), `AGENTS.md` (règles), `REBUILD-SPEC.md` (spécification).
    - Après chaque phase : mettre à jour ce journal, puis
@@ -258,24 +294,25 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 
 | # | Problème | Effet | Proposition | Responsable |
 |---|----------|-------|-------------|-------------|
-| P1 | Aucun vrai modèle de langage n'a été essayé. | On ne sait pas si l'assistant respecte STOP, le transfert à un humain et la règle de 160 caractères. | Brancher `AI_GATEWAY_API_KEY` ou un serveur compatible OpenAI. Écrire les evals du SDR (`ETUDE-AGENTS-IA.md`, partie 5.4). | Alexandre (clé), technique (evals) |
+| P1 | Aucun vrai modèle de langage n'a été essayé. | STOP, consentement, prise en main humaine et 160 caractères sont appliqués par le code (testés). On ne sait pas si un vrai modèle sait **quand** passer la main à un humain ni s'il extrait bien les critères. | Brancher `AI_GATEWAY_API_KEY` ou un serveur compatible OpenAI et lancer `eve eval sdr` (déjà écrit, B.18). | Alexandre (clé) |
 | P2 | Twilio, Meta, Google Agenda et l'envoi des conversions n'ont jamais été essayés en vrai. | Le SMS du faux essai reste à l'état « incertain ». | Créer les comptes de test et rejouer le parcours complet. | Alexandre |
 | P3 | La traduction Google fonctionne (essai réel, voir B.16), mais envoie le texte affiché, noms et messages de prospects compris, à Google. | Risque de conformité (loi 25) si ce n'est pas acceptable. | Décider si c'est acceptable. Sinon : retirer le bouton ou ne l'offrir qu'aux pages sans données de prospects. | Alexandre |
-| P4 | L'équipe n'est pas avertie d'une nouvelle demande de support. L'adresse `support@fratex.ca` est une hypothèse. | Une demande peut rester sans réponse. | Confirmer l'adresse. Ajouter une alerte Slack ou courriel. | Alexandre, technique |
+| P4 | Une nouvelle demande de support n'avertit personne par courriel ni Slack (seule la pastille dans l'application existe, B.18). L'adresse `support@fratex.ca` est une hypothèse. | Une demande peut rester sans réponse si personne n'ouvre l'application. | Confirmer l'adresse (`NEXT_PUBLIC_SUPPORT_EMAIL`). Ajouter une alerte Slack ou courriel. | Alexandre, technique |
 | P5 | Les messages d'erreur de l'API sont en anglais. | Un courtier peut voir de l'anglais. | Traduire les exceptions des services anciens. | Technique |
-| P6 | L'application mobile native n'existe pas. | Seule la version web adaptée au mobile existe. | Suivre le plan M1 à M5 (`ETUDE-AGENTS-IA.md`, partie 7). | Alexandre (décision), technique |
-| P7 | Les agents ne se parlent pas entre eux. | Aucun enchaînement automatique après « prospect qualifié ». | Suivre la partie 4 de l'étude (événements SDR, enveloppe de message, anti-boucle). | Technique |
-| P8 | Il n'y a pas de registre du contenu généré ni de page « Activité de l'assistant ». | On ne relie pas un texte généré à son résultat. | Table `GeneratedContent` et page de résultats (étude, partie 5). | Technique |
+| P6 | L'application mobile native n'existe pas. | Seule la version web installable (PWA, B.21) existe. | Capacitor ensuite (M3 à M5, `ETUDE-AGENTS-IA.md`, partie 7), sur une machine avec Xcode et Android Studio. | Alexandre (décision), technique |
+| P7 | Les agents se parlent par messages durables (B.20), mais le seul destinataire est déterministe et aucun modèle ne peut envoyer de message. | Pas encore d'agent piloté par un modèle qui réagit à « prospect qualifié ». | Ajouter l'outil `handoff_to_agent` et un premier destinataire à modèle, avec les evals correspondantes. | Technique |
+| P8 | Le registre et la page existent (B.19), mais le lien contenu → prospect → rendez-vous (`trackingCode`) n'est pas câblé et seuls trois producteurs écrivent dans le registre. | On voit ce que l'assistant a produit, pas encore ce que cela a rapporté. | Générer le code de suivi dans les liens d'annonces et le relier aux nouveaux prospects. | Technique |
 | P9 | Un SMS à l'état « incertain » n'a pas d'écran de rapprochement. | Le courtier ne sait pas quoi faire. | Écran qui propose de vérifier chez Twilio puis de renvoyer ou de fermer. | Technique |
-| P10 | L'agent exige Node 24 et des paquets déclarés « externes » qui ne sont pas des dépendances directes de `apps/agent`. | Il ne démarre pas sur une machine neuve sans les liens faits à la main. | Déclarer `@prisma/client`, `@prisma/adapter-pg`, `pg` et `@vercel/blob` dans `apps/agent/package.json`. Noter Node 24 dans `docs/agent.md`. | Technique |
+| P10 | ~~Paquets externes non déclarés~~ **Corrigé** (B.18) : les quatre paquets sont déclarés dans `apps/agent/package.json`. Node 24 reste exigé (déjà noté dans le dépôt). | — | — | — |
 | P11 | Biome signale un avertissement pour l'écriture directe de `document.cookie` (traduction). | Avertissement de lint seulement. | Passer à l'API Cookie Store quand elle sera répandue. | Technique |
 | P12 | Le texte du faux modèle contient parfois `[blocked]`. | Marqueur inconnu dans une réponse coupée. | Vérifier avec un vrai modèle. | Technique |
 | P13 | Les données de démonstration du CRM général n'ont pas de « dernière activité ». | Colonne « — » dans Affaires et Contacts. | Remplir `lastActivityAt` dans le script de démonstration. | Technique |
 | P14 | La page « Connexions, Assistant IA » montre le faux modèle dans les captures. | Capture non représentative d'une vraie configuration. | Reprendre la capture après le branchement d'un vrai modèle. | Technique |
-| P15 | Les tests d'intégration exigent que les variables d'environnement soient chargées. | `bun run db:test` échoue sans elles. | Charger `.env` dans le script `db:test` du dépôt. | Technique |
+| P15 | Les tests d'intégration exigent que les variables d'environnement soient chargées, et la base de test doit être migrée (`bun run db:test`) après chaque nouvelle migration. | Des dizaines d'échecs trompeurs (« colonne introuvable ») sur une base de test en retard. | Charger `.env` dans le script `db:test` du dépôt ; migrer la base de test dans le script `test` de l'API. | Technique |
 | P16 | Google traduit certains mots du métier de façon approximative (« courtière », « Rendez-vous », « Prospects »). | Un courtier non francophone peut mal comprendre un terme. | Ajouter `translate="no"` aux termes du métier ou fournir de vraies traductions (i18n) si la demande existe. | Technique |
 | P17 | Historique des SMS d'une personne : les SMS envoyés à la main avant le 23 octobre n'ont pas d'auteur enregistré. | Ils n'apparaissent pas dans la fiche Équipe. | Aucune correction possible a posteriori. Les nouveaux SMS sont attribués. | — |
 | P18 | La fiche Équipe ne montre pas les tâches du CRM assignées à une autre personne que leur créateur. | « Tâches » = tâches créées par la personne. | Ajouter un champ « assignée à » sur les activités si l'équipe en a besoin. | Technique |
+| P19 | Le répartiteur de l'agent ne reprend pas tout de suite un message `agent-message` déjà « loué » par une ancienne version du code. | Après un déploiement, un message en vol peut attendre la fin de son bail (quelques minutes). | Rien à faire en production ; en local, redémarrer l'agent puis libérer le bail. | — |
 
 ---
 

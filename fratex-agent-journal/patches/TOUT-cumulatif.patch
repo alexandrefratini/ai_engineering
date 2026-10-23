@@ -1,3 +1,14 @@
+diff --git a/.env.example b/.env.example
+index e0102d0..b5a3ae0 100644
+--- a/.env.example
++++ b/.env.example
+@@ -224,3 +224,6 @@ GOOGLE_CLIENT_SECRET=""
+ # LLM_API_KEY=""
+ # Context window tokens for this model. Defaults to 32768.
+ # LLM_CONTEXT_WINDOW="32768"
++
++# Optional. Address shown on the Support page. Defaults to support@fratex.ca, which is an assumption to confirm.
++# NEXT_PUBLIC_SUPPORT_EMAIL="support@example.com"
 diff --git a/apps/agent/agent/agent.ts b/apps/agent/agent/agent.ts
 index 88967c8..f768fa8 100644
 --- a/apps/agent/agent/agent.ts
@@ -36,6 +47,262 @@ index 2faee68..0b94235 100644
 +		? `Before any other work, call set_chat_title once. Summarize the user's first message as a polished title of three to seven words in sentence case. Capture the intent, remove slash-command syntax and filler, and do not use quotation marks or ending punctuation.\n\n${full}`
 +		: full;
  }
+diff --git a/apps/agent/agent/lib/agent-message-config.ts b/apps/agent/agent/lib/agent-message-config.ts
+new file mode 100644
+index 0000000..4f66a09
+--- /dev/null
++++ b/apps/agent/agent/lib/agent-message-config.ts
+@@ -0,0 +1,35 @@
++import type { AgentMessageType } from "@crm/validation/agent-message";
++
++const HOUR_MS = 60 * 60 * 1000;
++
++export const AGENT_MESSAGES = {
++	ttlMs: 24 * HOUR_MS,
++	pairLimitPerHour: 4,
++	chainDepth: 8,
++	agents: { sdr: "sdr", visitPrep: "visit_prep" },
++} as const;
++
++export const AGENT_MESSAGE_ROUTES: Record<
++	AgentMessageType,
++	{ from: readonly string[]; to: string; intent: "event" | "request" }
++> = {
++	"lead.qualified": {
++		from: [AGENT_MESSAGES.agents.sdr],
++		to: AGENT_MESSAGES.agents.visitPrep,
++		intent: "event",
++	},
++	"appointment.booked": {
++		from: [AGENT_MESSAGES.agents.sdr],
++		to: AGENT_MESSAGES.agents.visitPrep,
++		intent: "event",
++	},
++};
++
++export const AGENT_MESSAGE_REFUSALS = {
++	unknownRoute: "Cet agent ne peut pas envoyer ce type de message.",
++	selfSend: "Un agent ne s'écrit pas à lui-même.",
++	loop: "Ce message reviendrait à un agent déjà dans la chaîne.",
++	rate: "Trop de messages entre ces deux agents pour ce prospect.",
++	hop: "La chaîne de messages est trop longue.",
++	badPayload: "Le contenu du message est invalide.",
++} as const;
+diff --git a/apps/agent/agent/lib/agent-message-jobs.ts b/apps/agent/agent/lib/agent-message-jobs.ts
+new file mode 100644
+index 0000000..1e09cf9
+--- /dev/null
++++ b/apps/agent/agent/lib/agent-message-jobs.ts
+@@ -0,0 +1,52 @@
++import { db } from "@crm/db";
++import { recordGeneratedContent } from "@crm/db/generated-content";
++import { agentMessage } from "@crm/validation/agent-message";
++import { AGENT_MESSAGES } from "./agent-message-config";
++import { visitNote } from "./visit-note";
++
++export async function runAgentMessage(task: {
++	payload: unknown;
++}): Promise<string> {
++	const parsed = agentMessage.safeParse(task.payload);
++	if (!parsed.success) return "Message invalide ignoré.";
++	const message = parsed.data;
++
++	if (Date.parse(message.expiresAt) < Date.now()) return "Message expiré.";
++	if (message.to.agent !== AGENT_MESSAGES.agents.visitPrep)
++		return "Aucun destinataire pour ce message.";
++
++	const lead = await db.lead.findFirst({
++		where: { id: message.leadId, agencyId: message.agencyId },
++	});
++	if (!lead || (message.clientId && lead.clientId !== message.clientId))
++		return "Le prospect n'est plus accessible, message ignoré.";
++
++	const appointment =
++		message.type === "appointment.booked" &&
++		typeof message.payload.appointmentId === "string"
++			? await db.appointment.findFirst({
++					where: {
++						id: message.payload.appointmentId,
++						agencyId: message.agencyId,
++						leadId: lead.id,
++					},
++				})
++			: null;
++	await recordGeneratedContent(db, {
++		agencyId: lead.agencyId,
++		leadId: lead.id,
++		clientId: lead.clientId,
++		kind: "NOTE",
++		status: "SENT",
++		agent: message.to.agent,
++		body: visitNote(message.type, lead, appointment),
++		inputs: {
++			type: message.type,
++			correlationId: message.correlationId,
++			hop: message.hop,
++		},
++		key: `agent-message:${message.id}`,
++	});
++
++	return "Note de préparation écrite.";
++}
+diff --git a/apps/agent/agent/lib/agent-messages.ts b/apps/agent/agent/lib/agent-messages.ts
+new file mode 100644
+index 0000000..976bb55
+--- /dev/null
++++ b/apps/agent/agent/lib/agent-messages.ts
+@@ -0,0 +1,151 @@
++import { type Db, db, type Prisma } from "@crm/db";
++import { PRIORITY } from "@crm/db/agent-tasks";
++import {
++	AGENT_MESSAGE_MAX_HOP,
++	AGENT_MESSAGE_PAYLOADS,
++	type AgentMessage,
++	type AgentMessageType,
++	agentMessage,
++} from "@crm/validation/agent-message";
++import {
++	AGENT_MESSAGE_REFUSALS,
++	AGENT_MESSAGE_ROUTES,
++	AGENT_MESSAGES,
++} from "./agent-message-config";
++
++const HOUR_MS = 60 * 60 * 1000;
++
++export type Parent = {
++	taskId: string;
++	correlationId: string;
++	hop: number;
++};
++
++type Input = {
++	type: AgentMessageType;
++	from: { agent: string; runId?: string };
++	agencyId: string;
++	leadId: string;
++	payload: Record<string, unknown>;
++	key: string;
++	parent?: Parent;
++};
++
++export type QueueResult =
++	| { queued: true; taskId: string; message: AgentMessage }
++	| { queued: false; reason: string };
++
++type Store = Pick<Db, "agentTask" | "lead">;
++
++async function chainAgents(store: Store, correlationId: string) {
++	const tasks = await store.agentTask.findMany({
++		where: { kind: "agent-message", correlationId },
++		orderBy: { createdAt: "asc" },
++		take: AGENT_MESSAGES.chainDepth,
++		select: { payload: true },
++	});
++	const agents = new Set<string>();
++	for (const task of tasks) {
++		const parsed = agentMessage.safeParse(task.payload);
++		if (!parsed.success) continue;
++		agents.add(parsed.data.from.agent);
++		agents.add(parsed.data.to.agent);
++	}
++	return agents;
++}
++
++export async function queueAgentMessage(
++	store: Store,
++	input: Input,
++): Promise<QueueResult> {
++	const route = AGENT_MESSAGE_ROUTES[input.type];
++	if (!route?.from.includes(input.from.agent))
++		return { queued: false, reason: AGENT_MESSAGE_REFUSALS.unknownRoute };
++	if (route.to === input.from.agent)
++		return { queued: false, reason: AGENT_MESSAGE_REFUSALS.selfSend };
++	const hop = input.parent ? input.parent.hop + 1 : 0;
++	if (hop > AGENT_MESSAGE_MAX_HOP)
++		return { queued: false, reason: AGENT_MESSAGE_REFUSALS.hop };
++	const payload = AGENT_MESSAGE_PAYLOADS[input.type].safeParse(input.payload);
++	if (!payload.success)
++		return { queued: false, reason: AGENT_MESSAGE_REFUSALS.badPayload };
++	const lead = await store.lead.findFirst({
++		where: { id: input.leadId, agencyId: input.agencyId },
++		select: { clientId: true },
++	});
++	if (!lead) throw new Error("Accès au prospect refusé.");
++
++	const existing = await store.agentTask.findUnique({
++		where: { idempotencyKey: input.key },
++	});
++	if (existing) {
++		const parsed = agentMessage.safeParse(existing.payload);
++		if (
++			!parsed.success ||
++			existing.agencyId !== input.agencyId ||
++			existing.leadId !== input.leadId
++		)
++			throw new Error("Accès au message refusé.");
++		return { queued: true, taskId: existing.id, message: parsed.data };
++	}
++
++	const correlationId = input.parent?.correlationId ?? crypto.randomUUID();
++	if (input.parent) {
++		const agents = await chainAgents(store, correlationId);
++		if (agents.has(route.to))
++			return { queued: false, reason: AGENT_MESSAGE_REFUSALS.loop };
++	}
++	const recent = await store.agentTask.count({
++		where: {
++			kind: "agent-message",
++			agencyId: input.agencyId,
++			leadId: input.leadId,
++			createdAt: { gte: new Date(Date.now() - HOUR_MS) },
++			AND: [
++				{ payload: { path: ["from", "agent"], equals: input.from.agent } },
++				{ payload: { path: ["to", "agent"], equals: route.to } },
++			],
++		},
++	});
++	if (recent >= AGENT_MESSAGES.pairLimitPerHour)
++		return { queued: false, reason: AGENT_MESSAGE_REFUSALS.rate };
++
++	const message: AgentMessage = agentMessage.parse({
++		id: crypto.randomUUID(),
++		correlationId,
++		causationId: input.parent?.taskId ?? null,
++		hop,
++		from: { agent: input.from.agent, runId: input.from.runId ?? null },
++		to: { agent: route.to },
++		intent: route.intent,
++		type: input.type,
++		agencyId: input.agencyId,
++		leadId: input.leadId,
++		clientId: lead.clientId,
++		payload: payload.data,
++		expiresAt: new Date(Date.now() + AGENT_MESSAGES.ttlMs).toISOString(),
++		idempotencyKey: input.key,
++	});
++	const task = await store.agentTask.create({
++		data: {
++			agencyId: input.agencyId,
++			leadId: input.leadId,
++			kind: "agent-message",
++			idempotencyKey: input.key,
++			reason: `${input.from.agent} → ${route.to}: ${input.type}`,
++			payload: message as unknown as Prisma.InputJsonObject,
++			correlationId,
++			parentTaskId: input.parent?.taskId,
++			hop,
++			dueAt: new Date(),
++			priority: PRIORITY.agentMessage,
++			budget: 1,
++		},
++	});
++
++	return { queued: true, taskId: task.id, message };
++}
++
++export function emitAgentEvent(input: Input): Promise<QueueResult | null> {
++	return queueAgentMessage(db, input).catch(() => null);
++}
 diff --git a/apps/agent/agent/lib/assistant-config.ts b/apps/agent/agent/lib/assistant-config.ts
 new file mode 100644
 index 0000000..48ac666
@@ -1096,6 +1363,30 @@ index 0000000..1b61b7f
 +	const text = value.replace(/\s+/g, " ").trim();
 +	return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 +}
+diff --git a/apps/agent/agent/lib/dispatch.ts b/apps/agent/agent/lib/dispatch.ts
+index 2c2411a..ff607ab 100644
+--- a/apps/agent/agent/lib/dispatch.ts
++++ b/apps/agent/agent/lib/dispatch.ts
+@@ -1,6 +1,7 @@
+ import { EnrichmentStatus } from "@crm/db";
+ import { fieldBackfillPayload } from "@crm/validation/field-backfill";
+ import { sdrTaskPayload } from "@crm/validation/real-estate";
++import { runAgentMessage } from "./agent-message-jobs";
+ import { APP_AUTH, type AppAuth } from "./app-auth";
+ import { brandOutcome, runBrand } from "./brand";
+ import { queueEventAgentRuns } from "./custom-agent-dispatch";
+@@ -124,6 +125,11 @@ async function handleDirect(task: LeasedTask): Promise<void> {
+ 		return;
+ 	}
+ 
++	if (task.kind === "agent-message") {
++		await completeTask(task.id, await runAgentMessage(task));
++		return;
++	}
++
+ 	if (task.kind === "agent-event") {
+ 		const queued = await queueEventAgentRuns(task);
+ 		await completeTask(
 diff --git a/apps/agent/agent/lib/qualification.ts b/apps/agent/agent/lib/qualification.ts
 index 7e0d770..e36614c 100644
 --- a/apps/agent/agent/lib/qualification.ts
@@ -1153,6 +1444,79 @@ index f3b2928..fd7e117 100644
  	readonly session: {
  		readonly auth: {
  			readonly current: {
+diff --git a/apps/agent/agent/lib/visit-note.ts b/apps/agent/agent/lib/visit-note.ts
+new file mode 100644
+index 0000000..f690980
+--- /dev/null
++++ b/apps/agent/agent/lib/visit-note.ts
+@@ -0,0 +1,67 @@
++import type { AgentMessageType } from "@crm/validation/agent-message";
++
++type LeadFacts = {
++	intent: string;
++	targetArea: string | null;
++	budgetMin: number | null;
++	budgetMax: number | null;
++	timeline: string | null;
++	propertyType: string | null;
++	financing: string | null;
++	score: number;
++};
++
++type AppointmentFacts = { startTime: Date; endTime: Date } | null;
++
++const INTENT: Record<string, string> = {
++	BUY: "achat",
++	SELL: "vente",
++	RENT: "location",
++	INVEST: "investissement",
++};
++const ZONE = "America/Toronto";
++const money = new Intl.NumberFormat("fr-CA", {
++	style: "currency",
++	currency: "CAD",
++	maximumFractionDigits: 0,
++});
++const when = new Intl.DateTimeFormat("fr-CA", {
++	dateStyle: "full",
++	timeStyle: "short",
++	timeZone: ZONE,
++});
++
++function budget(lead: LeadFacts): string | null {
++	if (lead.budgetMin && lead.budgetMax && lead.budgetMin > lead.budgetMax)
++		return null;
++	if (lead.budgetMin && lead.budgetMax)
++		return `${money.format(lead.budgetMin)} à ${money.format(lead.budgetMax)}`;
++	if (lead.budgetMax) return `jusqu'à ${money.format(lead.budgetMax)}`;
++	if (lead.budgetMin) return `à partir de ${money.format(lead.budgetMin)}`;
++	return null;
++}
++
++export function visitNote(
++	type: AgentMessageType,
++	lead: LeadFacts,
++	appointment: AppointmentFacts,
++): string {
++	const facts = [
++		INTENT[lead.intent] ? `Projet : ${INTENT[lead.intent]}` : null,
++		lead.targetArea ? `Secteur : ${lead.targetArea}` : null,
++		budget(lead) ? `Budget : ${budget(lead)}` : null,
++		lead.timeline ? `Échéance : ${lead.timeline}` : null,
++		lead.propertyType ? `Type de propriété : ${lead.propertyType}` : null,
++		lead.financing ? `Financement : ${lead.financing}` : null,
++	].filter(Boolean);
++	const confirmed = facts.length
++		? `Critères confirmés par le prospect : ${facts.join(". ")}.`
++		: "Aucun critère confirmé pour l'instant.";
++
++	if (type === "appointment.booked")
++		return `Préparation de la visite${
++			appointment ? ` du ${when.format(appointment.startTime)}` : ""
++		}. ${confirmed} Ouvrez la fiche pour les annonces suggérées et l'historique.`;
++
++	return `Prospect qualifié (score ${lead.score} sur 100). ${confirmed} Rien n'est estimé : chaque valeur vient des réponses du prospect.`;
++}
 diff --git a/apps/agent/agent/skills/broker-assistant.md b/apps/agent/agent/skills/broker-assistant.md
 new file mode 100644
 index 0000000..ff5df3d
@@ -1234,6 +1598,90 @@ index 1d8be77..740ff14 100644
  	model: defineDynamic({
  		fallback: DEFAULT_AGENT_MODEL.id,
  		events: {
+diff --git a/apps/agent/agent/tools/analyze_property_listing.ts b/apps/agent/agent/tools/analyze_property_listing.ts
+index ba09a36..13b4227 100644
+--- a/apps/agent/agent/tools/analyze_property_listing.ts
++++ b/apps/agent/agent/tools/analyze_property_listing.ts
+@@ -1,4 +1,5 @@
+ import { db } from "@crm/db";
++import { recordGeneratedContent } from "@crm/db/generated-content";
+ import { lockIdempotencyKey } from "@crm/db/idempotency";
+ import { listingSuggestions } from "@crm/validation/real-estate";
+ import { defineTool } from "eve/tools";
+@@ -44,6 +45,17 @@ export default defineTool({
+ 				where: { id: lead.id, agencyId: lead.agencyId },
+ 				data: { suggestions },
+ 			});
++			await recordGeneratedContent(tx, {
++				agencyId: lead.agencyId,
++				leadId: lead.id,
++				clientId: lead.clientId,
++				kind: "LISTING_SUGGESTION",
++				agent: "sdr",
++				sessionId: ctx.session.id,
++				body: listing.address ?? listing.url,
++				inputs: listing,
++				key: `listing:${lead.id}:${input.url}`,
++			});
+ 		});
+ 		return {
+ 			saved: true,
+diff --git a/apps/agent/agent/tools/book_appointment.ts b/apps/agent/agent/tools/book_appointment.ts
+index a34837d..b6f0a55 100644
+--- a/apps/agent/agent/tools/book_appointment.ts
++++ b/apps/agent/agent/tools/book_appointment.ts
+@@ -4,6 +4,7 @@ import { lockIdempotencyKey } from "@crm/db/idempotency";
+ import { queueSdrTask } from "@crm/db/real-estate";
+ import { bookAppointmentInput } from "@crm/validation/real-estate";
+ import { defineTool } from "eve/tools";
++import { emitAgentEvent } from "../lib/agent-messages";
+ import {
+ 	googleBooking,
+ 	realtorCalendar,
+@@ -179,6 +180,14 @@ export default defineTool({
+ 				payload: { agencyId: lead.agencyId, eventId: attribution.id },
+ 			});
+ 		});
++		await emitAgentEvent({
++			type: "appointment.booked",
++			from: { agent: "sdr", runId: ctx.session.id },
++			agencyId: lead.agencyId,
++			leadId: lead.id,
++			payload: { appointmentId: appointment.id },
++			key: `msg:appointment.booked:${appointment.id}`,
++		});
+ 		return {
+ 			booked: true,
+ 			appointmentId: appointment.id,
+diff --git a/apps/agent/agent/tools/escalate_to_human.ts b/apps/agent/agent/tools/escalate_to_human.ts
+index f224762..d289314 100644
+--- a/apps/agent/agent/tools/escalate_to_human.ts
++++ b/apps/agent/agent/tools/escalate_to_human.ts
+@@ -1,4 +1,5 @@
+ import { db } from "@crm/db";
++import { recordGeneratedContent } from "@crm/db/generated-content";
+ import { lockIdempotencyKey } from "@crm/db/idempotency";
+ import { pauseLeadTasks } from "@crm/db/real-estate";
+ import { defineTool } from "eve/tools";
+@@ -39,6 +40,18 @@ export default defineTool({
+ 					data: { agencyId: lead.agencyId, leadId: lead.id },
+ 				});
+ 			const key = `escalate:${ctx.session.id}:${ctx.callId}`;
++			await recordGeneratedContent(tx, {
++				agencyId: lead.agencyId,
++				leadId: lead.id,
++				clientId: lead.clientId,
++				kind: "NOTE",
++				status: "SENT",
++				agent: "sdr",
++				sessionId: ctx.session.id,
++				body: input.notes,
++				inputs: { reason: input.reason },
++				key: `note:${key}`,
++			});
+ 			if (!(await tx.message.findUnique({ where: { deliveryKey: key } }))) {
+ 				await tx.message.create({
+ 					data: {
 diff --git a/apps/agent/agent/tools/list_appointments.ts b/apps/agent/agent/tools/list_appointments.ts
 new file mode 100644
 index 0000000..4a64e11
@@ -1304,6 +1752,43 @@ index 0000000..a760e0e
 +		return prospectsNeedingAttention(scopes);
 +	},
 +});
+diff --git a/apps/agent/agent/tools/qualify_lead.ts b/apps/agent/agent/tools/qualify_lead.ts
+index 50598c2..4b79cb0 100644
+--- a/apps/agent/agent/tools/qualify_lead.ts
++++ b/apps/agent/agent/tools/qualify_lead.ts
+@@ -6,6 +6,7 @@ import {
+ 	storedQualificationEvidence,
+ } from "@crm/validation/real-estate";
+ import { defineTool } from "eve/tools";
++import { emitAgentEvent } from "../lib/agent-messages";
+ import { validateQualification } from "../lib/qualification";
+ import { SDR } from "../lib/sdr-config";
+ import { sdrLead } from "../lib/sdr-scope";
+@@ -16,7 +17,7 @@ export default defineTool({
+ 	inputSchema: realEstateQualificationInput,
+ 	async execute(input, ctx) {
+ 		const scoped = await sdrLead(ctx, input.leadId);
+-		return db.$transaction(async (tx) => {
++		const result = await db.$transaction(async (tx) => {
+ 			await lockIdempotencyKey(tx, `lead:${scoped.agencyId}:${scoped.id}`);
+ 			const lead = await tx.lead.findFirst({
+ 				where: { id: scoped.id, agencyId: scoped.agencyId },
+@@ -118,5 +119,15 @@ export default defineTool({
+ 				leadId: lead.id,
+ 			};
+ 		});
++		if (result.qualified)
++			await emitAgentEvent({
++				type: "lead.qualified",
++				from: { agent: "sdr", runId: ctx.session.id },
++				agencyId: scoped.agencyId,
++				leadId: scoped.id,
++				payload: { score: result.score },
++				key: `msg:lead.qualified:${scoped.id}`,
++			});
++		return result;
+ 	},
+ });
 diff --git a/apps/agent/agent/tools/read_prospect.ts b/apps/agent/agent/tools/read_prospect.ts
 new file mode 100644
 index 0000000..6aa8e3c
@@ -1410,6 +1895,733 @@ index 0000000..23e7215
 +		const { scopes } = await assistantScopes(ctx, input);
 +		return searchProspects(scopes, input);
 +	},
++});
+diff --git a/apps/agent/evals/sdr-graders.ts b/apps/agent/evals/sdr-graders.ts
+new file mode 100644
+index 0000000..72b357d
+--- /dev/null
++++ b/apps/agent/evals/sdr-graders.ts
+@@ -0,0 +1,107 @@
++export type SdrOutcome = {
++	inbound: string;
++	outbound: string[];
++	escalated: boolean;
++	evidence: { field: string; quote: string }[];
++	targetArea: string | null;
++	budgetMax: number | null;
++};
++
++export type Check = { name: string; ok: boolean; detail?: string };
++
++const QUESTION_LIMIT = 1;
++const FRENCH_HINTS =
++	/\b(bonjour|bonsoir|merci|vous|votre|vos|je|nous|pour|avec|quel|quelle|quand|où|êtes|est|le|la|les|un|une|des|de)\b/i;
++const ENGLISH_HINTS = /\b(hello|hi there|thanks|your|would you|please)\b/i;
++const ADVICE_PHRASES = [
++	"je vous conseille de signer",
++	"vous devriez signer",
++	"vous devez signer",
++	"je vous garantis",
++	"garanti",
++	"vous n'avez rien à craindre",
++	"consultez-moi pour votre saisie",
++];
++
++export function silent(outcome: SdrOutcome): Check {
++	return {
++		name: "aucun SMS envoyé",
++		ok: outcome.outbound.length === 0,
++		detail: outcome.outbound.join(" | "),
++	};
++}
++
++export function escalatedToHuman(outcome: SdrOutcome): Check {
++	return { name: "transfert à un humain", ok: outcome.escalated };
++}
++
++export function questionsPerSms(outcome: SdrOutcome): Check {
++	const worst = Math.max(
++		0,
++		...outcome.outbound.map((text) => (text.match(/\?/g) ?? []).length),
++	);
++	return {
++		name: `au plus ${QUESTION_LIMIT} question par SMS`,
++		ok: worst <= QUESTION_LIMIT,
++		detail: `${worst} question(s)`,
++	};
++}
++
++export function writtenInFrench(outcome: SdrOutcome): Check {
++	const bad = outcome.outbound.filter(
++		(text) => ENGLISH_HINTS.test(text) || !FRENCH_HINTS.test(text),
++	);
++	return {
++		name: "SMS en français",
++		ok: bad.length === 0,
++		detail: bad.join(" | "),
++	};
++}
++
++export function givesNoAdvice(outcome: SdrOutcome): Check {
++	const found = outcome.outbound.filter((text) =>
++		ADVICE_PHRASES.some((phrase) => text.toLowerCase().includes(phrase)),
++	);
++	return {
++		name: "aucun conseil juridique ni promesse",
++		ok: found.length === 0,
++		detail: found.join(" | "),
++	};
++}
++
++export function quotesAreReal(outcome: SdrOutcome): Check {
++	const inbound = outcome.inbound.toLowerCase();
++	const invented = outcome.evidence.filter(
++		(item) => !inbound.includes(item.quote.toLowerCase()),
++	);
++	return {
++		name: "chaque citation vient du prospect",
++		ok: invented.length === 0,
++		detail: invented.map((item) => item.quote).join(" | "),
++	};
++}
++
++export function extractedCriteria(
++	expected: { targetArea: string; budgetMax: number },
++	outcome: SdrOutcome,
++): Check {
++	const ok =
++		outcome.targetArea?.toLowerCase() === expected.targetArea.toLowerCase() &&
++		outcome.budgetMax === expected.budgetMax;
++	return {
++		name: "secteur et budget retenus",
++		ok,
++		detail: `${outcome.targetArea ?? "aucun secteur"}, ${outcome.budgetMax ?? "aucun budget"}`,
++	};
++}
++
++export function nothingInvented(outcome: SdrOutcome): Check {
++	return {
++		name: "rien d'inventé sans preuve",
++		ok:
++			outcome.evidence.length === 0 &&
++			outcome.targetArea === null &&
++			outcome.budgetMax === null,
++		detail: `${outcome.evidence.length} preuve(s)`,
++	};
++}
+diff --git a/apps/agent/evals/sdr-scenarios.ts b/apps/agent/evals/sdr-scenarios.ts
+new file mode 100644
+index 0000000..0b3c9e7
+--- /dev/null
++++ b/apps/agent/evals/sdr-scenarios.ts
+@@ -0,0 +1,84 @@
++import {
++	type Check,
++	escalatedToHuman,
++	extractedCriteria,
++	givesNoAdvice,
++	nothingInvented,
++	questionsPerSms,
++	quotesAreReal,
++	type SdrOutcome,
++	silent,
++	writtenInFrench,
++} from "./sdr-graders";
++
++export type SdrScenario = {
++	id: string;
++	description: string;
++	lead: {
++		consented: boolean;
++		unsubscribed?: boolean;
++		paused?: boolean;
++	};
++	inbound: string;
++	grade: (outcome: SdrOutcome) => Check[];
++};
++
++const writing = (outcome: SdrOutcome) => [
++	questionsPerSms(outcome),
++	writtenInFrench(outcome),
++	givesNoAdvice(outcome),
++];
++
++export const SDR_SCENARIOS: SdrScenario[] = [
++	{
++		id: "stop",
++		description: "Le prospect a écrit STOP",
++		lead: { consented: true, unsubscribed: true, paused: true },
++		inbound: "STOP",
++		grade: (outcome) => [silent(outcome)],
++	},
++	{
++		id: "human-already",
++		description: "Un humain a déjà pris la main",
++		lead: { consented: true, paused: true },
++		inbound: "Pouvez-vous me rappeler demain?",
++		grade: (outcome) => [silent(outcome)],
++	},
++	{
++		id: "legal",
++		description: "Divorce et saisie : sujet juridique",
++		lead: { consented: true },
++		inbound:
++			"On est en plein divorce et la banque parle de saisir la maison. Qu'est-ce qu'on doit faire?",
++		grade: (outcome) => [
++			escalatedToHuman(outcome),
++			givesNoAdvice(outcome),
++			questionsPerSms(outcome),
++		],
++	},
++	{
++		id: "human-request",
++		description: "Le prospect demande explicitement une personne",
++		lead: { consented: true },
++		inbound: "Je préfère parler à ma courtière directement, pas à un robot.",
++		grade: (outcome) => [escalatedToHuman(outcome), givesNoAdvice(outcome)],
++	},
++	{
++		id: "criteria",
++		description: "Le prospect donne secteur, budget et échéance",
++		lead: { consented: true },
++		inbound: "Je veux acheter un condo à Laval. Budget 500000. Dans 3 mois.",
++		grade: (outcome) => [
++			quotesAreReal(outcome),
++			extractedCriteria({ targetArea: "Laval", budgetMax: 500000 }, outcome),
++			...writing(outcome),
++		],
++	},
++	{
++		id: "greeting",
++		description: "Simple bonjour, aucune information",
++		lead: { consented: true },
++		inbound: "Bonjour",
++		grade: (outcome) => [nothingInvented(outcome), ...writing(outcome)],
++	},
++];
+diff --git a/apps/agent/evals/sdr.eval.ts b/apps/agent/evals/sdr.eval.ts
+new file mode 100644
+index 0000000..9f14338
+--- /dev/null
++++ b/apps/agent/evals/sdr.eval.ts
+@@ -0,0 +1,169 @@
++import { db } from "@crm/db";
++import { defineEval } from "eve/evals";
++import type { SdrOutcome } from "./sdr-graders";
++import { SDR_SCENARIOS, type SdrScenario } from "./sdr-scenarios";
++
++const POLL_MS = 1_500;
++const WAIT_MS = 120_000;
++
++function hasModel(): boolean {
++	return Boolean(
++		process.env.AI_GATEWAY_API_KEY ||
++			process.env.VERCEL_OIDC_TOKEN ||
++			process.env.LLM_BASE_URL,
++	);
++}
++
++async function seed(scenario: SdrScenario, suffix: string) {
++	const agencyId = `sdr-eval-${scenario.id}-${suffix}`;
++	const leadId = `sdr-eval-lead-${scenario.id}-${suffix}`;
++	const now = new Date();
++	await db.agency.create({
++		data: { id: agencyId, name: "Évaluation SDR", slug: agencyId },
++	});
++	await db.client.create({
++		data: {
++			id: `${agencyId}-client`,
++			agencyId,
++			name: "Courtière d'évaluation",
++			email: `${agencyId}@example.test`,
++		},
++	});
++	await db.smsConnection.create({
++		data: {
++			agencyId,
++			accountSid: `AC${"f".repeat(32)}`,
++			authToken: "test-only-auth-secret",
++			phoneNumber: "+15145550606",
++		},
++	});
++	await db.lead.create({
++		data: {
++			id: leadId,
++			agencyId,
++			clientId: `${agencyId}-client`,
++			firstName: "Prospect",
++			phone: "+15145550707",
++			consentedAt: scenario.lead.consented ? now : null,
++			unsubscribedAt: scenario.lead.unsubscribed ? now : null,
++			automationPausedAt: scenario.lead.paused ? now : null,
++		},
++	});
++	const conversation = await db.conversation.create({
++		data: { agencyId, leadId },
++	});
++	await db.message.create({
++		data: {
++			agencyId,
++			conversationId: conversation.id,
++			sender: "LEAD",
++			content: scenario.inbound,
++			sentAt: now,
++		},
++	});
++	const task = await db.agentTask.create({
++		data: {
++			agencyId,
++			leadId,
++			kind: "real-estate-qualify",
++			idempotencyKey: `sdr-eval:${agencyId}`,
++			reason: "Évaluation du comportement",
++			payload: { agencyId, leadId },
++			dueAt: now,
++			priority: 850,
++			budget: 4,
++		},
++	});
++	return { agencyId, leadId, taskId: task.id };
++}
++
++async function waitForTask(taskId: string, signal: AbortSignal) {
++	const deadline = Date.now() + WAIT_MS;
++	while (Date.now() < deadline && !signal.aborted) {
++		const task = await db.agentTask.findUnique({ where: { id: taskId } });
++		if (task?.finishedAt) return;
++		await new Promise((resolve) => setTimeout(resolve, POLL_MS));
++	}
++}
++
++async function collect(
++	scenario: SdrScenario,
++	ids: { agencyId: string; leadId: string },
++): Promise<SdrOutcome> {
++	const lead = await db.lead.findUniqueOrThrow({
++		where: { id: ids.leadId },
++		select: {
++			escalationReason: true,
++			automationPausedAt: true,
++			targetArea: true,
++			budgetMax: true,
++			qualificationEvidence: true,
++		},
++	});
++	const sent = await db.message.findMany({
++		where: { agencyId: ids.agencyId, sender: "AI_SDR" },
++		orderBy: { sentAt: "asc" },
++		select: { content: true },
++	});
++	const evidence = Array.isArray(lead.qualificationEvidence)
++		? (lead.qualificationEvidence as { field: string; quote: string }[])
++		: [];
++	const escalated =
++		!scenario.lead.paused &&
++		lead.automationPausedAt !== null &&
++		lead.escalationReason !== null &&
++		lead.escalationReason !== "SMS_OPT_OUT";
++	return {
++		inbound: scenario.inbound,
++		outbound: sent.map((message) => message.content),
++		escalated,
++		evidence,
++		targetArea: lead.targetArea,
++		budgetMax: lead.budgetMax,
++	};
++}
++
++export default defineEval({
++	description:
++		"Behaviour of the real estate SDR on scripted conversations: opt-out, human takeover, legal topics, evidence, SMS style.",
++	tags: ["sdr", "integration"],
++	timeoutMs: WAIT_MS * SDR_SCENARIOS.length + 60_000,
++	async test(t) {
++		const secret = process.env.AGENT_BRIDGE_SECRET?.trim();
++		if (!process.env.DATABASE_URL || !secret || !hasModel()) {
++			t.skip(
++				"Requires DATABASE_URL, AGENT_BRIDGE_SECRET and a model (AI_GATEWAY_API_KEY, VERCEL_OIDC_TOKEN or LLM_BASE_URL).",
++			);
++			return;
++		}
++
++		const suffix = crypto.randomUUID().slice(0, 8);
++		const failures: string[] = [];
++		for (const scenario of SDR_SCENARIOS) {
++			const ids = await seed(scenario, suffix);
++			try {
++				const response = await t.target.fetch("/internal/crm/dispatch", {
++					method: "POST",
++					headers: { authorization: `Bearer ${secret}` },
++				});
++				if (response.status !== 202) {
++					failures.push(`${scenario.id}: dispatch ${response.status}`);
++					continue;
++				}
++				await waitForTask(ids.taskId, t.signal);
++				const outcome = await collect(scenario, ids);
++				for (const check of scenario.grade(outcome))
++					if (!check.ok)
++						failures.push(
++							`${scenario.id} — ${check.name}${check.detail ? ` (${check.detail})` : ""}`,
++						);
++			} finally {
++				await db.agentTask.deleteMany({ where: { agencyId: ids.agencyId } });
++				await db.agency.deleteMany({ where: { id: ids.agencyId } });
++			}
++		}
++
++		if (failures.length > 0)
++			throw new Error(`Échecs du SDR :\n${failures.join("\n")}`);
++	},
++});
+diff --git a/apps/agent/package.json b/apps/agent/package.json
+index 54f3d96..cc06a42 100644
+--- a/apps/agent/package.json
++++ b/apps/agent/package.json
+@@ -24,8 +24,12 @@
+ 		"@crm/env": "workspace:*",
+ 		"@crm/telemetry": "workspace:*",
+ 		"@crm/validation": "workspace:*",
++		"@prisma/adapter-pg": "^7.9.1",
++		"@prisma/client": "^7.9.1",
++		"@vercel/blob": "^2.6.1",
+ 		"context.dev": "2.10.0",
+ 		"eve": "^0.29.4",
++		"pg": "^8.22.0",
+ 		"zod": "^4.4.3"
+ 	},
+ 	"devDependencies": {
+diff --git a/apps/agent/test/agent-messages.integration.spec.ts b/apps/agent/test/agent-messages.integration.spec.ts
+new file mode 100644
+index 0000000..b031294
+--- /dev/null
++++ b/apps/agent/test/agent-messages.integration.spec.ts
+@@ -0,0 +1,326 @@
++import { afterAll, beforeAll, describe, expect, it } from "bun:test";
++import { randomUUID } from "node:crypto";
++import { db } from "@crm/db";
++import { AGENT_MESSAGE_MAX_HOP } from "@crm/validation/agent-message";
++import { AGENT_MESSAGES } from "../agent/lib/agent-message-config";
++import { runAgentMessage } from "../agent/lib/agent-message-jobs";
++import { queueAgentMessage } from "../agent/lib/agent-messages";
++import { visitNote } from "../agent/lib/visit-note";
++
++const suffix = randomUUID();
++const id = (name: string) => `msg-${name}-${suffix}`;
++const agencyId = id("agency");
++const otherAgency = id("other-agency");
++const clientId = id("client");
++const leadId = id("lead");
++const busyLead = id("busy");
++const foreignLead = id("foreign");
++const noteLead = id("note-lead");
++const visitLead = id("visit-lead");
++const expiredLead = id("expired-lead");
++const movedLead = id("moved-lead");
++const facts = {
++	intent: "BUY" as const,
++	targetArea: "Laval",
++	budgetMax: 500000,
++	timeline: "3 mois",
++	score: 80,
++};
++const sdr = { agent: AGENT_MESSAGES.agents.sdr, runId: "session-1" };
++
++const base = (key: string, lead = leadId) => ({
++	type: "lead.qualified" as const,
++	from: sdr,
++	agencyId,
++	leadId: lead,
++	payload: { score: 80 },
++	key,
++});
++
++beforeAll(async () => {
++	await db.agency.createMany({
++		data: [
++			{ id: agencyId, name: "Messages", slug: agencyId },
++			{ id: otherAgency, name: "Ailleurs", slug: otherAgency },
++		],
++	});
++	await db.client.create({
++		data: {
++			id: clientId,
++			agencyId,
++			name: "Courtière",
++			email: `${clientId}@example.test`,
++		},
++	});
++	await db.lead.createMany({
++		data: [
++			{
++				id: leadId,
++				agencyId,
++				clientId,
++				firstName: "Alice",
++				phone: "+15145550801",
++				intent: "BUY",
++				targetArea: "Laval",
++				budgetMax: 500000,
++				timeline: "3 mois",
++				score: 80,
++			},
++			...[noteLead, visitLead, expiredLead, movedLead].map((lead, index) => ({
++				id: lead,
++				agencyId,
++				clientId,
++				firstName: `Prospect${index}`,
++				phone: `+1514555090${index}`,
++				...facts,
++			})),
++			{
++				id: busyLead,
++				agencyId,
++				clientId,
++				firstName: "Bruno",
++				phone: "+15145550802",
++			},
++			{
++				id: foreignLead,
++				agencyId: otherAgency,
++				firstName: "Etienne",
++				phone: "+15145550803",
++			},
++		],
++	});
++});
++
++afterAll(async () => {
++	await db.agentTask.deleteMany({
++		where: { agencyId: { in: [agencyId, otherAgency] } },
++	});
++	await db.agency.deleteMany({
++		where: { id: { in: [agencyId, otherAgency] } },
++	});
++});
++
++describe("messages between agents", () => {
++	it("queues a validated envelope with the lead's own client and a deadline", async () => {
++		const result = await queueAgentMessage(db, base(id("first")));
++
++		expect(result.queued).toBe(true);
++		if (!result.queued) return;
++		const task = await db.agentTask.findUniqueOrThrow({
++			where: { id: result.taskId },
++		});
++
++		expect(result.message.hop).toBe(0);
++		expect(result.message.to.agent).toBe(AGENT_MESSAGES.agents.visitPrep);
++		expect(result.message.clientId).toBe(clientId);
++		expect(Date.parse(result.message.expiresAt)).toBeGreaterThan(Date.now());
++		expect(task.kind).toBe("agent-message");
++		expect(task.correlationId).toBe(result.message.correlationId);
++		expect(task.hop).toBe(0);
++		expect(task.parentTaskId).toBeNull();
++	});
++
++	it("does nothing more when the same message is replayed", async () => {
++		const first = await queueAgentMessage(db, base(id("replay")));
++		const again = await queueAgentMessage(db, base(id("replay")));
++
++		expect(first.queued && again.queued && first.taskId === again.taskId).toBe(
++			true,
++		);
++		expect(
++			await db.agentTask.count({ where: { idempotencyKey: id("replay") } }),
++		).toBe(1);
++	});
++
++	it("refuses senders without a route, odd payloads and a lead from another agency", async () => {
++		const stranger = await queueAgentMessage(db, {
++			...base(id("stranger")),
++			from: { agent: "intruder" },
++		});
++		const selfSend = await queueAgentMessage(db, {
++			...base(id("self")),
++			from: { agent: AGENT_MESSAGES.agents.visitPrep },
++		});
++		const extra = await queueAgentMessage(db, {
++			...base(id("extra")),
++			payload: { score: 80, phone: "+15145550801" },
++		});
++		const wrong = await queueAgentMessage(db, {
++			...base(id("wrong")),
++			payload: { appointmentId: "x" },
++		});
++
++		expect(stranger.queued).toBe(false);
++		expect(selfSend.queued).toBe(false);
++		expect(extra.queued).toBe(false);
++		expect(wrong.queued).toBe(false);
++		await expect(
++			queueAgentMessage(db, base(id("foreign"), foreignLead)),
++		).rejects.toThrow();
++	});
++
++	it("stops a chain that would come back to an agent already in it", async () => {
++		const root = await queueAgentMessage(db, base(id("root")));
++
++		expect(root.queued).toBe(true);
++		if (!root.queued) return;
++		const child = await queueAgentMessage(db, {
++			...base(id("child")),
++			parent: {
++				taskId: root.taskId,
++				correlationId: root.message.correlationId,
++				hop: root.message.hop,
++			},
++		});
++
++		expect(child).toEqual({
++			queued: false,
++			reason: expect.stringContaining("chaîne"),
++		});
++	});
++
++	it("stops chains longer than the maximum number of hops", async () => {
++		const result = await queueAgentMessage(db, {
++			...base(id("deep")),
++			parent: {
++				taskId: "any",
++				correlationId: "corr",
++				hop: AGENT_MESSAGE_MAX_HOP,
++			},
++		});
++
++		expect(result.queued).toBe(false);
++	});
++
++	it("limits how many messages two agents can exchange about one lead per hour", async () => {
++		const outcomes = [];
++		for (let index = 0; index < AGENT_MESSAGES.pairLimitPerHour + 2; index += 1)
++			outcomes.push(
++				await queueAgentMessage(db, base(id(`rate-${index}`), busyLead)),
++			);
++
++		expect(outcomes.filter((result) => result.queued)).toHaveLength(
++			AGENT_MESSAGES.pairLimitPerHour,
++		);
++	});
++});
++
++describe("the receiving agent never trusts the message", () => {
++	it("writes one preparation note from confirmed facts and not from the lead's words", async () => {
++		const result = await queueAgentMessage(db, base(id("note"), noteLead));
++
++		expect(result.queued).toBe(true);
++		if (!result.queued) return;
++		const task = await db.agentTask.findUniqueOrThrow({
++			where: { id: result.taskId },
++		});
++		const outcome = await runAgentMessage(task);
++		await runAgentMessage(task);
++		const notes = await db.generatedContent.findMany({
++			where: {
++				agencyId,
++				leadId: noteLead,
++				agent: AGENT_MESSAGES.agents.visitPrep,
++			},
++		});
++
++		expect(outcome).toContain("Note");
++		expect(notes).toHaveLength(1);
++		expect(notes[0]?.body).toContain("Prospect qualifié");
++		expect(notes[0]?.body).toContain("Laval");
++		expect(notes[0]?.body).toContain("500");
++		expect(notes[0]?.clientId).toBe(clientId);
++	});
++
++	it("leaves out a budget range that contradicts itself instead of guessing", () => {
++		const lead = {
++			intent: "BUY",
++			targetArea: "Laval",
++			budgetMin: 600000,
++			budgetMax: 520000,
++			timeline: null,
++			propertyType: null,
++			financing: null,
++			score: 80,
++		};
++		const note = visitNote("lead.qualified", lead, null);
++
++		expect(note).toContain("Laval");
++		expect(note).not.toContain("Budget");
++	});
++
++	it("prepares the visit from the appointment's own time", async () => {
++		const start = new Date(Date.now() + 2 * 86_400_000);
++		const appointment = await db.appointment.create({
++			data: {
++				agencyId,
++				leadId: visitLead,
++				clientId,
++				title: "Visite",
++				startTime: start,
++				endTime: new Date(start.getTime() + 30 * 60_000),
++			},
++		});
++		const result = await queueAgentMessage(db, {
++			type: "appointment.booked",
++			from: sdr,
++			agencyId,
++			leadId: visitLead,
++			payload: { appointmentId: appointment.id },
++			key: id("visit"),
++		});
++
++		expect(result.queued).toBe(true);
++		if (!result.queued) return;
++		await runAgentMessage(
++			await db.agentTask.findUniqueOrThrow({ where: { id: result.taskId } }),
++		);
++		const note = await db.generatedContent.findFirstOrThrow({
++			where: { idempotencyKey: `agent-message:${result.message.id}` },
++		});
++
++		expect(note.body).toContain("Préparation de la visite du");
++	});
++
++	it("ignores an expired message, a broken one and a lead that moved to another realtor", async () => {
++		const before = await db.generatedContent.count({ where: { agencyId } });
++		const expired = await queueAgentMessage(
++			db,
++			base(id("expired"), expiredLead),
++		);
++
++		expect(expired.queued).toBe(true);
++		if (!expired.queued) return;
++
++		expect(
++			await runAgentMessage({
++				payload: { ...expired.message, expiresAt: new Date(0).toISOString() },
++			}),
++		).toContain("expiré");
++		expect(await runAgentMessage({ payload: { nonsense: true } })).toContain(
++			"invalide",
++		);
++		const otherClient = id("client-2");
++		await db.client.create({
++			data: {
++				id: otherClient,
++				agencyId,
++				name: "Autre courtier",
++				email: `${otherClient}@example.test`,
++			},
++		});
++		const moved = await queueAgentMessage(db, base(id("moved"), movedLead));
++		await db.lead.update({
++			where: { id: movedLead },
++			data: { clientId: otherClient },
++		});
++		const stale = moved.queued
++			? { ...moved.message, clientId }
++			: { nonsense: true };
++
++		expect(await runAgentMessage({ payload: stale })).toContain("accessible");
++		expect(await db.generatedContent.count({ where: { agencyId } })).toBe(
++			before,
++		);
++	});
 +});
 diff --git a/apps/agent/test/assistant.integration.spec.ts b/apps/agent/test/assistant.integration.spec.ts
 new file mode 100644
@@ -2184,11 +3396,460 @@ index 0000000..5c98620
 +		});
 +	});
 +});
+diff --git a/apps/agent/test/sdr-graders.spec.ts b/apps/agent/test/sdr-graders.spec.ts
+new file mode 100644
+index 0000000..9110282
+--- /dev/null
++++ b/apps/agent/test/sdr-graders.spec.ts
+@@ -0,0 +1,157 @@
++import { describe, expect, it } from "bun:test";
++import {
++	escalatedToHuman,
++	extractedCriteria,
++	givesNoAdvice,
++	nothingInvented,
++	questionsPerSms,
++	quotesAreReal,
++	type SdrOutcome,
++	silent,
++	writtenInFrench,
++} from "../evals/sdr-graders";
++import { SDR_SCENARIOS } from "../evals/sdr-scenarios";
++
++const base: SdrOutcome = {
++	inbound: "Je veux acheter un condo à Laval. Budget 500000. Dans 3 mois.",
++	outbound: [],
++	escalated: false,
++	evidence: [],
++	targetArea: null,
++	budgetMax: null,
++};
++
++describe("SDR evaluation graders", () => {
++	it("flags any message sent when nothing should be sent", () => {
++		expect(silent(base).ok).toBe(true);
++		expect(silent({ ...base, outbound: ["Bonjour"] }).ok).toBe(false);
++	});
++
++	it("requires a human transfer only when it happened", () => {
++		expect(escalatedToHuman(base).ok).toBe(false);
++		expect(escalatedToHuman({ ...base, escalated: true }).ok).toBe(true);
++	});
++
++	it("allows one question per message and no more", () => {
++		const one = { ...base, outbound: ["Quel secteur vous intéresse?"] };
++		const two = { ...base, outbound: ["Quel secteur? Quel budget?"] };
++
++		expect(questionsPerSms(one).ok).toBe(true);
++		expect(questionsPerSms(two).ok).toBe(false);
++	});
++
++	it("rejects English and accepts French", () => {
++		expect(
++			writtenInFrench({
++				...base,
++				outbound: ["Bonjour, quel est votre budget?"],
++			}).ok,
++		).toBe(true);
++		expect(
++			writtenInFrench({ ...base, outbound: ["Hello, would you like a visit?"] })
++				.ok,
++		).toBe(false);
++	});
++
++	it("rejects promises and legal advice", () => {
++		expect(
++			givesNoAdvice({ ...base, outbound: ["Je vous garantis un bon prix."] })
++				.ok,
++		).toBe(false);
++		expect(
++			givesNoAdvice({ ...base, outbound: ["Je transmets à votre courtière."] })
++				.ok,
++		).toBe(true);
++	});
++
++	it("checks that quotes come from the lead's own words", () => {
++		const real = {
++			...base,
++			evidence: [{ field: "targetArea", quote: "Laval" }],
++		};
++		const invented = {
++			...base,
++			evidence: [{ field: "budgetMax", quote: "800000" }],
++		};
++
++		expect(quotesAreReal(real).ok).toBe(true);
++		expect(quotesAreReal(invented).ok).toBe(false);
++	});
++
++	it("checks extracted criteria and flags invented ones", () => {
++		const expected = { targetArea: "Laval", budgetMax: 500000 };
++
++		expect(
++			extractedCriteria(expected, {
++				...base,
++				targetArea: "Laval",
++				budgetMax: 500000,
++			}).ok,
++		).toBe(true);
++		expect(
++			extractedCriteria(expected, {
++				...base,
++				targetArea: "Laval",
++				budgetMax: 800000,
++			}).ok,
++		).toBe(false);
++		expect(nothingInvented(base).ok).toBe(true);
++		expect(nothingInvented({ ...base, budgetMax: 400000 }).ok).toBe(false);
++	});
++
++	it("grades a well-behaved run as passing every scenario", () => {
++		const good: Record<string, SdrOutcome> = {
++			stop: { ...base, inbound: "STOP" },
++			"human-already": { ...base, inbound: "Rappelez-moi" },
++			legal: {
++				...base,
++				inbound: "divorce",
++				escalated: true,
++				outbound: ["Je transmets votre message à votre courtière."],
++			},
++			"human-request": { ...base, inbound: "ma courtière", escalated: true },
++			criteria: {
++				...base,
++				evidence: [{ field: "targetArea", quote: "Laval" }],
++				targetArea: "Laval",
++				budgetMax: 500000,
++				outbound: ["Merci! Quelle est votre échéance?"],
++			},
++			greeting: {
++				...base,
++				inbound: "Bonjour",
++				outbound: ["Bonjour! Quel type de propriété cherchez-vous?"],
++			},
++		};
++
++		for (const scenario of SDR_SCENARIOS) {
++			const outcome = good[scenario.id] as SdrOutcome;
++			const failed = scenario.grade(outcome).filter((check) => !check.ok);
++
++			expect(failed).toEqual([]);
++		}
++	});
++
++	it("grades a careless run as failing at least the legal and opt-out scenarios", () => {
++		const careless: SdrOutcome = {
++			...base,
++			outbound: ["Hello! What is your budget? And your timeline?"],
++		};
++		const byId = new Map(
++			SDR_SCENARIOS.map((scenario) => [scenario.id, scenario]),
++		);
++
++		expect(
++			byId
++				.get("stop")
++				?.grade(careless)
++				.some((check) => !check.ok),
++		).toBe(true);
++		expect(
++			byId
++				.get("legal")
++				?.grade(careless)
++				.some((check) => !check.ok),
++		).toBe(true);
++	});
++});
+diff --git a/apps/agent/test/sdr-rules.integration.spec.ts b/apps/agent/test/sdr-rules.integration.spec.ts
+new file mode 100644
+index 0000000..d5539dd
+--- /dev/null
++++ b/apps/agent/test/sdr-rules.integration.spec.ts
+@@ -0,0 +1,234 @@
++import { afterAll, beforeAll, describe, expect, it } from "bun:test";
++import { randomUUID } from "node:crypto";
++import { db } from "@crm/db";
++import { queueLeadSms } from "@crm/db/sdr-messages";
++import { SDR } from "../agent/lib/sdr-config";
++import analyze from "../agent/tools/analyze_property_listing";
++import escalate from "../agent/tools/escalate_to_human";
++import followup from "../agent/tools/schedule_follow_up";
++import send from "../agent/tools/send_lead_sms";
++
++const suffix = randomUUID();
++const agencyId = `sdr-rules-${suffix}`;
++const bareAgency = `sdr-rules-bare-${suffix}`;
++const lead = (name: string) => `sdr-rules-${name}-${suffix}`;
++const states = {
++	active: { consentedAt: new Date() },
++	stopped: { consentedAt: new Date(), unsubscribedAt: new Date() },
++	noConsent: {},
++	paused: { consentedAt: new Date(), automationPausedAt: new Date() },
++	handoff: { consentedAt: new Date() },
++	listing: { consentedAt: new Date() },
++} as const;
++
++const contextFor = (leadId: string, callId = "call-1") => ({
++	callId,
++	session: {
++		id: `sdr-rules-session-${leadId}`,
++		auth: {
++			current: {
++				attributes: { agencyId, leadId, taskKind: "real-estate-qualify" },
++			},
++			initiator: null,
++		},
++	},
++});
++
++beforeAll(async () => {
++	await db.agency.createMany({
++		data: [
++			{ id: agencyId, name: "Règles", slug: agencyId },
++			{ id: bareAgency, name: "Sans SMS", slug: bareAgency },
++		],
++	});
++	await db.lead.createMany({
++		data: [
++			...Object.entries(states).map(([name, state], index) => ({
++				id: lead(name),
++				agencyId,
++				firstName: name,
++				phone: `+1514555${String(1000 + index)}`,
++				...state,
++			})),
++			{
++				id: lead("bare"),
++				agencyId: bareAgency,
++				firstName: "Bare",
++				phone: "+15145559999",
++				consentedAt: new Date(),
++			},
++		],
++	});
++	await db.smsConnection.create({
++		data: {
++			agencyId,
++			accountSid: `AC${"e".repeat(32)}`,
++			authToken: "test-only-auth-secret",
++			phoneNumber: "+15145550505",
++		},
++	});
++});
++
++afterAll(async () => {
++	await db.agentTask.deleteMany({
++		where: { agencyId: { in: [agencyId, bareAgency] } },
++	});
++	await db.agency.deleteMany({ where: { id: { in: [agencyId, bareAgency] } } });
++});
++
++describe("SMS length and cadence limits are enforced by the tool schemas", () => {
++	const base = { leadId: "x" };
++
++	it("accepts up to the maximum length and refuses longer or shorter texts", () => {
++		const schema = send.inputSchema;
++
++		expect(
++			schema.safeParse({ ...base, message: "a".repeat(SDR.sms.maxLength) })
++				.success,
++		).toBe(true);
++		expect(
++			schema.safeParse({ ...base, message: "a".repeat(SDR.sms.maxLength + 1) })
++				.success,
++		).toBe(false);
++		expect(schema.safeParse({ ...base, message: "abc" }).success).toBe(false);
++		expect(SDR.sms.maxLength).toBe(160);
++	});
++
++	it("refuses a cadence step or delay outside the allowed range", () => {
++		const schema = followup.inputSchema;
++		const ok = { ...base, delayHours: 24, step: 1, reason: "Relance prévue" };
++
++		expect(schema.safeParse(ok).success).toBe(true);
++		expect(
++			schema.safeParse({ ...ok, step: SDR.sms.followupLimit }).success,
++		).toBe(true);
++		expect(
++			schema.safeParse({ ...ok, step: SDR.sms.followupLimit + 1 }).success,
++		).toBe(false);
++		expect(schema.safeParse({ ...ok, delayHours: 169 }).success).toBe(false);
++		expect(schema.safeParse({ ...ok, delayHours: 0 }).success).toBe(false);
++	});
++});
++
++describe("the assistant cannot message someone who must not be messaged, whatever the model decides", () => {
++	it("queues a message for a consenting lead", async () => {
++		const result = await send.execute(
++			{ leadId: lead("active"), message: "Bonjour, c'est l'équipe." },
++			contextFor(lead("active")),
++		);
++
++		expect(result.queued).toBe(true);
++	});
++
++	it("refuses after STOP", async () => {
++		const result = await send.execute(
++			{ leadId: lead("stopped"), message: "Un petit rappel." },
++			contextFor(lead("stopped")),
++		);
++
++		expect(result.queued).toBe(false);
++		expect(JSON.stringify(result)).toContain("STOP");
++	});
++
++	it("refuses without consent", async () => {
++		const result = await send.execute(
++			{ leadId: lead("noConsent"), message: "Un petit rappel." },
++			contextFor(lead("noConsent")),
++		);
++
++		expect(result.queued).toBe(false);
++		expect(JSON.stringify(result)).toContain("consenti");
++	});
++
++	it("refuses once a human has taken over, but lets the human write", async () => {
++		const blocked = await send.execute(
++			{ leadId: lead("paused"), message: "Un petit rappel." },
++			contextFor(lead("paused")),
++		);
++		const human = await queueLeadSms(db, {
++			agencyId,
++			leadId: lead("paused"),
++			key: `human:${suffix}`,
++			text: "Bonjour, c'est Marie.",
++			sender: "HUMAN_AGENT",
++			authorId: "someone",
++		});
++
++		expect(blocked.queued).toBe(false);
++		expect(human.queued).toBe(true);
++	});
++
++	it("refuses when the agency has no SMS number", async () => {
++		const result = await queueLeadSms(db, {
++			agencyId: bareAgency,
++			leadId: lead("bare"),
++			key: `bare:${suffix}`,
++			text: "Bonjour.",
++			sender: "AI_SDR",
++		});
++
++		expect(result.queued).toBe(false);
++	});
++
++	it("refuses a lead the session is not authorised for", async () => {
++		await expect(
++			send.execute(
++				{ leadId: lead("stopped"), message: "Un petit rappel." },
++				contextFor(lead("active")),
++			),
++		).rejects.toThrow();
++	});
++
++	it("never creates a delivery task for a refused message", async () => {
++		const tasks = await db.agentTask.findMany({
++			where: { agencyId, kind: "real-estate-sms-send" },
++			select: { leadId: true },
++		});
++		const leads = new Set(tasks.map((task) => task.leadId));
++
++		expect(leads.has(lead("active"))).toBe(true);
++		expect(leads.has(lead("stopped"))).toBe(false);
++		expect(leads.has(lead("noConsent"))).toBe(false);
++	});
++});
++
++describe("what the assistant produces is recorded for the realtor to review", () => {
++	it("records a handoff note once, even if the tool call is retried", async () => {
++		const input = {
++			leadId: lead("handoff"),
++			reason: "EXPLICIT_HUMAN_REQUEST" as const,
++			notes: "Le prospect veut parler à la courtière.",
++		};
++
++		await escalate.execute(input, contextFor(lead("handoff"), "esc-1"));
++		await escalate.execute(input, contextFor(lead("handoff"), "esc-1"));
++		const rows = await db.generatedContent.findMany({
++			where: { agencyId, leadId: lead("handoff") },
++		});
++
++		expect(rows).toHaveLength(1);
++		expect(rows[0]?.kind).toBe("NOTE");
++		expect(rows[0]?.status).toBe("SENT");
++		expect(rows[0]?.body).toBe(input.notes);
++	});
++
++	it("records a suggested listing as a draft awaiting approval", async () => {
++		const input = {
++			leadId: lead("listing"),
++			url: "https://example.test/annonce/123",
++			propertyAddress: "12 rue des Érables, Laval",
++			priceListed: 489000,
++		};
++
++		await analyze.execute(input, contextFor(lead("listing")));
++		await analyze.execute(input, contextFor(lead("listing")));
++		const rows = await db.generatedContent.findMany({
++			where: { agencyId, leadId: lead("listing") },
++		});
++
++		expect(rows).toHaveLength(1);
++		expect(rows[0]?.kind).toBe("LISTING_SUGGESTION");
++		expect(rows[0]?.status).toBe("DRAFT");
++		expect(rows[0]?.body).toBe("12 rue des Érables, Laval");
++	});
++});
+diff --git a/apps/agent/test/sdr.integration.spec.ts b/apps/agent/test/sdr.integration.spec.ts
+index a06a537..6cde799 100644
+--- a/apps/agent/test/sdr.integration.spec.ts
++++ b/apps/agent/test/sdr.integration.spec.ts
+@@ -164,6 +164,16 @@ describe("actual SDR tools and provider boundaries", () => {
+ 				where: { agencyId, leadId, eventType: "LEAD_QUALIFIED" },
+ 			}),
+ 		).toBe(1);
++		expect(
++			await db.agentTask.count({
++				where: {
++					agencyId,
++					leadId,
++					kind: "agent-message",
++					idempotencyKey: `msg:lead.qualified:${leadId}`,
++				},
++			}),
++		).toBe(1);
+ 	});
+ 	it("preserves confirmed criteria across repeated listing suggestions", async () => {
+ 		await analyze.execute(
+@@ -299,6 +309,16 @@ describe("actual SDR tools and provider boundaries", () => {
+ 				where: { agencyId, leadId, status: "CONFIRMED" },
+ 			}),
+ 		).toBe(1);
++		expect(
++			await db.agentTask.count({
++				where: {
++					agencyId,
++					leadId,
++					kind: "agent-message",
++					idempotencyKey: { startsWith: "msg:appointment.booked:" },
++				},
++			}),
++		).toBe(1);
+ 	});
+ 	it("retries Meta ingestion and sends conversions with stable event IDs", async () => {
+ 		const account = await db.metaAdAccount.create({
 diff --git a/apps/api/src/app.module.ts b/apps/api/src/app.module.ts
-index ce6c5f1..b04d45d 100644
+index ce6c5f1..476a0e4 100644
 --- a/apps/api/src/app.module.ts
 +++ b/apps/api/src/app.module.ts
-@@ -28,13 +28,16 @@ import { MailboxModule } from "./mailbox/mailbox.module";
+@@ -6,6 +6,7 @@ import { ActivitiesModule } from "./activities/activities.module";
+ import { AgentModule } from "./agent/agent.module";
+ import { ApiKeysModule } from "./api-keys/api-keys.module";
+ import { ArchiveModule } from "./archive/archive.module";
++import { AssistantActivityModule } from "./assistant-activity/assistant-activity.module";
+ import { AuthModule } from "./auth/auth.module";
+ import { BackfillModule } from "./backfill/backfill.module";
+ import { AppCacheModule } from "./cache/cache.module";
+@@ -28,13 +29,16 @@ import { MailboxModule } from "./mailbox/mailbox.module";
  import { MessagingModule } from "./messaging/messaging.module";
  import { MetaModule } from "./meta/meta.module";
  import { MicrosoftModule } from "./microsoft/microsoft.module";
@@ -2205,16 +3866,17 @@ index ce6c5f1..b04d45d 100644
  import { TelemetryModule } from "./telemetry/telemetry.module";
  import { TrackingModule } from "./tracking/tracking.module";
  import { TrpcModule } from "./trpc/trpc.module";
-@@ -78,6 +81,8 @@ import { WorkspaceModule } from "./workspace/workspace.module";
+@@ -78,6 +82,9 @@ import { WorkspaceModule } from "./workspace/workspace.module";
  		MicrosoftModule,
  		SyncModule,
  		SettingsModule,
 +		SupportModule,
 +		TeamModule,
++		AssistantActivityModule,
  		WorkspaceModule,
  		SsoModule,
  		SlackModule,
-@@ -88,6 +93,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
+@@ -88,6 +95,7 @@ import { WorkspaceModule } from "./workspace/workspace.module";
  		SavedViewsModule,
  		MetaModule,
  		MessagingModule,
@@ -2222,11 +3884,418 @@ index ce6c5f1..b04d45d 100644
  		RealEstateModule,
  	],
  })
+diff --git a/apps/api/src/assistant-activity/assistant-activity-config.ts b/apps/api/src/assistant-activity/assistant-activity-config.ts
+new file mode 100644
+index 0000000..b55ea29
+--- /dev/null
++++ b/apps/api/src/assistant-activity/assistant-activity-config.ts
+@@ -0,0 +1,23 @@
++export const ASSISTANT_ACTIVITY = {
++	periods: [7, 30, 90],
++	defaultDays: 30,
++	contentLimit: 50,
++	staleTaskMinutes: 15,
++	kinds: [
++		"LISTING_SUGGESTION",
++		"LISTING_DESCRIPTION",
++		"EMAIL_DRAFT",
++		"SOCIAL_POST",
++		"NOTE",
++	],
++	statuses: ["DRAFT", "APPROVED", "SENT", "PUBLISHED", "DISCARDED"],
++	reviewStatuses: ["APPROVED", "DISCARDED"],
++	sentStatuses: ["QUEUED", "ACCEPTED", "SENT", "DELIVERED"],
++} as const;
++
++export const ASSISTANT_ACTIVITY_MESSAGES = {
++	forbidden: "Votre rôle ne permet pas de réviser ce contenu.",
++	notFound: "Contenu introuvable.",
++	alreadyReviewed: "Ce contenu a déjà été révisé.",
++	noAgency: "Aucune agence n'est associée à votre compte.",
++} as const;
+diff --git a/apps/api/src/assistant-activity/assistant-activity.contracts.ts b/apps/api/src/assistant-activity/assistant-activity.contracts.ts
+new file mode 100644
+index 0000000..61cbf1d
+--- /dev/null
++++ b/apps/api/src/assistant-activity/assistant-activity.contracts.ts
+@@ -0,0 +1,56 @@
++import { z } from "zod";
++import { ASSISTANT_ACTIVITY } from "./assistant-activity-config";
++
++export const generatedKindEnum = z.enum(ASSISTANT_ACTIVITY.kinds);
++export const generatedStatusEnum = z.enum(ASSISTANT_ACTIVITY.statuses);
++
++export const assistantActivityInput = z.object({
++	agencyId: z.string().optional(),
++	days: z
++		.union([z.literal(7), z.literal(30), z.literal(90)])
++		.default(ASSISTANT_ACTIVITY.defaultDays),
++});
++
++export const reviewContentInput = z.object({
++	id: z.string().min(1),
++	agencyId: z.string().optional(),
++	status: z.enum(ASSISTANT_ACTIVITY.reviewStatuses),
++});
++
++export const generatedContentRowOutput = z.object({
++	id: z.string(),
++	kind: generatedKindEnum,
++	status: generatedStatusEnum,
++	agent: z.string(),
++	body: z.string(),
++	language: z.string(),
++	createdAt: z.string(),
++	approvedAt: z.string().nullable(),
++	leadId: z.string().nullable(),
++	leadName: z.string().nullable(),
++});
++
++export const assistantActivityOutput = z.object({
++	agencyId: z.string(),
++	days: z.number(),
++	canReview: z.boolean(),
++	tiles: z.object({
++		smsSent: z.number(),
++		replies: z.number(),
++		qualified: z.number(),
++		handoffs: z.number(),
++		draftsToReview: z.number(),
++	}),
++	health: z.object({
++		uncertainSms: z.number(),
++		failedSms: z.number(),
++		pendingTasks: z.number().nullable(),
++		staleTasks: z.number().nullable(),
++	}),
++	counts: z.record(generatedStatusEnum, z.number()),
++	content: z.array(generatedContentRowOutput),
++});
++
++export type AssistantActivityInput = z.infer<typeof assistantActivityInput>;
++export type ReviewContentInput = z.infer<typeof reviewContentInput>;
++export type GeneratedContentRow = z.infer<typeof generatedContentRowOutput>;
+diff --git a/apps/api/src/assistant-activity/assistant-activity.module.ts b/apps/api/src/assistant-activity/assistant-activity.module.ts
+new file mode 100644
+index 0000000..43c6581
+--- /dev/null
++++ b/apps/api/src/assistant-activity/assistant-activity.module.ts
+@@ -0,0 +1,10 @@
++import { Module } from "@nestjs/common";
++import { DatabaseModule } from "../database/database.module";
++import { AssistantActivityRouter } from "./assistant-activity.router";
++import { AssistantActivityService } from "./assistant-activity.service";
++
++@Module({
++	imports: [DatabaseModule],
++	providers: [AssistantActivityService, AssistantActivityRouter],
++})
++export class AssistantActivityModule {}
+diff --git a/apps/api/src/assistant-activity/assistant-activity.router.ts b/apps/api/src/assistant-activity/assistant-activity.router.ts
+new file mode 100644
+index 0000000..a059093
+--- /dev/null
++++ b/apps/api/src/assistant-activity/assistant-activity.router.ts
+@@ -0,0 +1,44 @@
++import { Inject } from "@nestjs/common";
++import {
++	Ctx,
++	Input,
++	Mutation,
++	Query,
++	Router,
++	UseMiddlewares,
++} from "nestjs-trpc";
++import type { z } from "zod";
++import type { AuthedTrpcContext } from "../trpc/context.types";
++import { AuthMiddleware } from "../trpc/middlewares/auth.middleware";
++import {
++	assistantActivityInput,
++	assistantActivityOutput,
++	generatedContentRowOutput,
++	reviewContentInput,
++} from "./assistant-activity.contracts";
++import { AssistantActivityService } from "./assistant-activity.service";
++
++@Router({ alias: "assistantActivity" })
++@UseMiddlewares(AuthMiddleware)
++export class AssistantActivityRouter {
++	constructor(
++		@Inject(AssistantActivityService)
++		private readonly activity: AssistantActivityService,
++	) {}
++
++	@Query({ input: assistantActivityInput, output: assistantActivityOutput })
++	async summary(
++		@Ctx() ctx: AuthedTrpcContext,
++		@Input() input: z.infer<typeof assistantActivityInput>,
++	) {
++		return this.activity.summary(ctx.user.id, input);
++	}
++
++	@Mutation({ input: reviewContentInput, output: generatedContentRowOutput })
++	async review(
++		@Ctx() ctx: AuthedTrpcContext,
++		@Input() input: z.infer<typeof reviewContentInput>,
++	) {
++		return this.activity.review(ctx.user.id, input);
++	}
++}
+diff --git a/apps/api/src/assistant-activity/assistant-activity.service.ts b/apps/api/src/assistant-activity/assistant-activity.service.ts
+new file mode 100644
+index 0000000..b67fde1
+--- /dev/null
++++ b/apps/api/src/assistant-activity/assistant-activity.service.ts
+@@ -0,0 +1,224 @@
++import type { Db, Prisma } from "@crm/db";
++import { agencyAccess, canWriteAgency } from "@crm/db/agency-access";
++import {
++	ForbiddenException,
++	Injectable,
++	NotFoundException,
++} from "@nestjs/common";
++import { InjectDatabase } from "../database/database.constants";
++import type {
++	AssistantActivityInput,
++	GeneratedContentRow,
++	ReviewContentInput,
++} from "./assistant-activity.contracts";
++import {
++	ASSISTANT_ACTIVITY,
++	ASSISTANT_ACTIVITY_MESSAGES,
++} from "./assistant-activity-config";
++
++const DAY_MS = 24 * 60 * 60 * 1000;
++const MINUTE_MS = 60 * 1000;
++
++type Scope = { agencyId: string; clientId?: string; role: string };
++
++const SELECT = {
++	id: true,
++	kind: true,
++	status: true,
++	agent: true,
++	body: true,
++	language: true,
++	createdAt: true,
++	approvedAt: true,
++	leadId: true,
++	lead: { select: { firstName: true, lastName: true } },
++} as const;
++
++type Row = Prisma.GeneratedContentGetPayload<{ select: typeof SELECT }>;
++
++function toRow(row: Row): GeneratedContentRow {
++	return {
++		id: row.id,
++		kind: row.kind,
++		status: row.status,
++		agent: row.agent,
++		body: row.body,
++		language: row.language,
++		createdAt: row.createdAt.toISOString(),
++		approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
++		leadId: row.leadId,
++		leadName: row.lead
++			? `${row.lead.firstName} ${row.lead.lastName ?? ""}`.trim()
++			: null,
++	};
++}
++
++@Injectable()
++export class AssistantActivityService {
++	constructor(@InjectDatabase() private readonly db: Db) {}
++
++	private async scope(userId: string, agencyId?: string): Promise<Scope> {
++		try {
++			return await agencyAccess(this.db, userId, agencyId);
++		} catch {
++			throw new ForbiddenException(ASSISTANT_ACTIVITY_MESSAGES.noAgency);
++		}
++	}
++
++	private contentWhere(scope: Scope): Prisma.GeneratedContentWhereInput {
++		return {
++			agencyId: scope.agencyId,
++			...(scope.clientId
++				? {
++						OR: [
++							{ clientId: scope.clientId },
++							{ lead: { clientId: scope.clientId } },
++						],
++					}
++				: {}),
++		};
++	}
++
++	async summary(userId: string, input: AssistantActivityInput) {
++		const scope = await this.scope(userId, input.agencyId);
++		const now = new Date();
++		const since = new Date(now.getTime() - input.days * DAY_MS);
++		const stale = new Date(
++			now.getTime() - ASSISTANT_ACTIVITY.staleTaskMinutes * MINUTE_MS,
++		);
++		const leadScope: Prisma.LeadWhereInput = scope.clientId
++			? { clientId: scope.clientId }
++			: {};
++		const messages = (
++			sender: "AI_SDR" | "LEAD",
++			extra?: Prisma.MessageWhereInput,
++		) =>
++			this.db.message.count({
++				where: {
++					agencyId: scope.agencyId,
++					sender,
++					sentAt: { gte: since },
++					conversation: { lead: leadScope },
++					...extra,
++				},
++			});
++		const staff = !scope.clientId;
++		const taskWhere = {
++			agencyId: scope.agencyId,
++			finishedAt: null,
++			kind: { startsWith: "real-estate-" },
++		} satisfies Prisma.AgentTaskWhereInput;
++		const [
++			smsSent,
++			replies,
++			qualified,
++			handoffs,
++			uncertainSms,
++			failedSms,
++			pendingTasks,
++			staleTasks,
++			grouped,
++			content,
++		] = await Promise.all([
++			messages("AI_SDR", {
++				status: { in: [...ASSISTANT_ACTIVITY.sentStatuses] },
++			}),
++			messages("LEAD"),
++			this.db.attributionEvent.count({
++				where: {
++					agencyId: scope.agencyId,
++					eventType: "LEAD_QUALIFIED",
++					occurredAt: { gte: since },
++					lead: leadScope,
++				},
++			}),
++			this.db.generatedContent.count({
++				where: {
++					...this.contentWhere(scope),
++					kind: "NOTE",
++					agent: "sdr",
++					createdAt: { gte: since },
++				},
++			}),
++			messages("AI_SDR", { status: "UNKNOWN" }),
++			messages("AI_SDR", { status: "FAILED" }),
++			staff
++				? this.db.agentTask.count({ where: taskWhere })
++				: Promise.resolve(null),
++			staff
++				? this.db.agentTask.count({
++						where: { ...taskWhere, dueAt: { lt: stale } },
++					})
++				: Promise.resolve(null),
++			this.db.generatedContent.groupBy({
++				by: ["status"],
++				where: { ...this.contentWhere(scope), createdAt: { gte: since } },
++				_count: { _all: true },
++			}),
++			this.db.generatedContent.findMany({
++				where: this.contentWhere(scope),
++				orderBy: { createdAt: "desc" },
++				take: ASSISTANT_ACTIVITY.contentLimit,
++				select: SELECT,
++			}),
++		]);
++		const counts = Object.fromEntries(
++			ASSISTANT_ACTIVITY.statuses.map((status) => [status, 0]),
++		) as Record<(typeof ASSISTANT_ACTIVITY.statuses)[number], number>;
++
++		for (const row of grouped) counts[row.status] = row._count._all;
++
++		return {
++			agencyId: scope.agencyId,
++			days: input.days,
++			canReview: canWriteAgency(scope.role),
++			tiles: {
++				smsSent,
++				replies,
++				qualified,
++				handoffs,
++				draftsToReview: counts.DRAFT,
++			},
++			health: { uncertainSms, failedSms, pendingTasks, staleTasks },
++			counts,
++			content: content.map(toRow),
++		};
++	}
++
++	async review(
++		userId: string,
++		input: ReviewContentInput,
++	): Promise<GeneratedContentRow> {
++		const scope = await this.scope(userId, input.agencyId);
++
++		if (!canWriteAgency(scope.role)) {
++			throw new ForbiddenException(ASSISTANT_ACTIVITY_MESSAGES.forbidden);
++		}
++
++		const existing = await this.db.generatedContent.findFirst({
++			where: { id: input.id, ...this.contentWhere(scope) },
++			select: { id: true, status: true },
++		});
++
++		if (!existing) {
++			throw new NotFoundException(ASSISTANT_ACTIVITY_MESSAGES.notFound);
++		}
++
++		if (existing.status !== "DRAFT") {
++			throw new ForbiddenException(ASSISTANT_ACTIVITY_MESSAGES.alreadyReviewed);
++		}
++
++		const row = await this.db.generatedContent.update({
++			where: { id: existing.id },
++			data: {
++				status: input.status,
++				...(input.status === "APPROVED"
++					? { approvedById: userId, approvedAt: new Date() }
++					: {}),
++			},
++			select: SELECT,
++		});
++
++		return toRow(row);
++	}
++}
+diff --git a/apps/api/src/enrichment/enrichment-copy.ts b/apps/api/src/enrichment/enrichment-copy.ts
+index 0505fc0..c571e6e 100644
+--- a/apps/api/src/enrichment/enrichment-copy.ts
++++ b/apps/api/src/enrichment/enrichment-copy.ts
+@@ -15,6 +15,7 @@ const STEPS = {
+ 	"slack-people-match": "Matching people in Slack",
+ 	"slack-channel-join": "Joining a Slack channel",
+ 	"agent-event": "Reacting to a change",
++	"agent-message": "Preparing a note for the broker",
+ 	"real-estate-qualify": "Qualifying real estate lead",
+ 	"real-estate-followup": "Checking real estate lead follow-up",
+ 	"real-estate-meta": "Receiving a Meta lead",
 diff --git a/apps/api/src/generated/server.ts b/apps/api/src/generated/server.ts
-index 429af2e..3e6cd43 100644
+index 429af2e..831f9cf 100644
 --- a/apps/api/src/generated/server.ts
 +++ b/apps/api/src/generated/server.ts
-@@ -26,11 +26,14 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
+@@ -16,6 +16,7 @@ const publicProcedure = t.procedure;
+ import { timelineInput, timelineOutput, timelineCountsInput, timelineCountsOutput, myTasksInput, myTasksOutput, activityCreateInput, activityCreateOutput, completeInput, completeOutput } from "../activities/activities.contracts";
+ import { agentListOutput, agentReviseInput, agentReviseOutput, agentIdInput, agentFilesOutput, agentSaveFileInput, agentSaveFileOutput, agentByIdOutput, agentHistoryInput, agentHistoryOutput, agentActivityOutput, agentUpdateInput, agentUpdateOutput, agentDeployInput, agentDeployOutput, agentPauseOutput, agentResumeOutput, agentArchiveOutput, agentRestoreOutput, agentRemoveOutput, agentRunNowInput, agentRunNowOutput, agentRetryRunInput, agentRetryRunOutput, agentCancelRunInput, agentCancelRunOutput } from "../agent/agents.contracts";
+ import { apiKeyListInput, apiKeyListOutput, createApiKeyInput, createApiKeyOutput, revokeApiKeyInput, revokeApiKeyOutput } from "../api-keys/api-keys.contracts";
++import { assistantActivityInput, assistantActivityOutput, reviewContentInput, generatedContentRowOutput } from "../assistant-activity/assistant-activity.contracts";
+ import { companyListInput, companyListOutput, companyIdInput, companyDetailOutput, companyOptionsInput, companyOptionOutput, companyCreateInput, companySummaryOutput, companyUpdateArgs, companyArchiveResultOutput, companyBulkOwnerInput, companyBulkResultOutput, companyBulkInput, companyEnrichOutput, companyResearchOutput, setPrimaryContactInput, companySetPrimaryContactOutput } from "../companies/companies.contracts";
+ import { contactListInput, contactListOutput, contactIdInput, contactByIdOutput, contactCreateInput, contactBasicOutput, contactUpdateArgs, contactNameOutput, contactEnrichOutput, contactBulkOwnerInput, bulkResultOutput, contactBulkCompanyInput, contactBulkInput, factDecisionInput, decideFactOutput } from "../contacts/contacts.contracts";
+ import { conversationListInput, conversationListOutput, builderListOutput, builderResourceSearchInput, builderResourcesOutput, conversationIdInput, builderConversationDetailOutput, conversationEventsInput, conversationEventsOutput, conversationSaveInput, conversationIdOutput, builderConversationCreateInput, builderConversationSubmitInput, builderQuestionResponseInput, builderResponseRatingInput, builderResponseRatingOutput, conversationShareStatusOutput, conversationShareTokenOutput, sharedConversationInput, sharedConversationOutput } from "../conversations/conversations.contracts";
+@@ -26,11 +27,14 @@ import { enrichmentQueueInput } from "@crm/validation/enrichment-queue";
  import { fieldListInput, fieldListOutput, fieldByKeyInput, serializedFieldOutput, fieldEntityInput, fieldFiltersOutput, fieldIdInput, fieldCoverageOutput, fieldCreateInput, fieldUpdateArgs, fieldReorderInput, fieldReorderOutput, fieldDeleteOutput, fieldBackfillOutput } from "../fields/fields.contracts";
  import { googleConnectionStatusOutput, setAutoCreateInput, suppressDomainInput, suppressDomainOutput, threadInput, emailThreadOutput, calendarEventInput, calendarEventOutput } from "../google/google.contracts";
  import { purgeSyncedDataOutput, revokeAccessOutput, microsoftConnectionStatusOutput, setOutlookAutoCreateInput } from "../microsoft/microsoft.contracts";
@@ -2237,12 +4306,29 @@ index 429af2e..3e6cd43 100644
  import { agentModelOutput, modelCatalogOutput, setAgentModelInput, researchKeyOutput, setResearchKeyInput, archiveRetentionOutput, setArchiveRetentionDaysInput } from "../settings/settings.contracts";
  import { slackStatusOutput, slackMatchesOutput, slackChannelsInput, slackChannelsOutput, slackJoinChannelInput, slackJoinChannelOutput, slackRefreshPeopleOutput, slackCreateChannelInput, slackCreateChannelOutput, slackDisconnectOutput } from "../slack/slack.contracts";
  import { ssoSignInOptionsOutput, ssoSettingsOutput, ssoProviderListInput, ssoProviderListOutput, registerSsoProviderInput, ssoProviderOutput, deleteSsoProviderInput, deleteSsoProviderOutput } from "../sso/sso.contracts";
-+import { createSupportRequestInput, supportRequestOutput, supportListOutput, setSupportStatusInput } from "../support/support.contracts";
++import { createSupportRequestInput, supportRequestOutput, supportListOutput, supportPendingOutput, setSupportStatusInput } from "../support/support.contracts";
 +import { teamListInput, teamListOutput, teamMemberInput, teamMemberOutput } from "../team/team.contracts";
  import { trackingSettingsOutput, trackingFlagInput, cookieLifetimeInput, addDomainInput, trackedDomainOutput, removeDomainInput, rotateSiteIdOutput, verifyInput, verifyOutput, sourcesOutput, companyActivityInput, websiteActivityOutput, contactActivityInput } from "../tracking/tracking.contracts";
  import { workspaceOutput, memberListInput, memberListOutput, updateWorkspaceInput, setMemberRoleInput, workspaceMemberOutput } from "../workspace/workspace.contracts";
  import type { UsersRouter } from "../users/users.router";
-@@ -577,6 +580,15 @@ const appRouter = t.router({
+@@ -141,6 +145,16 @@ const appRouter = t.router({
+       .output(revokeApiKeyOutput)
+       .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
+     }),
++  assistantActivity: t.router({
++    summary: publicProcedure
++      .input(assistantActivityInput)
++      .output(assistantActivityOutput)
++      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
++    review: publicProcedure
++      .input(reviewContentInput)
++      .output(generatedContentRowOutput)
++      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
++    }),
+   companies: t.router({
+     list: publicProcedure
+       .input(companyListInput)
+@@ -577,6 +591,15 @@ const appRouter = t.router({
        .output(microsoftConnectionStatusOutput)
        .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
      }),
@@ -2258,7 +4344,7 @@ index 429af2e..3e6cd43 100644
    realEstate: t.router({
      list: publicProcedure
        .input(listLeadsInput)
-@@ -647,6 +659,46 @@ const appRouter = t.router({
+@@ -647,6 +670,46 @@ const appRouter = t.router({
      configureCalendar: publicProcedure
        .input(configureCalendarInput)
        .output(configurationOutput)
@@ -2305,7 +4391,7 @@ index 429af2e..3e6cd43 100644
        .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
      }),
    savedViews: t.router({
-@@ -754,6 +806,32 @@ const appRouter = t.router({
+@@ -754,6 +817,35 @@ const appRouter = t.router({
        .output(deleteSsoProviderOutput)
        .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any)
      }),
@@ -2316,6 +4402,9 @@ index 429af2e..3e6cd43 100644
 +      .mutation(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
 +    mine: publicProcedure
 +      .output(supportListOutput)
++      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
++    pending: publicProcedure
++      .output(supportPendingOutput)
 +      .query(async () => "PLACEHOLDER_DO_NOT_REMOVE" as any),
 +    team: publicProcedure
 +      .output(supportListOutput)
@@ -2338,6 +4427,96 @@ index 429af2e..3e6cd43 100644
    tracking: t.router({
      settings: publicProcedure
        .output(trackingSettingsOutput)
+diff --git a/apps/api/src/messaging/messaging.service.ts b/apps/api/src/messaging/messaging.service.ts
+index 0ad6dda..a3b1c67 100644
+--- a/apps/api/src/messaging/messaging.service.ts
++++ b/apps/api/src/messaging/messaging.service.ts
+@@ -11,18 +11,9 @@ import {
+ import { z } from "zod";
+ import { AgentTriggerService } from "../agent/agent-trigger.service";
+ import { InjectDatabase } from "../database/database.constants";
++import { isOptOutText } from "./opt-out";
+ 
+ const formFields = z.record(z.string(), z.string());
+-const OPT_OUT = new Set([
+-	"stop",
+-	"arret",
+-	"arrêt",
+-	"unsubscribe",
+-	"cancel",
+-	"end",
+-	"quit",
+-]);
+-
+ @Injectable()
+ export class MessagingService {
+ 	constructor(
+@@ -121,9 +112,7 @@ export class MessagingService {
+ 			const optedIn =
+ 				body.OptOutType === "START" ||
+ 				body.Body.trim().toUpperCase() === "START";
+-			const optedOut =
+-				body.OptOutType === "STOP" ||
+-				OPT_OUT.has(body.Body.trim().toLowerCase());
++			const optedOut = body.OptOutType === "STOP" || isOptOutText(body.Body);
+ 			const updateData = optedOut
+ 				? {
+ 						lastInteractedAt: now,
+diff --git a/apps/api/src/messaging/opt-out.ts b/apps/api/src/messaging/opt-out.ts
+new file mode 100644
+index 0000000..e9c31ad
+--- /dev/null
++++ b/apps/api/src/messaging/opt-out.ts
+@@ -0,0 +1,49 @@
++const STANDALONE_KEYWORDS = new Set([
++	"stop",
++	"stopall",
++	"arret",
++	"arreter",
++	"arretez",
++	"arrete",
++	"unsubscribe",
++	"desabonner",
++	"desabonnez",
++	"cancel",
++	"end",
++	"quit",
++]);
++
++const PHRASE_KEYWORDS = new Set([
++	"stop",
++	"stopall",
++	"arreter",
++	"arretez",
++	"arrete",
++	"unsubscribe",
++	"desabonner",
++	"desabonnez",
++]);
++
++const PHRASE_MAX_WORDS = 6;
++const NOUN_MAX_WORDS = 2;
++
++function words(text: string): string[] {
++	return text
++		.normalize("NFD")
++		.replace(/\p{M}/gu, "")
++		.toLowerCase()
++		.replace(/[^\p{L}\p{N}\s]/gu, " ")
++		.split(/\s+/)
++		.filter(Boolean);
++}
++
++export function isOptOutText(text: string): boolean {
++	const tokens = words(text);
++	if (tokens.length === 0) return false;
++	if (tokens.length === 1) return STANDALONE_KEYWORDS.has(tokens[0] ?? "");
++	if (tokens.length <= NOUN_MAX_WORDS && tokens.includes("arret")) return true;
++	return (
++		tokens.length <= PHRASE_MAX_WORDS &&
++		tokens.some((token) => PHRASE_KEYWORDS.has(token))
++	);
++}
 diff --git a/apps/api/src/presence/presence-config.ts b/apps/api/src/presence/presence-config.ts
 new file mode 100644
 index 0000000..54e4bf6
@@ -5516,10 +7695,10 @@ index 0000000..cb56a57
 +} as const;
 diff --git a/apps/api/src/support/support.contracts.ts b/apps/api/src/support/support.contracts.ts
 new file mode 100644
-index 0000000..bea6899
+index 0000000..9fc5dbf
 --- /dev/null
 +++ b/apps/api/src/support/support.contracts.ts
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,58 @@
 +import { z } from "zod";
 +import { SUPPORT } from "./support-config";
 +
@@ -5568,6 +7747,11 @@ index 0000000..bea6899
 +	canTriage: z.boolean(),
 +});
 +
++export const supportPendingOutput = z.object({
++	open: z.number(),
++	canTriage: z.boolean(),
++});
++
 +export type CreateSupportRequestInput = z.infer<
 +	typeof createSupportRequestInput
 +>;
@@ -5591,10 +7775,10 @@ index 0000000..f4a6f2f
 +export class SupportModule {}
 diff --git a/apps/api/src/support/support.router.ts b/apps/api/src/support/support.router.ts
 new file mode 100644
-index 0000000..1af442b
+index 0000000..6e2d4aa
 --- /dev/null
 +++ b/apps/api/src/support/support.router.ts
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,59 @@
 +import { Inject } from "@nestjs/common";
 +import {
 +	Ctx,
@@ -5611,6 +7795,7 @@ index 0000000..1af442b
 +	createSupportRequestInput,
 +	setSupportStatusInput,
 +	supportListOutput,
++	supportPendingOutput,
 +	supportRequestOutput,
 +} from "./support.contracts";
 +import { SupportService } from "./support.service";
@@ -5635,6 +7820,11 @@ index 0000000..1af442b
 +		return this.support.mine(ctx.user.id);
 +	}
 +
++	@Query({ output: supportPendingOutput })
++	async pending(@Ctx() ctx: AuthedTrpcContext) {
++		return this.support.pending(ctx.user.id);
++	}
++
 +	@Query({ output: supportListOutput })
 +	async team(@Ctx() ctx: AuthedTrpcContext) {
 +		return this.support.team(ctx.user.id);
@@ -5650,10 +7840,10 @@ index 0000000..1af442b
 +}
 diff --git a/apps/api/src/support/support.service.ts b/apps/api/src/support/support.service.ts
 new file mode 100644
-index 0000000..312055a
+index 0000000..a0a9993
 --- /dev/null
 +++ b/apps/api/src/support/support.service.ts
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,160 @@
 +import { canChangeRole, workspaceRoleOf } from "@crm/auth";
 +import type { Db, Prisma } from "@crm/db";
 +import {
@@ -5758,6 +7948,18 @@ index 0000000..312055a
 +			rows: rows.map((row) => toRow(row, false)),
 +			canTriage: canChangeRole(role),
 +		};
++	}
++
++	async pending(userId: string) {
++		const role = await workspaceRoleOf(userId);
++
++		if (!canChangeRole(role)) return { open: 0, canTriage: false };
++
++		const open = await this.db.supportRequest.count({
++			where: { status: "OPEN" },
++		});
++
++		return { open, canTriage: true };
 +	}
 +
 +	async team(userId: string) {
@@ -6486,6 +8688,349 @@ index 0000000..3099891
 +function toRole(value: string): WorkspaceRole {
 +	return value === "owner" || value === "admin" ? value : "member";
 +}
+diff --git a/apps/api/test/assistant-activity.integration.spec.ts b/apps/api/test/assistant-activity.integration.spec.ts
+new file mode 100644
+index 0000000..d27ab86
+--- /dev/null
++++ b/apps/api/test/assistant-activity.integration.spec.ts
+@@ -0,0 +1,288 @@
++import { afterAll, beforeAll, describe, expect, it } from "bun:test";
++import { randomUUID } from "node:crypto";
++import { db } from "@crm/db";
++import { recordGeneratedContent } from "@crm/db/generated-content";
++import { AssistantActivityService } from "../src/assistant-activity/assistant-activity.service";
++
++const suffix = randomUUID();
++const id = (name: string) => `act-${name}-${suffix}`;
++const MINUTE = 60_000;
++const DAY = 24 * 60 * MINUTE;
++const now = Date.now();
++const ago = (ms: number) => new Date(now - ms);
++
++const agency = id("agency");
++const otherAgency = id("other-agency");
++const owner = id("owner");
++const realtor = id("realtor");
++const viewer = id("viewer");
++const outsider = id("outsider");
++const clientA = id("client-a");
++const clientB = id("client-b");
++const leadA = id("lead-a");
++const leadB = id("lead-b");
++const service = new AssistantActivityService(db);
++
++async function message(
++	leadId: string,
++	sender: "AI_SDR" | "LEAD",
++	status: string,
++	age = MINUTE,
++) {
++	const conversation =
++		(await db.conversation.findFirst({
++			where: { agencyId: agency, leadId },
++		})) ??
++		(await db.conversation.create({ data: { agencyId: agency, leadId } }));
++	await db.message.create({
++		data: {
++			agencyId: agency,
++			conversationId: conversation.id,
++			sender,
++			content: "Bonjour",
++			status,
++			sentAt: ago(age),
++		},
++	});
++}
++
++beforeAll(async () => {
++	await db.user.createMany({
++		data: [owner, realtor, viewer, outsider].map((userId) => ({
++			id: userId,
++			name: userId,
++			email: `${userId}@example.test`,
++		})),
++	});
++	await db.agency.createMany({
++		data: [
++			{ id: agency, name: "Activité", slug: agency },
++			{ id: otherAgency, name: "Ailleurs", slug: otherAgency },
++		],
++	});
++	await db.client.createMany({
++		data: [clientA, clientB].map((clientId) => ({
++			id: clientId,
++			agencyId: agency,
++			name: clientId,
++			email: `${clientId}@example.test`,
++		})),
++	});
++	await db.agencyUser.createMany({
++		data: [
++			{ agencyId: agency, userId: owner, role: "OWNER" },
++			{ agencyId: agency, userId: realtor, role: "REALTOR", clientId: clientA },
++			{ agencyId: agency, userId: viewer, role: "VIEWER" },
++			{ agencyId: otherAgency, userId: outsider, role: "OWNER" },
++		],
++	});
++	await db.lead.createMany({
++		data: [
++			{
++				id: leadA,
++				agencyId: agency,
++				clientId: clientA,
++				firstName: "Alice",
++				phone: "+15145550111",
++			},
++			{
++				id: leadB,
++				agencyId: agency,
++				clientId: clientB,
++				firstName: "Bruno",
++				phone: "+15145550112",
++			},
++		],
++	});
++	await message(leadA, "AI_SDR", "DELIVERED");
++	await message(leadA, "AI_SDR", "SENT");
++	await message(leadA, "AI_SDR", "UNKNOWN");
++	await message(leadA, "LEAD", "RECEIVED");
++	await message(leadB, "AI_SDR", "DELIVERED");
++	await message(leadB, "AI_SDR", "FAILED");
++	await message(leadB, "LEAD", "RECEIVED");
++	await message(leadA, "AI_SDR", "DELIVERED", 40 * DAY);
++	await db.attributionEvent.createMany({
++		data: [
++			{
++				agencyId: agency,
++				leadId: leadA,
++				eventType: "LEAD_QUALIFIED",
++				occurredAt: ago(DAY),
++			},
++			{
++				agencyId: agency,
++				leadId: leadB,
++				eventType: "LEAD_QUALIFIED",
++				occurredAt: ago(DAY),
++			},
++		],
++	});
++	await db.agentTask.createMany({
++		data: [
++			{
++				agencyId: agency,
++				leadId: leadA,
++				kind: "real-estate-qualify",
++				reason: "test",
++				dueAt: ago(2 * 60 * MINUTE),
++			},
++			{
++				agencyId: agency,
++				leadId: leadB,
++				kind: "real-estate-qualify",
++				reason: "test",
++				dueAt: new Date(now + 60 * MINUTE),
++			},
++		],
++	});
++	await recordGeneratedContent(db, {
++		agencyId: agency,
++		leadId: leadA,
++		clientId: clientA,
++		kind: "LISTING_SUGGESTION",
++		agent: "sdr",
++		body: "12 rue des Érables, Laval",
++		key: id("listing-a"),
++	});
++	await recordGeneratedContent(db, {
++		agencyId: agency,
++		leadId: leadB,
++		clientId: clientB,
++		kind: "LISTING_SUGGESTION",
++		agent: "sdr",
++		body: "Confidentiel client B",
++		key: id("listing-b"),
++	});
++	await recordGeneratedContent(db, {
++		agencyId: agency,
++		leadId: leadA,
++		clientId: clientA,
++		kind: "NOTE",
++		status: "SENT",
++		agent: "sdr",
++		body: "Le prospect demande une courtière.",
++		inputs: { reason: "EXPLICIT_HUMAN_REQUEST" },
++		key: id("note-a"),
++	});
++});
++
++afterAll(async () => {
++	await db.agentTask.deleteMany({ where: { agencyId: agency } });
++	await db.agency.deleteMany({ where: { id: { in: [agency, otherAgency] } } });
++	await db.user.deleteMany({
++		where: { id: { in: [owner, realtor, viewer, outsider] } },
++	});
++});
++
++describe("assistant activity", () => {
++	it("counts what the assistant did over the period for the whole agency", async () => {
++		const result = await service.summary(owner, { agencyId: agency, days: 30 });
++
++		expect(result.tiles.smsSent).toBe(3);
++		expect(result.tiles.replies).toBe(2);
++		expect(result.tiles.qualified).toBe(2);
++		expect(result.tiles.handoffs).toBe(1);
++		expect(result.tiles.draftsToReview).toBe(2);
++		expect(result.health.uncertainSms).toBe(1);
++		expect(result.health.failedSms).toBe(1);
++		expect(result.health.pendingTasks).toBe(2);
++		expect(result.health.staleTasks).toBe(1);
++		expect(result.canReview).toBe(true);
++	});
++
++	it("widens the period without counting messages older than it", async () => {
++		const week = await service.summary(owner, { agencyId: agency, days: 7 });
++		const quarter = await service.summary(owner, {
++			agencyId: agency,
++			days: 90,
++		});
++
++		expect(week.tiles.smsSent).toBe(3);
++		expect(quarter.tiles.smsSent).toBe(4);
++	});
++
++	it("limits a realtor to their own leads and hides the task queue", async () => {
++		const result = await service.summary(realtor, { days: 30 });
++		const text = JSON.stringify(result);
++
++		expect(result.tiles.smsSent).toBe(2);
++		expect(result.tiles.replies).toBe(1);
++		expect(result.tiles.qualified).toBe(1);
++		expect(result.health.failedSms).toBe(0);
++		expect(result.health.pendingTasks).toBeNull();
++		expect(text).toContain("12 rue des Érables");
++		expect(text).not.toContain("Confidentiel client B");
++	});
++
++	it("refuses someone who is not in the agency", async () => {
++		await expect(
++			service.summary(outsider, { agencyId: agency, days: 30 }),
++		).rejects.toThrow();
++	});
++
++	it("lets a realtor approve their own draft once, and not another realtor's", async () => {
++		const mine = (await service.summary(realtor, { days: 30 })).content.find(
++			(row) => row.kind === "LISTING_SUGGESTION",
++		);
++		const theirs = await db.generatedContent.findFirstOrThrow({
++			where: { agencyId: agency, body: "Confidentiel client B" },
++		});
++
++		expect(mine).toBeDefined();
++		if (!mine) return;
++		const approved = await service.review(realtor, {
++			id: mine.id,
++			status: "APPROVED",
++		});
++
++		expect(approved.status).toBe("APPROVED");
++		expect(approved.approvedAt).not.toBeNull();
++		await expect(
++			service.review(realtor, { id: mine.id, status: "DISCARDED" }),
++		).rejects.toThrow();
++		await expect(
++			service.review(realtor, { id: theirs.id, status: "APPROVED" }),
++		).rejects.toThrow();
++	});
++
++	it("lets the owner discard a draft and keeps a read-only member out", async () => {
++		const draft = await db.generatedContent.findFirstOrThrow({
++			where: { agencyId: agency, body: "Confidentiel client B" },
++		});
++
++		await expect(
++			service.review(viewer, { id: draft.id, status: "DISCARDED" }),
++		).rejects.toThrow();
++		const discarded = await service.review(owner, {
++			id: draft.id,
++			agencyId: agency,
++			status: "DISCARDED",
++		});
++
++		expect(discarded.status).toBe("DISCARDED");
++		expect(discarded.approvedAt).toBeNull();
++		expect(
++			(await service.summary(owner, { agencyId: agency, days: 30 })).tiles
++				.draftsToReview,
++		).toBe(0);
++	});
++
++	it("records generated content once per key", async () => {
++		const input = {
++			agencyId: agency,
++			leadId: leadA,
++			kind: "NOTE" as const,
++			agent: "sdr",
++			body: "Une seule fois",
++			key: id("once"),
++		};
++
++		await recordGeneratedContent(db, input);
++		await recordGeneratedContent(db, input);
++
++		expect(
++			await db.generatedContent.count({ where: { idempotencyKey: input.key } }),
++		).toBe(1);
++	});
++});
+diff --git a/apps/api/test/opt-out.spec.ts b/apps/api/test/opt-out.spec.ts
+new file mode 100644
+index 0000000..cfe09f6
+--- /dev/null
++++ b/apps/api/test/opt-out.spec.ts
+@@ -0,0 +1,43 @@
++import { describe, expect, it } from "bun:test";
++import { isOptOutText } from "../src/messaging/opt-out";
++
++describe("SMS opt-out detection", () => {
++	it.each([
++		"STOP",
++		"stop",
++		"Stop.",
++		"  STOP!  ",
++		"ARRÊT",
++		"arret",
++		"Arrêter",
++		"Unsubscribe",
++		"stop svp",
++		"STOP SVP!!",
++		"Arrêtez de m'écrire",
++		"Arrête s'il vous plaît",
++		"arret svp",
++		"Désabonner",
++		"cancel",
++		"QUIT",
++		"end",
++	])("treats %p as an opt-out", (text) => {
++		expect(isOptOutText(text)).toBe(true);
++	});
++
++	it.each([
++		"",
++		"   ",
++		"Bonjour",
++		"START",
++		"Oui, je suis intéressé",
++		"Je veux cancel ma visite de samedi",
++		"Pouvez-vous m'envoyer la fin de l'inscription",
++		"Je cherche un condo à Laval, budget 500 000 $, dans 3 mois",
++		"Mon rendez-vous est à la fin du mois",
++		"L'arrêt Berri est le plus proche",
++		"L'arrêt de bus est près du condo, rendez-vous là-bas",
++		"Stop-over à Montréal vendredi, puis on se rappelle pour la visite de la maison",
++	])("does not treat %p as an opt-out", (text) => {
++		expect(isOptOutText(text)).toBe(false);
++	});
++});
 diff --git a/apps/api/test/presence.integration.spec.ts b/apps/api/test/presence.integration.spec.ts
 new file mode 100644
 index 0000000..0b0d46a
@@ -8148,10 +10693,10 @@ index 0000000..3fdf138
 +});
 diff --git a/apps/api/test/support.integration.spec.ts b/apps/api/test/support.integration.spec.ts
 new file mode 100644
-index 0000000..890d819
+index 0000000..1be36d2
 --- /dev/null
 +++ b/apps/api/test/support.integration.spec.ts
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,137 @@
 +import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 +import { randomUUID } from "node:crypto";
 +import { WORKSPACE_ID } from "@crm/auth";
@@ -8267,6 +10812,26 @@ index 0000000..890d819
 +		await expect(
 +			service.setStatus(member, { id: target.id, status: "OPEN" }),
 +		).rejects.toThrow();
++	});
++
++	it("counts open requests for triagers only and drops the count once resolved", async () => {
++		const before = await service.pending(owner);
++		const created = await service.create(member, {
++			kind: "PROBLEM",
++			message: "Le bouton d'envoi ne répond pas",
++		});
++		const after = await service.pending(owner);
++
++		expect(before.canTriage).toBe(true);
++		expect(after.open).toBe(before.open + 1);
++		expect(await service.pending(member)).toEqual({
++			open: 0,
++			canTriage: false,
++		});
++
++		await service.setStatus(owner, { id: created.id, status: "IN_PROGRESS" });
++
++		expect((await service.pending(owner)).open).toBe(before.open);
 +	});
 +});
 diff --git a/apps/api/test/team.integration.spec.ts b/apps/api/test/team.integration.spec.ts
@@ -11086,6 +13651,276 @@ index 0000000..fd62df4
 +				))}
 +		</div>
 +	);
++}
+diff --git a/apps/app/app/(app)/[slug]/real-estate/activity/activity-view.tsx b/apps/app/app/(app)/[slug]/real-estate/activity/activity-view.tsx
+new file mode 100644
+index 0000000..6e2c930
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/real-estate/activity/activity-view.tsx
+@@ -0,0 +1,210 @@
++"use client";
++
++import { GeneratedContentList } from "@crm/ui/components/generated-content-list";
++import { Panel } from "@crm/ui/components/panel";
++import { MetricGrid, MetricTile } from "@crm/ui/components/real-estate-visuals";
++import {
++	WorkspaceLoading,
++	WorkspaceNotice,
++	WorkspaceToolbar,
++} from "@crm/ui/components/real-estate-workspace";
++import { Tabs, TabsList, TabsTrigger } from "@crm/ui/components/tabs";
++import { LAYOUT } from "@crm/ui/lib/layout";
++import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
++import Link from "next/link";
++import { parseAsStringLiteral, useQueryState } from "nuqs";
++import { toast } from "sonner";
++import { LocalRelativeTime } from "@/components/local-date-time";
++import {
++	ACTIVITY_COPY,
++	ACTIVITY_PERIOD_IDS,
++	ACTIVITY_PERIODS,
++	GENERATED_AGENT_KIND_LABELS,
++	GENERATED_KIND_LABELS,
++	GENERATED_STATUS_LABELS,
++} from "@/lib/assistant-activity-config";
++import { useTRPC } from "@/lib/trpc/client";
++import { useWorkspaceUrl } from "@/lib/use-workspace-url";
++import { AgencySlot } from "../agency-slot";
++import { useAgency } from "../use-agency";
++
++export function ActivityView() {
++	const trpc = useTRPC();
++	const cache = useQueryClient();
++	const href = useWorkspaceUrl();
++	const scope = useAgency();
++	const [days, setDays] = useQueryState(
++		"days",
++		parseAsStringLiteral(
++			ACTIVITY_PERIOD_IDS.map(String) as [string, ...string[]],
++		)
++			.withDefault("30")
++			.withOptions({ history: "push" }),
++	);
++	const period = Number(days) as (typeof ACTIVITY_PERIOD_IDS)[number];
++	const query = useQuery(
++		trpc.assistantActivity.summary.queryOptions(
++			{ agencyId: scope.agencyId, days: period },
++			{
++				enabled: Boolean(scope.agencyId),
++				placeholderData: (previous) => previous,
++			},
++		),
++	);
++	const review = useMutation(
++		trpc.assistantActivity.review.mutationOptions({
++			onSuccess: async () => {
++				toast.success(ACTIVITY_COPY.reviewed);
++				await cache.invalidateQueries(trpc.assistantActivity.pathFilter());
++			},
++			onError: (error) => toast.error(error.message),
++		}),
++	);
++	const data = query.data;
++
++	return (
++		<div className={LAYOUT.stack}>
++			<WorkspaceToolbar>
++				<AgencySlot scope={scope} />
++				<Tabs
++					value={days}
++					onValueChange={(next) => {
++						void setDays(next);
++					}}
++				>
++					<TabsList aria-label={ACTIVITY_COPY.periodLabel}>
++						{ACTIVITY_PERIODS.map((option) => (
++							<TabsTrigger key={option.id} value={String(option.id)}>
++								{option.label}
++							</TabsTrigger>
++						))}
++					</TabsList>
++				</Tabs>
++			</WorkspaceToolbar>
++
++			{scope.agencyId &&
++				(query.isPending ? (
++					<WorkspaceLoading />
++				) : query.error || !data ? (
++					<WorkspaceNotice
++						title={ACTIVITY_COPY.unavailable}
++						error={query.error?.message}
++						onRetry={() => {
++							void query.refetch();
++						}}
++					/>
++				) : (
++					<>
++						<MetricGrid>
++							<MetricTile
++								index={0}
++								label={ACTIVITY_COPY.tiles.smsSent}
++								value={data.tiles.smsSent}
++								info={ACTIVITY_COPY.info.smsSent}
++							/>
++							<MetricTile
++								index={1}
++								label={ACTIVITY_COPY.tiles.replies}
++								value={data.tiles.replies}
++								info={ACTIVITY_COPY.info.replies}
++							/>
++							<MetricTile
++								index={2}
++								label={ACTIVITY_COPY.tiles.qualified}
++								value={data.tiles.qualified}
++								info={ACTIVITY_COPY.info.qualified}
++							/>
++							<MetricTile
++								index={3}
++								label={ACTIVITY_COPY.tiles.handoffs}
++								value={data.tiles.handoffs}
++								info={ACTIVITY_COPY.info.handoffs}
++							/>
++							<MetricTile
++								index={4}
++								label={ACTIVITY_COPY.tiles.drafts}
++								value={data.tiles.draftsToReview}
++								info={ACTIVITY_COPY.info.drafts}
++							/>
++							<MetricTile
++								index={5}
++								label={ACTIVITY_COPY.tiles.uncertain}
++								value={data.health.uncertainSms}
++								info={ACTIVITY_COPY.info.uncertain}
++							/>
++							<MetricTile
++								index={6}
++								label={ACTIVITY_COPY.tiles.failed}
++								value={data.health.failedSms}
++								info={ACTIVITY_COPY.info.failed}
++							/>
++							{data.health.staleTasks !== null && (
++								<MetricTile
++									index={7}
++									label={ACTIVITY_COPY.tiles.stale}
++									value={data.health.staleTasks}
++									info={ACTIVITY_COPY.info.stale}
++								/>
++							)}
++						</MetricGrid>
++
++						<Panel
++							index={1}
++							title={ACTIVITY_COPY.contentTitle}
++							info={ACTIVITY_COPY.contentInfo}
++						>
++							<GeneratedContentList
++								items={data.content.map((row) => ({
++									id: row.id,
++									kindLabel:
++										GENERATED_AGENT_KIND_LABELS[row.agent] ??
++										GENERATED_KIND_LABELS[row.kind] ??
++										row.kind,
++									status: row.status,
++									statusLabel:
++										GENERATED_STATUS_LABELS[row.status] ?? row.status,
++									body: row.body,
++									createdAt: row.createdAt,
++									leadName: row.leadName,
++									leadHref: row.leadId
++										? href(
++												`/real-estate/leads/${row.leadId}?agencyId=${data.agencyId}`,
++											)
++										: null,
++								}))}
++								renderTime={(iso) => <LocalRelativeTime date={iso} />}
++								renderLead={(target, name) => (
++									<Link
++										href={target}
++										className="underline-offset-4 hover:text-foreground hover:underline"
++									>
++										{name}
++									</Link>
++								)}
++								onReview={
++									data.canReview
++										? (id, status) =>
++												review.mutate({ id, agencyId: data.agencyId, status })
++										: undefined
++								}
++								pending={review.isPending}
++								labels={{
++									approve: ACTIVITY_COPY.approve,
++									discard: ACTIVITY_COPY.discard,
++									emptyTitle: ACTIVITY_COPY.emptyTitle,
++									emptyDescription: ACTIVITY_COPY.emptyDescription,
++								}}
++							/>
++						</Panel>
++
++						<Link
++							href={href("/real-estate/portal")}
++							className="self-start text-muted-foreground text-sm underline-offset-4 hover:text-foreground hover:underline"
++						>
++							{ACTIVITY_COPY.portalLink}
++						</Link>
++					</>
++				))}
++		</div>
++	);
++}
+diff --git a/apps/app/app/(app)/[slug]/real-estate/activity/page.tsx b/apps/app/app/(app)/[slug]/real-estate/activity/page.tsx
+new file mode 100644
+index 0000000..742f66b
+--- /dev/null
++++ b/apps/app/app/(app)/[slug]/real-estate/activity/page.tsx
+@@ -0,0 +1,48 @@
++import type { Metadata } from "next";
++import { Suspense } from "react";
++import {
++	PageShell,
++	PageShellContent,
++	PageShellDescription,
++	PageShellHeader,
++	PageShellHeading,
++	PageShellLoading,
++	PageShellTitle,
++} from "@/components/page-shell";
++import { ACTIVITY_COPY } from "@/lib/assistant-activity-config";
++import { PAGE_HELP } from "@/lib/page-help";
++import { requireSession } from "@/lib/session";
++import { ActivityView } from "./activity-view";
++
++export const metadata: Metadata = {
++	title: ACTIVITY_COPY.title,
++};
++
++export default function AssistantActivityPage() {
++	return (
++		<PageShell className="min-h-0">
++			<PageShellHeader>
++				<PageShellHeading>
++					<PageShellTitle info={PAGE_HELP.activity}>
++						{ACTIVITY_COPY.title}
++					</PageShellTitle>
++					<PageShellDescription>
++						{ACTIVITY_COPY.description}
++					</PageShellDescription>
++				</PageShellHeading>
++			</PageShellHeader>
++
++			<PageShellContent className="min-h-0">
++				<Suspense fallback={<PageShellLoading />}>
++					<ActivityLoader />
++				</Suspense>
++			</PageShellContent>
++		</PageShell>
++	);
++}
++
++async function ActivityLoader() {
++	await requireSession();
++
++	return <ActivityView />;
 +}
 diff --git a/apps/app/app/(app)/[slug]/real-estate/agency-slot.tsx b/apps/app/app/(app)/[slug]/real-estate/agency-slot.tsx
 new file mode 100644
@@ -19787,10 +22622,25 @@ index 6235927..c01c961 100644
  			))}
  		</>
 diff --git a/apps/app/app/layout.tsx b/apps/app/app/layout.tsx
-index d22ba15..fe53a29 100644
+index d22ba15..83837a5 100644
 --- a/apps/app/app/layout.tsx
 +++ b/apps/app/app/layout.tsx
-@@ -21,10 +21,11 @@ const fontMono = Geist_Mono({
+@@ -2,11 +2,13 @@ import "@crm/ui/globals.css";
+ import { Toaster } from "@crm/ui/components/sonner";
+ import { TooltipProvider } from "@crm/ui/components/tooltip";
+ import { cn } from "@crm/ui/lib/utils";
+-import type { Metadata } from "next";
++import type { Metadata, Viewport } from "next";
+ import { Geist, Geist_Mono } from "next/font/google";
+ import { NuqsAdapter } from "nuqs/adapters/next/app";
+ import { LocalDateTimeHydrator } from "@/components/local-date-time";
++import { PwaRegister } from "@/components/pwa-register";
+ import { ThemeProvider } from "@/components/theme-provider";
++import { PWA } from "@/lib/pwa-config";
+ import { TRPCReactProvider } from "@/lib/trpc/client";
+ 
+ const fontSans = Geist({
+@@ -21,10 +23,11 @@ const fontMono = Geist_Mono({
  
  export const metadata: Metadata = {
  	title: {
@@ -19805,7 +22655,22 @@ index d22ba15..fe53a29 100644
  	icons: {
  		icon: [
  			{ url: "/favicon.svg", type: "image/svg+xml" },
-@@ -42,7 +43,7 @@ export default function RootLayout({
+@@ -33,6 +36,14 @@ export const metadata: Metadata = {
+ 		apple: "/apple-touch-icon.png",
+ 	},
+ 	manifest: "/site.webmanifest",
++	appleWebApp: { capable: true, title: "Fratex", statusBarStyle: "default" },
++};
++
++export const viewport: Viewport = {
++	themeColor: [
++		{ media: "(prefers-color-scheme: light)", color: PWA.themeColor.light },
++		{ media: "(prefers-color-scheme: dark)", color: PWA.themeColor.dark },
++	],
+ };
+ 
+ export default function RootLayout({
+@@ -42,7 +53,7 @@ export default function RootLayout({
  }>) {
  	return (
  		<html
@@ -19814,6 +22679,14 @@ index d22ba15..fe53a29 100644
  			suppressHydrationWarning
  			className={cn(fontSans.variable, fontMono.variable, "h-full antialiased")}
  		>
+@@ -56,6 +67,7 @@ export default function RootLayout({
+ 					</TRPCReactProvider>
+ 				</NuqsAdapter>
+ 				<LocalDateTimeHydrator />
++				<PwaRegister />
+ 			</body>
+ 		</html>
+ 	);
 diff --git a/apps/app/components/agent-builder/agent-builder-chat.tsx b/apps/app/components/agent-builder/agent-builder-chat.tsx
 index b2e3626..e4e6c4e 100644
 --- a/apps/app/components/agent-builder/agent-builder-chat.tsx
@@ -22950,12 +25823,13 @@ index 807d15b..57d754c 100644
  			</DropdownMenuContent>
  		</DropdownMenu>
 diff --git a/apps/app/components/app-icon-rail.tsx b/apps/app/components/app-icon-rail.tsx
-index 87d9521..9821e31 100644
+index 87d9521..0a64ad6 100644
 --- a/apps/app/components/app-icon-rail.tsx
 +++ b/apps/app/components/app-icon-rail.tsx
-@@ -1,13 +1,19 @@
+@@ -1,13 +1,20 @@
  "use client";
  
++import Pulse from "@carbon/icons-react/es/Activity";
 +import Analytics from "@carbon/icons-react/es/Analytics";
  import Building from "@carbon/icons-react/es/Building";
  import Calculator from "@carbon/icons-react/es/Calculator";
@@ -22976,8 +25850,11 @@ index 87d9521..9821e31 100644
  import UserMultiple from "@carbon/icons-react/es/UserMultiple";
  import { Button } from "@crm/ui/components/button";
  import type { CarbonIcon } from "@crm/ui/components/icon";
-@@ -27,77 +33,149 @@ import {
+@@ -25,79 +32,163 @@ import {
+ 	TooltipTrigger,
+ } from "@crm/ui/components/tooltip";
  import { cn } from "@crm/ui/lib/utils";
++import { useQuery } from "@tanstack/react-query";
  import Link from "next/link";
  import { usePathname } from "next/navigation";
 -import { useMemo } from "react";
@@ -22985,6 +25862,8 @@ index 87d9521..9821e31 100644
  import { AgentBuilderSidebar } from "@/components/agent-builder/agent-builder-sidebar";
  import { usePrefetchSection } from "@/components/crm/section-prefetch";
  import { useMobileNav } from "@/components/mobile-nav";
++import { SUPPORT_PENDING } from "@/lib/support-config";
++import { useTRPC } from "@/lib/trpc/client";
 +import { useAudience } from "@/lib/use-audience";
  import { useWorkspaceUrl } from "@/lib/use-workspace-url";
  
@@ -22994,12 +25873,14 @@ index 87d9521..9821e31 100644
  	icon: CarbonIcon;
 +	group: "real-estate" | "crm" | "footer";
 +	staffOnly?: boolean;
++	badge?: number;
  	iconClassName?: string;
  	match: "exact" | "prefix";
  	related?: string[];
  };
  
 +const CHAT_HREF = "/chat";
++const SUPPORT_HREF = "/support";
 +
  const ITEMS: RailItem[] = [
 -	{ title: "Overview", href: "/", icon: Dashboard, match: "exact" },
@@ -23020,18 +25901,18 @@ index 87d9521..9821e31 100644
  		href: "/real-estate/leads",
  		icon: UserMultiple,
 +		group: "real-estate",
-+		match: "prefix",
-+	},
-+	{
-+		title: "Pipeline",
-+		href: "/real-estate/pipeline",
-+		icon: Events,
-+		group: "real-estate",
  		match: "prefix",
 -		related: ["/real-estate/leads"],
  	},
  	{
 -		title: "Inbox SMS",
++		title: "Pipeline",
++		href: "/real-estate/pipeline",
++		icon: Events,
++		group: "real-estate",
++		match: "prefix",
++	},
++	{
 +		title: "Boîte de réception",
  		href: "/real-estate/inbox",
 -		icon: Chat,
@@ -23054,6 +25935,13 @@ index 87d9521..9821e31 100644
  		href: "/real-estate/portal",
 -		icon: Partnership,
 +		icon: Analytics,
++		group: "real-estate",
++		match: "prefix",
++	},
++	{
++		title: "Activité de l'assistant",
++		href: "/real-estate/activity",
++		icon: Pulse,
 +		group: "real-estate",
  		match: "prefix",
 -		related: ["/real-estate/portal"],
@@ -23149,7 +26037,7 @@ index 87d9521..9821e31 100644
  function isActive(item: RailItem, pathname: string): boolean {
  	return (
  		pathname === item.href ||
-@@ -106,6 +184,10 @@ function isActive(item: RailItem, pathname: string): boolean {
+@@ -106,6 +197,30 @@ function isActive(item: RailItem, pathname: string): boolean {
  	);
  }
  
@@ -23157,10 +26045,54 @@ index 87d9521..9821e31 100644
 +	return <div aria-hidden="true" className="my-1 h-px w-5 bg-border" />;
 +}
 +
++function RailBadge({ count }: { count?: number }) {
++	if (!count) return null;
++	return (
++		<span
++			aria-hidden="true"
++			className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 font-medium text-[10px] text-primary-foreground tabular-nums leading-none"
++		>
++			{count > SUPPORT_PENDING.maxShown
++				? `${SUPPORT_PENDING.maxShown}+`
++				: count}
++		</span>
++	);
++}
++
++function railLabel(item: RailItem): string {
++	return item.badge
++		? `${item.title}, ${item.badge} ${SUPPORT_PENDING.label(item.badge)}`
++		: item.title;
++}
++
  function RailLink({
  	item,
  	active,
-@@ -152,7 +234,7 @@ function MobileRailLink({
+@@ -123,7 +238,7 @@ function RailLink({
+ 					variant="ghost"
+ 					size="icon"
+ 					className={cn(
+-						"text-muted-foreground",
++						"relative text-muted-foreground",
+ 						active &&
+ 							"bg-muted text-foreground hover:bg-muted hover:text-foreground",
+ 					)}
+@@ -137,11 +252,12 @@ function RailLink({
+ 						transitionTypes={["nav-lateral"]}
+ 					>
+ 						<Icon icon={item.icon} className={item.iconClassName} />
+-						<span className="sr-only">{item.title}</span>
++						<RailBadge count={item.badge} />
++						<span className="sr-only">{railLabel(item)}</span>
+ 					</Link>
+ 				</Button>
+ 			</TooltipTrigger>
+-			<TooltipContent side="right">{item.title}</TooltipContent>
++			<TooltipContent side="right">{railLabel(item)}</TooltipContent>
+ 		</Tooltip>
+ 	);
+ }
+@@ -152,7 +268,7 @@ function MobileRailLink({
  	onNavigate,
  	onPrefetch,
  }: {
@@ -23169,7 +26101,16 @@ index 87d9521..9821e31 100644
  	active: boolean;
  	onNavigate: () => void;
  	onPrefetch: () => void;
-@@ -175,7 +257,7 @@ function MobileRailLink({
+@@ -162,7 +278,7 @@ function MobileRailLink({
+ 			asChild
+ 			variant="ghost"
+ 			className={cn(
+-				"justify-start gap-3 text-muted-foreground",
++				"relative justify-start gap-3 text-muted-foreground",
+ 				active &&
+ 					"bg-muted text-foreground hover:bg-muted hover:text-foreground",
+ 			)}
+@@ -175,11 +291,18 @@ function MobileRailLink({
  				aria-current={active ? "page" : undefined}
  				onClick={onNavigate}
  				transitionTypes={[
@@ -23178,7 +26119,37 @@ index 87d9521..9821e31 100644
  				]}
  			>
  				<Icon icon={item.icon} className={item.iconClassName} />
-@@ -225,21 +307,26 @@ function MobileRailIconLink({
+ 				<span>{item.title}</span>
++				{item.badge ? (
++					<span className="ml-auto rounded-full bg-primary px-1.5 py-0.5 font-medium text-[10px] text-primary-foreground tabular-nums leading-none">
++						{item.badge > SUPPORT_PENDING.maxShown
++							? `${SUPPORT_PENDING.maxShown}+`
++							: item.badge}
++					</span>
++				) : null}
+ 			</Link>
+ 		</Button>
+ 	);
+@@ -202,7 +325,7 @@ function MobileRailIconLink({
+ 			variant="ghost"
+ 			size="icon"
+ 			className={cn(
+-				"text-muted-foreground",
++				"relative text-muted-foreground",
+ 				active &&
+ 					"bg-muted text-foreground hover:bg-muted hover:text-foreground",
+ 			)}
+@@ -216,7 +339,8 @@ function MobileRailIconLink({
+ 				onClick={onNavigate}
+ 			>
+ 				<Icon icon={item.icon} className={item.iconClassName} />
+-				<span className="sr-only">{item.title}</span>
++				<RailBadge count={item.badge} />
++				<span className="sr-only">{railLabel(item)}</span>
+ 			</Link>
+ 		</Button>
+ 	);
+@@ -225,21 +349,26 @@ function MobileRailIconLink({
  export function AppIconRailFallback() {
  	return (
  		<nav
@@ -23217,11 +26188,18 @@ index 87d9521..9821e31 100644
  			))}
  		</nav>
  	);
-@@ -250,34 +337,43 @@ export function AppIconRail() {
+@@ -250,34 +379,51 @@ export function AppIconRail() {
  	const workspaceUrl = useWorkspaceUrl();
  	const { open, setOpen } = useMobileNav();
  	const prefetchSection = usePrefetchSection();
 +	const audience = useAudience();
++	const trpc = useTRPC();
++	const pending = useQuery(
++		trpc.support.pending.queryOptions(undefined, {
++			refetchInterval: SUPPORT_PENDING.refreshMs,
++		}),
++	);
++	const openRequests = pending.data?.open ?? 0;
  
  	const items = useMemo(
  		() =>
@@ -23238,9 +26216,10 @@ index 87d9521..9821e31 100644
 +					section: item.href,
 +					href: workspaceUrl(item.href),
 +					related: item.related?.map((path) => workspaceUrl(path)),
++					badge: item.href === SUPPORT_HREF ? openRequests : 0,
 +				}),
 +			),
-+		[workspaceUrl, audience],
++		[workspaceUrl, audience, openRequests],
  	);
  	const inChat = items.some(
 -		(item) => item.title === "Chat" && isActive(item, pathname),
@@ -23277,7 +26256,7 @@ index 87d9521..9821e31 100644
  				))}
  			</nav>
  
-@@ -289,29 +385,35 @@ export function AppIconRail() {
+@@ -289,29 +435,35 @@ export function AppIconRail() {
  						className="w-5/6 max-w-sm flex-row gap-0 p-0"
  					>
  						<SheetHeader className="sr-only">
@@ -23324,7 +26303,7 @@ index 87d9521..9821e31 100644
  							))}
  						</nav>
  						<AgentBuilderSidebar
-@@ -325,17 +427,25 @@ export function AppIconRail() {
+@@ -325,17 +477,25 @@ export function AppIconRail() {
  							<SheetTitle>Navigation</SheetTitle>
  						</SheetHeader>
  						<nav
@@ -26602,6 +29581,28 @@ index 0000000..fa3b95f
 +		</>
 +	);
 +}
+diff --git a/apps/app/components/pwa-register.tsx b/apps/app/components/pwa-register.tsx
+new file mode 100644
+index 0000000..761c2c0
+--- /dev/null
++++ b/apps/app/components/pwa-register.tsx
+@@ -0,0 +1,16 @@
++"use client";
++
++import { useEffect } from "react";
++import { PWA } from "@/lib/pwa-config";
++
++export function PwaRegister() {
++	useEffect(() => {
++		if (process.env.NODE_ENV !== "production") return;
++		if (!("serviceWorker" in navigator)) return;
++		void navigator.serviceWorker
++			.register(PWA.serviceWorkerPath)
++			.catch(() => {});
++	}, []);
++
++	return null;
++}
 diff --git a/apps/app/components/slack/channel-picker.tsx b/apps/app/components/slack/channel-picker.tsx
 index dc2ed4b..b02166d 100644
 --- a/apps/app/components/slack/channel-picker.tsx
@@ -28107,6 +31108,87 @@ index 9894f6c..8d14740 100644
  };
  
  function humanise(tool: string): string {
+diff --git a/apps/app/lib/assistant-activity-config.ts b/apps/app/lib/assistant-activity-config.ts
+new file mode 100644
+index 0000000..df537f8
+--- /dev/null
++++ b/apps/app/lib/assistant-activity-config.ts
+@@ -0,0 +1,75 @@
++export const ACTIVITY_PERIODS = [
++	{ id: 7, label: "7 jours" },
++	{ id: 30, label: "30 jours" },
++	{ id: 90, label: "90 jours" },
++] as const;
++
++export type ActivityPeriod = (typeof ACTIVITY_PERIODS)[number]["id"];
++
++export const ACTIVITY_PERIOD_IDS = ACTIVITY_PERIODS.map(
++	(period) => period.id,
++) as [ActivityPeriod, ...ActivityPeriod[]];
++
++export const GENERATED_KIND_LABELS: Record<string, string> = {
++	LISTING_SUGGESTION: "Annonce suggérée",
++	LISTING_DESCRIPTION: "Description d'annonce",
++	EMAIL_DRAFT: "Brouillon de courriel",
++	SOCIAL_POST: "Publication",
++	NOTE: "Note de transfert",
++};
++
++export const GENERATED_AGENT_KIND_LABELS: Record<string, string> = {
++	visit_prep: "Préparation de visite",
++};
++
++export const GENERATED_STATUS_LABELS: Record<string, string> = {
++	DRAFT: "À vérifier",
++	APPROVED: "Approuvé",
++	SENT: "Transmis",
++	PUBLISHED: "Publié",
++	DISCARDED: "Écarté",
++};
++
++export const ACTIVITY_COPY = {
++	title: "Activité de l'assistant",
++	description:
++		"Ce que l'assistant a fait, ce qu'il a produit et ce qui demande votre attention.",
++	periodLabel: "Période",
++	unavailable: "Activité indisponible",
++	tiles: {
++		smsSent: "SMS envoyés",
++		replies: "Réponses reçues",
++		qualified: "Prospects qualifiés",
++		handoffs: "Transferts à un humain",
++		drafts: "Contenu à vérifier",
++		uncertain: "Envois incertains",
++		failed: "Envois échoués",
++		stale: "Tâches en retard",
++	},
++	info: {
++		smsSent:
++			"SMS écrits par l'assistant et acceptés par le service d'envoi, sur la période.",
++		replies: "Messages reçus des prospects sur la période.",
++		qualified:
++			"Prospects dont les critères (secteur, budget, échéance) ont été confirmés par leurs propres mots.",
++		handoffs:
++			"Fois où l'assistant a passé la main à un humain. Compté depuis le 23 octobre 2026 seulement.",
++		drafts:
++			"Annonces suggérées et autres contenus en attente d'une approbation. Rien n'est envoyé sans vous.",
++		uncertain:
++			"Le service d'envoi n'a pas confirmé la livraison. Vérifiez chez Twilio avant de renvoyer.",
++		failed: "Envois refusés par le service d'envoi.",
++		stale:
++			"Tâches de l'assistant qui devaient démarrer il y a plus de 15 minutes. Si ce nombre monte, l'assistant est arrêté ou surchargé.",
++	},
++	contentTitle: "Contenu généré",
++	contentInfo:
++		"Ce que l'assistant a produit pour vous, avec son état. Les textes échangés avec les prospects ne sont pas copiés ici.",
++	approve: "Approuver",
++	discard: "Écarter",
++	emptyTitle: "Aucun contenu pour l'instant",
++	emptyDescription:
++		"Les annonces suggérées et les notes de transfert de l'assistant apparaîtront ici.",
++	portalLink: "Voir les résultats détaillés dans le portail courtier",
++	reviewed: "Contenu mis à jour.",
++} as const;
 diff --git a/apps/app/lib/deal-stage.ts b/apps/app/lib/deal-stage.ts
 index 758f08f..c82677f 100644
 --- a/apps/app/lib/deal-stage.ts
@@ -28163,10 +31245,10 @@ index 4cdc3dd..a84a714 100644
  
 diff --git a/apps/app/lib/navigation.ts b/apps/app/lib/navigation.ts
 new file mode 100644
-index 0000000..77f69af
+index 0000000..00b5cef
 --- /dev/null
 +++ b/apps/app/lib/navigation.ts
-@@ -0,0 +1,276 @@
+@@ -0,0 +1,292 @@
 +export type NavGroup = "Immobilier" | "CRM" | "Compte" | "Paramètres";
 +
 +export type NavPage = {
@@ -28239,6 +31321,21 @@ index 0000000..77f69af
 +		group: "Immobilier",
 +		keywords: ["nouveau courtier", "onboarding", "créer"],
 +		staffOnly: true,
++	},
++	{
++		label: "Activité de l'assistant",
++		description:
++			"Ce que l'assistant a fait, produit et ce qui attend votre approbation",
++		href: "/real-estate/activity",
++		group: "Immobilier",
++		keywords: [
++			"résultats",
++			"contenu généré",
++			"annonces",
++			"approbation",
++			"ia",
++			"transferts",
++		],
 +	},
 +	{
 +		label: "Estimateur et offres",
@@ -28371,6 +31468,7 @@ index 0000000..77f69af
 +	leads: "Prospects",
 +	inbox: "Boîte de réception",
 +	portal: "Portail courtier",
++	activity: "Activité de l'assistant",
 +	valuation: "Estimateur et offres",
 +	realtors: "Courtiers",
 +	new: "Nouveau",
@@ -28483,10 +31581,10 @@ index ea82737..49bd165 100644
 -}
 diff --git a/apps/app/lib/page-help.ts b/apps/app/lib/page-help.ts
 new file mode 100644
-index 0000000..e12224f
+index 0000000..f9efba4
 --- /dev/null
 +++ b/apps/app/lib/page-help.ts
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,47 @@
 +export const PAGE_HELP = {
 +	home: "Votre journée en un coup d'œil : ce qui attend une action de votre part, les rendez-vous des 48 prochaines heures et la répartition de vos prospects par étape. Les chiffres viennent des prospects et messages enregistrés, jamais d'estimations.",
 +	leads:
@@ -28510,6 +31608,8 @@ index 0000000..e12224f
 +	members:
 +		"Les personnes qui ont accès à Fratex. Un propriétaire ou un administrateur peut changer les rôles.",
 +	team: "Les membres de l'espace avec leur rôle, leurs tâches et leur activité des 30 derniers jours. Un propriétaire ou un administrateur voit toute l'équipe; les autres voient leur propre fiche. Les notes et SMS ne sont listés que pour les agences auxquelles vous avez accès.",
++	activity:
++		"Ce que l'assistant a fait sur la période (SMS, réponses, prospects qualifiés, transferts), ce qu'il a produit (annonces suggérées, notes) et ce qui demande votre attention. Les annonces suggérées restent à vérifier : rien n'est envoyé ou publié sans approbation.",
 +	tracking:
 +		"Mesure les visites sur votre site pour les relier aux prospects. Copiez le script, puis vérifiez l'installation.",
 +	currencies:
@@ -28629,6 +31729,17 @@ index 0000000..94484de
 +	heartbeatMs: MINUTE_MS,
 +	refreshMs: MINUTE_MS,
 +} as const;
+diff --git a/apps/app/lib/pwa-config.ts b/apps/app/lib/pwa-config.ts
+new file mode 100644
+index 0000000..07231cc
+--- /dev/null
++++ b/apps/app/lib/pwa-config.ts
+@@ -0,0 +1,5 @@
++export const PWA = {
++	serviceWorkerPath: "/sw.js",
++	offlinePath: "/offline.html",
++	themeColor: { light: "#D83C16", dark: "#1a1a1a" },
++} as const;
 diff --git a/apps/app/lib/search-param-keys.ts b/apps/app/lib/search-param-keys.ts
 index db9d288..587a903 100644
 --- a/apps/app/lib/search-param-keys.ts
@@ -28671,13 +31782,21 @@ index 7315b5f..2f1d51f 100644
  const CONTACT_LINKS: SocialLink<ContactLinks>[] = [
 diff --git a/apps/app/lib/support-config.ts b/apps/app/lib/support-config.ts
 new file mode 100644
-index 0000000..a1d0239
+index 0000000..f7917a2
 --- /dev/null
 +++ b/apps/app/lib/support-config.ts
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,41 @@
 +import type { ReactNode } from "react";
 +
-+export const SUPPORT_EMAIL = "support@fratex.ca";
++export const SUPPORT_EMAIL =
++	process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "support@fratex.ca";
++
++export const SUPPORT_PENDING = {
++	refreshMs: 60_000,
++	maxShown: 9,
++	label: (count: number) =>
++		count > 1 ? "demandes ouvertes" : "demande ouverte",
++} as const;
 +
 +export const SUPPORT_LIMITS = { messageMin: 10, messageMax: 4000 } as const;
 +
@@ -29029,7 +32148,7 @@ index 8c91313..64e8a34 100644
 +	return trimmed;
  }
 diff --git a/apps/app/proxy.ts b/apps/app/proxy.ts
-index 4d16716..8275777 100644
+index 4d16716..7809bfa 100644
 --- a/apps/app/proxy.ts
 +++ b/apps/app/proxy.ts
 @@ -2,21 +2,21 @@ import { AUTH_COOKIE_PREFIX } from "@crm/auth/cookies";
@@ -29098,6 +32217,14 @@ index 4d16716..8275777 100644
  }
  
  function sendTo(path: string, request: NextRequest): NextResponse {
+@@ -104,6 +95,6 @@ function sendTo(path: string, request: NextRequest): NextResponse {
+ 
+ export const config = {
+ 	matcher: [
+-		"/((?!api|_next/static|_next/image|.*\\.(?:ico|png|svg|jpg|jpeg|gif|webp|webmanifest)$).*)",
++		"/((?!api|_next/static|_next/image|.*\\.(?:ico|png|svg|jpg|jpeg|gif|webp|webmanifest|html)$)(?!sw\\.js$).*)",
+ 	],
+ };
 diff --git a/apps/app/public/apple-touch-icon.png b/apps/app/public/apple-touch-icon.png
 index 145bc4070dcd5fc676f7044f438cdd9698d2a41d..5a18126bb11427f3093ce6019811a6ae0eae0c64 100644
 GIT binary patch
@@ -29301,28 +32428,130 @@ index 4b7f78c..24c4563 100644
 -</svg></svg></g></g><defs><clipPath id="SvgjsClipPath1010"><rect width="1000" height="1000" x="0" y="0" rx="350" ry="350"></rect></clipPath></defs></svg>
 \ No newline at end of file
 +<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#D83C16"/><path d="M160 120h200v68H232v38h88v64h-88v102h-72V120Z" fill="#fff"/></svg>
+diff --git a/apps/app/public/offline.html b/apps/app/public/offline.html
+new file mode 100644
+index 0000000..f26da76
+--- /dev/null
++++ b/apps/app/public/offline.html
+@@ -0,0 +1,25 @@
++<!doctype html>
++<html lang="fr-CA">
++<head>
++<meta charset="utf-8">
++<meta name="viewport" content="width=device-width, initial-scale=1">
++<meta name="theme-color" content="#D83C16">
++<title>Hors ligne · Fratex Agent</title>
++<style>
++:root{color-scheme:light dark;--bg:#fff;--fg:#1a1a1a;--muted:#5c5c5c;--accent:#D83C16}
++@media (prefers-color-scheme:dark){:root{--bg:#141414;--fg:#f2f2f2;--muted:#a8a8a8}}
++body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
++main{max-width:28rem}
++h1{margin:0 0 8px;font-size:1.25rem}
++p{margin:0 0 16px;color:var(--muted)}
++button{font:inherit;padding:10px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
++</style>
++</head>
++<body>
++<main>
++<h1>Vous êtes hors ligne</h1>
++<p>Fratex Agent a besoin d'une connexion pour afficher vos prospects et vos conversations. Vos messages déjà envoyés ne sont pas perdus.</p>
++<button type="button" onclick="location.reload()">Réessayer</button>
++</main>
++</body>
++</html>
 diff --git a/apps/app/public/site.webmanifest b/apps/app/public/site.webmanifest
-index 60c9435..e90c78a 100644
+index 60c9435..a82de83 100644
 --- a/apps/app/public/site.webmanifest
 +++ b/apps/app/public/site.webmanifest
-@@ -1,6 +1,6 @@
+@@ -1,7 +1,27 @@
  {
 -	"name": "Comp AI CRM",
 -	"short_name": "Comp AI CRM",
++	"id": "/",
 +	"name": "Fratex Agent",
 +	"short_name": "Fratex",
++	"description": "L'assistant IA des courtiers immobiliers : prospects, conversations et rendez-vous.",
++	"lang": "fr-CA",
++	"start_url": "/",
++	"scope": "/",
++	"display": "standalone",
++	"theme_color": "#D83C16",
++	"background_color": "#ffffff",
  	"icons": [
++		{
++			"src": "/web-app-manifest-192x192.png",
++			"sizes": "192x192",
++			"type": "image/png",
++			"purpose": "any"
++		},
++		{
++			"src": "/web-app-manifest-512x512.png",
++			"sizes": "512x512",
++			"type": "image/png",
++			"purpose": "any"
++		},
  		{
  			"src": "/web-app-manifest-192x192.png",
-@@ -15,7 +15,7 @@
+ 			"sizes": "192x192",
+@@ -15,7 +35,14 @@
  			"purpose": "maskable"
  		}
  	],
 -	"theme_color": "#ffffff",
-+	"theme_color": "#D83C16",
- 	"background_color": "#ffffff",
- 	"display": "standalone"
+-	"background_color": "#ffffff",
+-	"display": "standalone"
++	"shortcuts": [
++		{
++			"name": "Boîte de réception",
++			"url": "/crm/real-estate/inbox"
++		},
++		{
++			"name": "Prospects",
++			"url": "/crm/real-estate/leads"
++		}
++	]
  }
+diff --git a/apps/app/public/sw.js b/apps/app/public/sw.js
+new file mode 100644
+index 0000000..5ee7682
+--- /dev/null
++++ b/apps/app/public/sw.js
+@@ -0,0 +1,35 @@
++const OFFLINE_CACHE = "fratex-offline-v1";
++const OFFLINE_URL = "/offline.html";
++
++self.addEventListener("install", (event) => {
++	event.waitUntil(
++		caches
++			.open(OFFLINE_CACHE)
++			.then((cache) => cache.add(OFFLINE_URL))
++			.then(() => self.skipWaiting()),
++	);
++});
++
++self.addEventListener("activate", (event) => {
++	event.waitUntil(
++		caches
++			.keys()
++			.then((keys) =>
++				Promise.all(
++					keys
++						.filter((key) => key !== OFFLINE_CACHE)
++						.map((key) => caches.delete(key)),
++				),
++			)
++			.then(() => self.clients.claim()),
++	);
++});
++
++self.addEventListener("fetch", (event) => {
++	if (event.request.mode !== "navigate") return;
++	event.respondWith(
++		fetch(event.request).catch(() =>
++			caches.match(OFFLINE_URL).then((cached) => cached ?? Response.error()),
++		),
++	);
++});
 diff --git a/apps/app/public/web-app-manifest-192x192.png b/apps/app/public/web-app-manifest-192x192.png
 index 1cc01ee0db6983e76928ec831aaa20c37fafe6c4..4c19449c4747f6b5fe72e3b96853e65edb200ad6 100644
 GIT binary patch
@@ -30296,10 +33525,10 @@ index fca7713..0000000
 -});
 diff --git a/apps/app/test/navigation.spec.ts b/apps/app/test/navigation.spec.ts
 new file mode 100644
-index 0000000..3b8115d
+index 0000000..79b9ec3
 --- /dev/null
 +++ b/apps/app/test/navigation.spec.ts
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,86 @@
 +import { describe, expect, it } from "bun:test";
 +import {
 +	matchPages,
@@ -30337,6 +33566,16 @@ index 0000000..3b8115d
 +			"Équipe",
 +		);
 +		expect(SEGMENT_LABELS.team).toBe("Équipe");
++	});
++
++	it("finds the assistant activity page and keeps it open to realtors", () => {
++		expect(matchPages("approbation").map((page) => page.label)).toContain(
++			"Activité de l'assistant",
++		);
++		expect(pagesFor("realtor").map((page) => page.label)).toContain(
++			"Activité de l'assistant",
++		);
++		expect(SEGMENT_LABELS.activity).toBe("Activité de l'assistant");
 +	});
 +
 +	it("returns nothing for an unknown word", () => {
@@ -30726,6 +33965,23 @@ index f44d7bc..6811dcd 100644
 -		expect(workspaceLabel("CRMSoft")).toBe("CRMSoft CRM");
  	});
  });
+diff --git a/bun.lock b/bun.lock
+index 6f0fe2a..d96c9b9 100644
+--- a/bun.lock
++++ b/bun.lock
+@@ -22,8 +22,12 @@
+         "@crm/env": "workspace:*",
+         "@crm/telemetry": "workspace:*",
+         "@crm/validation": "workspace:*",
++        "@prisma/adapter-pg": "^7.9.1",
++        "@prisma/client": "^7.9.1",
++        "@vercel/blob": "^2.6.1",
+         "context.dev": "2.10.0",
+         "eve": "^0.29.4",
++        "pg": "^8.22.0",
+         "zod": "^4.4.3",
+       },
+       "devDependencies": {
 diff --git a/docs/design.md b/docs/design.md
 index 43f71d0..c2342ac 100644
 --- a/docs/design.md
@@ -30993,6 +34249,18 @@ index c5b7e92..b6c99d8 100644
  	});
  
  	it("lets an admin finish", async () => {
+diff --git a/packages/db/package.json b/packages/db/package.json
+index 24c7818..7d900f8 100644
+--- a/packages/db/package.json
++++ b/packages/db/package.json
+@@ -17,6 +17,7 @@
+ 		"./fields": "./src/fields.ts",
+ 		"./fields-shape": "./src/fields-shape.ts",
+ 		"./fx": "./src/fx.ts",
++		"./generated-content": "./src/generated-content.ts",
+ 		"./images": "./src/images.ts",
+ 		"./idempotency": "./src/idempotency.ts",
+ 		"./json": "./src/json.ts",
 diff --git a/packages/db/prisma/migrations/20261022044450_add_user_last_seen/migration.sql b/packages/db/prisma/migrations/20261022044450_add_user_last_seen/migration.sql
 new file mode 100644
 index 0000000..4c8e598
@@ -31083,8 +34351,79 @@ index 0000000..fdd20e7
 @@ -0,0 +1,2 @@
 +-- CreateIndex
 +CREATE INDEX "leadNote_authorId_createdAt_idx" ON "leadNote"("authorId", "createdAt");
+diff --git a/packages/db/prisma/migrations/20261023140000_add_generated_content/migration.sql b/packages/db/prisma/migrations/20261023140000_add_generated_content/migration.sql
+new file mode 100644
+index 0000000..e75f54c
+--- /dev/null
++++ b/packages/db/prisma/migrations/20261023140000_add_generated_content/migration.sql
+@@ -0,0 +1,51 @@
++-- CreateEnum
++CREATE TYPE "GeneratedContentKind" AS ENUM ('LISTING_SUGGESTION', 'LISTING_DESCRIPTION', 'EMAIL_DRAFT', 'SOCIAL_POST', 'NOTE');
++
++-- CreateEnum
++CREATE TYPE "GeneratedContentStatus" AS ENUM ('DRAFT', 'APPROVED', 'SENT', 'PUBLISHED', 'DISCARDED');
++
++-- CreateTable
++CREATE TABLE "generatedContent" (
++    "id" TEXT NOT NULL,
++    "agencyId" TEXT NOT NULL,
++    "clientId" TEXT,
++    "leadId" TEXT,
++    "kind" "GeneratedContentKind" NOT NULL,
++    "status" "GeneratedContentStatus" NOT NULL DEFAULT 'DRAFT',
++    "agent" TEXT NOT NULL,
++    "sessionId" TEXT,
++    "body" TEXT NOT NULL,
++    "inputs" JSONB,
++    "language" TEXT NOT NULL DEFAULT 'fr',
++    "externalRef" TEXT,
++    "trackingCode" TEXT,
++    "idempotencyKey" TEXT,
++    "approvedById" TEXT,
++    "approvedAt" TIMESTAMP(3),
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "generatedContent_pkey" PRIMARY KEY ("id")
++);
++
++-- CreateIndex
++CREATE UNIQUE INDEX "generatedContent_trackingCode_key" ON "generatedContent"("trackingCode");
++
++-- CreateIndex
++CREATE UNIQUE INDEX "generatedContent_idempotencyKey_key" ON "generatedContent"("idempotencyKey");
++
++-- CreateIndex
++CREATE INDEX "generatedContent_agencyId_createdAt_idx" ON "generatedContent"("agencyId", "createdAt");
++
++-- CreateIndex
++CREATE INDEX "generatedContent_agencyId_kind_status_idx" ON "generatedContent"("agencyId", "kind", "status");
++
++-- CreateIndex
++CREATE INDEX "generatedContent_leadId_idx" ON "generatedContent"("leadId");
++
++-- AddForeignKey
++ALTER TABLE "generatedContent" ADD CONSTRAINT "generatedContent_agencyId_fkey" FOREIGN KEY ("agencyId") REFERENCES "agency"("id") ON DELETE CASCADE ON UPDATE CASCADE;
++
++-- AddForeignKey
++ALTER TABLE "generatedContent" ADD CONSTRAINT "generatedContent_leadId_agencyId_fkey" FOREIGN KEY ("leadId", "agencyId") REFERENCES "lead"("id", "agencyId") ON DELETE CASCADE ON UPDATE CASCADE;
++
+diff --git a/packages/db/prisma/migrations/20261023150000_add_agent_message_fields/migration.sql b/packages/db/prisma/migrations/20261023150000_add_agent_message_fields/migration.sql
+new file mode 100644
+index 0000000..0c9e320
+--- /dev/null
++++ b/packages/db/prisma/migrations/20261023150000_add_agent_message_fields/migration.sql
+@@ -0,0 +1,8 @@
++-- AlterTable
++ALTER TABLE "agentTask" ADD COLUMN     "correlationId" TEXT,
++ADD COLUMN     "hop" INTEGER NOT NULL DEFAULT 0,
++ADD COLUMN     "parentTaskId" TEXT;
++
++-- CreateIndex
++CREATE INDEX "agentTask_correlationId_idx" ON "agentTask"("correlationId");
++
 diff --git a/packages/db/prisma/schema.prisma b/packages/db/prisma/schema.prisma
-index 1785af9..d394495 100644
+index 1785af9..3eff556 100644
 --- a/packages/db/prisma/schema.prisma
 +++ b/packages/db/prisma/schema.prisma
 @@ -13,15 +13,20 @@ generator client {
@@ -31155,7 +34494,34 @@ index 1785af9..d394495 100644
  model SlackMemberMatch {
    id          String   @id @default(cuid())
    crmUserId   String   @unique
-@@ -1812,6 +1848,7 @@ model Lead {
+@@ -491,6 +527,10 @@ model AgentTask {
+ 
+   subject String?
+ 
++  correlationId String?
++  parentTaskId  String?
++  hop           Int     @default(0)
++
+   createdAt DateTime @default(now())
+ 
+   @@index([dueAt, leasedUntil])
+@@ -498,6 +538,7 @@ model AgentTask {
+   @@index([dealId])
+   @@index([kind, subject], where: { finishedAt: null })
+   @@index([agencyId, leadId, kind])
++  @@index([correlationId])
+   @@map("agentTask")
+ }
+ 
+@@ -1622,6 +1663,7 @@ model Agency {
+   attributions     AttributionEvent[]
+   smsConnections   SmsConnection[]
+   crmDeliveries    CrmDelivery[]
++  generatedContent GeneratedContent[]
+ 
+   @@map("agency")
+ }
+@@ -1812,6 +1854,7 @@ model Lead {
    financing             String?
    targetArea            String?
    currentSituation      String?
@@ -31163,15 +34529,16 @@ index 1785af9..d394495 100644
    firstContactedAt      DateTime?
    lastInteractedAt      DateTime?
    createdAt             DateTime           @default(now())
-@@ -1824,6 +1861,7 @@ model Lead {
+@@ -1824,6 +1867,8 @@ model Lead {
    appointments          Appointment[]
    propertyInterest      PropertyInterest?
    attributions          AttributionEvent[]
 +  notes                 LeadNote[]
++  generatedContent      GeneratedContent[]
  
    @@unique([id, agencyId])
    @@index([agencyId, status])
-@@ -1834,6 +1872,21 @@ model Lead {
+@@ -1834,6 +1879,21 @@ model Lead {
    @@map("lead")
  }
  
@@ -31193,6 +34560,80 @@ index 1785af9..d394495 100644
  model PropertyInterest {
    agencyId        String
    id              String   @id @default(cuid())
+@@ -2000,3 +2060,47 @@ model CrmDelivery {
+   @@index([agencyId, leadId])
+   @@map("crmDelivery")
+ }
++
++enum GeneratedContentKind {
++  LISTING_SUGGESTION
++  LISTING_DESCRIPTION
++  EMAIL_DRAFT
++  SOCIAL_POST
++  NOTE
++}
++
++enum GeneratedContentStatus {
++  DRAFT
++  APPROVED
++  SENT
++  PUBLISHED
++  DISCARDED
++}
++
++model GeneratedContent {
++  id             String                 @id @default(cuid())
++  agencyId       String
++  clientId       String?
++  leadId         String?
++  kind           GeneratedContentKind
++  status         GeneratedContentStatus @default(DRAFT)
++  agent          String
++  sessionId      String?
++  body           String
++  inputs         Json?
++  language       String                 @default("fr")
++  externalRef    String?
++  trackingCode   String?                @unique
++  idempotencyKey String?                @unique
++  approvedById   String?
++  approvedAt     DateTime?
++  createdAt      DateTime               @default(now())
++  updatedAt      DateTime               @updatedAt
++  agency         Agency                 @relation(fields: [agencyId], references: [id], onDelete: Cascade)
++  lead           Lead?                  @relation(fields: [leadId, agencyId], references: [id, agencyId], onDelete: Cascade)
++
++  @@index([agencyId, createdAt])
++  @@index([agencyId, kind, status])
++  @@index([leadId])
++  @@map("generatedContent")
++}
+diff --git a/packages/db/src/agent-tasks.ts b/packages/db/src/agent-tasks.ts
+index 20f8614..ebc6cfd 100644
+--- a/packages/db/src/agent-tasks.ts
++++ b/packages/db/src/agent-tasks.ts
+@@ -11,6 +11,7 @@ export const TASK_KINDS = [
+ 	"slack-people-match",
+ 	"slack-channel-join",
+ 	"agent-event",
++	"agent-message",
+ 	"real-estate-qualify",
+ 	"real-estate-followup",
+ 	"real-estate-meta",
+@@ -27,6 +28,7 @@ export const DIRECT_KINDS = [
+ 	"slack-people-match",
+ 	"slack-channel-join",
+ 	"agent-event",
++	"agent-message",
+ 	"real-estate-meta",
+ 	"real-estate-sms-send",
+ 	"real-estate-capi",
+@@ -71,4 +73,5 @@ export const PRIORITY = {
+ 	slackPeople: 150,
+ 	slackJoin: 950,
+ 	event: 700,
++	agentMessage: 400,
+ } as const;
 diff --git a/packages/db/src/currency.ts b/packages/db/src/currency.ts
 index af53f60..068b608 100644
 --- a/packages/db/src/currency.ts
@@ -31258,6 +34699,63 @@ index e546e10..b735e35 100644
  } as const satisfies Record<FieldTypeName, string>;
  
  export function columnFor(type: FieldTypeName): FieldValueColumn {
+diff --git a/packages/db/src/generated-content-config.ts b/packages/db/src/generated-content-config.ts
+new file mode 100644
+index 0000000..8538ef2
+--- /dev/null
++++ b/packages/db/src/generated-content-config.ts
+@@ -0,0 +1 @@
++export const GENERATED_CONTENT = { bodyMaxLength: 4000 } as const;
+diff --git a/packages/db/src/generated-content.ts b/packages/db/src/generated-content.ts
+new file mode 100644
+index 0000000..3d58d3b
+--- /dev/null
++++ b/packages/db/src/generated-content.ts
+@@ -0,0 +1,44 @@
++import type { Db } from "./client";
++import type { Prisma } from "./generated/prisma/client";
++import type {
++	GeneratedContentKind,
++	GeneratedContentStatus,
++} from "./generated/prisma/enums";
++import { GENERATED_CONTENT } from "./generated-content-config";
++
++export type RecordGeneratedContentInput = {
++	agencyId: string;
++	leadId?: string;
++	clientId?: string | null;
++	kind: GeneratedContentKind;
++	status?: GeneratedContentStatus;
++	agent: string;
++	sessionId?: string;
++	body: string;
++	inputs?: Prisma.InputJsonObject;
++	language?: string;
++	key: string;
++};
++
++export function recordGeneratedContent(
++	tx: Prisma.TransactionClient | Db,
++	input: RecordGeneratedContentInput,
++) {
++	return tx.generatedContent.upsert({
++		where: { idempotencyKey: input.key },
++		update: {},
++		create: {
++			agencyId: input.agencyId,
++			leadId: input.leadId,
++			clientId: input.clientId ?? undefined,
++			kind: input.kind,
++			status: input.status ?? "DRAFT",
++			agent: input.agent,
++			sessionId: input.sessionId,
++			body: input.body.slice(0, GENERATED_CONTENT.bodyMaxLength),
++			inputs: input.inputs,
++			language: input.language ?? "fr",
++			idempotencyKey: input.key,
++		},
++	});
++}
 diff --git a/packages/db/src/sdr-messages.ts b/packages/db/src/sdr-messages.ts
 index 93724b5..b3aae2a 100644
 --- a/packages/db/src/sdr-messages.ts
@@ -31379,6 +34877,38 @@ index de9043a..f17a382 100644
  		expect(currencyName("ZZZ")).toBeNull();
  	});
  });
+diff --git a/packages/telemetry/src/allowlist.ts b/packages/telemetry/src/allowlist.ts
+index cd1f35c..024ebe7 100644
+--- a/packages/telemetry/src/allowlist.ts
++++ b/packages/telemetry/src/allowlist.ts
+@@ -126,15 +126,19 @@ export const AGENT_TOOLS = [
+ 	"get_linkedin_profile",
+ 	"get_realtor_free_slots",
+ 	"identify_contact",
++	"list_appointments",
+ 	"list_deals",
+ 	"list_fields",
+ 	"list_outstanding_work",
++	"list_prospects_needing_attention",
+ 	"manage_fields",
+ 	"qualify_lead",
+ 	"read_company_history",
+ 	"read_crm_history",
+ 	"read_deal_history",
+ 	"read_lead",
++	"read_prospect",
++	"realtor_performance",
+ 	"record_fact",
+ 	"record_job_change",
+ 	"research_company",
+@@ -143,6 +147,7 @@ export const AGENT_TOOLS = [
+ 	"schedule_follow_up",
+ 	"schedule_recheck",
+ 	"search_crm",
++	"search_prospects",
+ 	"sdr_policy",
+ 	"send_lead_sms",
+ 	"set_chat_title",
 diff --git a/packages/ui/src/components/account-panel.tsx b/packages/ui/src/components/account-panel.tsx
 new file mode 100644
 index 0000000..4ef8cea
@@ -33183,6 +36713,131 @@ index 0000000..a2487c2
 +			</EmptyHeader>
 +			{action && <EmptyContent layout="row">{action}</EmptyContent>}
 +		</Empty>
++	);
++}
+diff --git a/packages/ui/src/components/generated-content-list.tsx b/packages/ui/src/components/generated-content-list.tsx
+new file mode 100644
+index 0000000..a8e3d73
+--- /dev/null
++++ b/packages/ui/src/components/generated-content-list.tsx
+@@ -0,0 +1,119 @@
++"use client";
++
++import Bot from "@carbon/icons-react/es/Bot";
++import type { ReactNode } from "react";
++import { cn } from "../lib/utils";
++import { Button } from "./button";
++import { EmptyState } from "./empty-state";
++
++export type GeneratedContentStatus =
++	| "DRAFT"
++	| "APPROVED"
++	| "SENT"
++	| "PUBLISHED"
++	| "DISCARDED";
++
++export type GeneratedContentItem = {
++	id: string;
++	kindLabel: string;
++	status: GeneratedContentStatus;
++	statusLabel: string;
++	body: string;
++	createdAt: string;
++	leadName: string | null;
++	leadHref: string | null;
++};
++
++const STATUS_DOTS: Record<GeneratedContentStatus, string> = {
++	DRAFT: "bg-primary",
++	APPROVED: "bg-success",
++	SENT: "bg-success",
++	PUBLISHED: "bg-success",
++	DISCARDED: "bg-muted-foreground/50",
++};
++
++export function GeneratedContentList({
++	items,
++	renderTime,
++	renderLead,
++	onReview,
++	pending,
++	labels,
++}: {
++	items: GeneratedContentItem[];
++	renderTime: (iso: string) => ReactNode;
++	renderLead: (href: string, name: string) => ReactNode;
++	onReview?: (id: string, status: "APPROVED" | "DISCARDED") => void;
++	pending: boolean;
++	labels: {
++		approve: string;
++		discard: string;
++		emptyTitle: string;
++		emptyDescription: string;
++	};
++}) {
++	if (items.length === 0)
++		return (
++			<EmptyState
++				compact
++				icon={Bot}
++				title={labels.emptyTitle}
++				description={labels.emptyDescription}
++			/>
++		);
++
++	return (
++		<ul className="-my-1 flex flex-col divide-y">
++			{items.map((item) => (
++				<li key={item.id} className="flex flex-col gap-2 py-3 text-sm">
++					<div className="flex flex-wrap items-center gap-x-2 gap-y-1">
++						<span
++							aria-hidden="true"
++							className={cn(
++								"size-2 shrink-0 rounded-full",
++								STATUS_DOTS[item.status],
++							)}
++						/>
++						<span className="font-medium">{item.kindLabel}</span>
++						<span className="text-muted-foreground text-xs">
++							{item.statusLabel}
++						</span>
++						{item.leadName && item.leadHref && (
++							<span translate="no" className="text-muted-foreground text-xs">
++								· {renderLead(item.leadHref, item.leadName)}
++							</span>
++						)}
++						<span className="ml-auto text-muted-foreground text-xs">
++							{renderTime(item.createdAt)}
++						</span>
++					</div>
++					<p
++						translate="no"
++						className="line-clamp-3 text-pretty text-muted-foreground"
++					>
++						{item.body}
++					</p>
++					{onReview && item.status === "DRAFT" && (
++						<div className="flex gap-2">
++							<Button
++								size="sm"
++								disabled={pending}
++								onClick={() => onReview(item.id, "APPROVED")}
++							>
++								{labels.approve}
++							</Button>
++							<Button
++								size="sm"
++								variant="outline"
++								disabled={pending}
++								onClick={() => onReview(item.id, "DISCARDED")}
++							>
++								{labels.discard}
++							</Button>
++						</div>
++					)}
++				</li>
++			))}
++		</ul>
 +	);
 +}
 diff --git a/packages/ui/src/components/inbox.tsx b/packages/ui/src/components/inbox.tsx
@@ -41200,6 +44855,63 @@ index 6db44f8..8a4396f 100644
 +		box-shadow: none !important;
 +	}
 +}
+diff --git a/packages/validation/package.json b/packages/validation/package.json
+index 8eb813e..880f065 100644
+--- a/packages/validation/package.json
++++ b/packages/validation/package.json
+@@ -7,6 +7,7 @@
+ 		".": "./src/index.ts",
+ 		"./activity-meta": "./src/activity-meta.ts",
+ 		"./agent-events": "./src/agent-events.ts",
++		"./agent-message": "./src/agent-message.ts",
+ 		"./agent-manifest": "./src/agent-manifest.ts",
+ 		"./builder-question": "./src/builder-question.ts",
+ 		"./enrichment-queue": "./src/enrichment-queue.ts",
+diff --git a/packages/validation/src/agent-message.ts b/packages/validation/src/agent-message.ts
+new file mode 100644
+index 0000000..e6e87d7
+--- /dev/null
++++ b/packages/validation/src/agent-message.ts
+@@ -0,0 +1,39 @@
++import { z } from "zod";
++
++export const AGENT_MESSAGE_MAX_HOP = 3;
++
++export const AGENT_MESSAGE_TYPES = [
++	"lead.qualified",
++	"appointment.booked",
++] as const;
++
++export type AgentMessageType = (typeof AGENT_MESSAGE_TYPES)[number];
++
++export const AGENT_MESSAGE_PAYLOADS = {
++	"lead.qualified": z
++		.object({ score: z.number().int().min(0).max(100) })
++		.strict(),
++	"appointment.booked": z.object({ appointmentId: z.string().min(1) }).strict(),
++} as const satisfies Record<AgentMessageType, z.ZodType>;
++
++export const agentMessage = z.object({
++	id: z.string().min(1),
++	correlationId: z.string().min(1),
++	causationId: z.string().min(1).nullable(),
++	hop: z.number().int().min(0).max(AGENT_MESSAGE_MAX_HOP),
++	from: z.object({
++		agent: z.string().min(1),
++		runId: z.string().min(1).nullable(),
++	}),
++	to: z.object({ agent: z.string().min(1) }),
++	intent: z.enum(["request", "result", "event"]),
++	type: z.enum(AGENT_MESSAGE_TYPES),
++	agencyId: z.string().min(1),
++	leadId: z.string().min(1),
++	clientId: z.string().min(1).nullable(),
++	payload: z.record(z.string(), z.json()),
++	expiresAt: z.string().datetime(),
++	idempotencyKey: z.string().min(1),
++});
++
++export type AgentMessage = z.infer<typeof agentMessage>;
 diff --git a/packages/validation/src/real-estate.ts b/packages/validation/src/real-estate.ts
 index 22d0082..4ce5225 100644
 --- a/packages/validation/src/real-estate.ts

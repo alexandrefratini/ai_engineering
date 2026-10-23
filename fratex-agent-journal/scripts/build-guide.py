@@ -198,6 +198,72 @@ PAGES = [
         "notes": [],
     },
     {
+        "id": "activite",
+        "group": "immobilier",
+        "title": "Activité de l'assistant",
+        "route": "/{espace}/real-estate/activity",
+        "who": "Équipe et courtier",
+        "img": "activite.jpg",
+        "mobile": ["m-activite.jpg"],
+        "purpose": "Ce que l'assistant a fait sur la période, ce qu'il a produit et ce qui demande votre attention.",
+        "features": [
+            "Période : 7, 30 ou 90 jours.",
+            "Huit indicateurs : SMS envoyés, réponses reçues, prospects qualifiés, transferts à un humain, contenu à vérifier, envois incertains, envois échoués et (équipe seulement) tâches en retard.",
+            "Contenu généré : annonces suggérées, notes de transfert à un humain et notes de préparation de visite, avec leur état (à vérifier, approuvé, transmis, écarté) et un lien vers la fiche du prospect.",
+            "Approuver ou écarter une annonce suggérée en un clic (propriétaires, administrateurs, marketing et courtiers pour leurs propres prospects).",
+        ],
+        "how": [
+            "Les chiffres viennent des messages, des événements du parcours et du registre du contenu généré (table GeneratedContent). Aucun chiffre inventé.",
+            "Le registre ne copie pas les échanges avec les prospects : il garde ce que l'assistant a écrit pour le courtier.",
+            "Un courtier ne voit que le contenu et les chiffres de ses propres prospects.",
+        ],
+        "notes": ["« Transferts à un humain » ne compte que depuis le 23 octobre 2026, date où le registre a commencé."],
+    },
+    {
+        "id": "equipe",
+        "group": "immobilier",
+        "title": "Équipe",
+        "route": "/{espace}/team",
+        "who": "Personnel de l'agence",
+        "img": "equipe.jpg",
+        "mobile": ["m-equipe.jpg"],
+        "extra": ["equipe-courtier.jpg"],
+        "purpose": "Voir qui fait partie de l'espace, son rôle, ses tâches et son activité récente.",
+        "features": [
+            "Quatre indicateurs : membres, en ligne, tâches en retard, actions sur 30 jours.",
+            "Recherche par nom ou courriel et filtres Tous, En ligne, Courtiers, Équipe.",
+            "Une ligne par personne : rôle, agences, tâches ouvertes et en retard, actions, dernière connexion. Un clic ouvre la fiche.",
+        ],
+        "how": [
+            "Un propriétaire ou un administrateur de l'espace voit tout le monde. Les autres voient seulement leur propre ligne (dernière capture).",
+            "Une action est une note de prospect, une activité du CRM ou un SMS envoyé à la main.",
+        ],
+        "notes": ["La page n'apparaît pas dans la barre latérale d'une courtière : elle est réservée au personnel de l'agence."],
+    },
+    {
+        "id": "equipe-membre",
+        "group": "immobilier",
+        "title": "Fiche d'un membre",
+        "route": "/{espace}/team/[personne]",
+        "who": "Personnel de l'agence (sa propre fiche pour les autres)",
+        "img": "equipe-membre.jpg",
+        "mobile": ["m-equipe-membre.jpg"],
+        "extra": ["membre-taches.jpg", "membre-acces.jpg", "membre-refuse.jpg"],
+        "purpose": "L'historique, les tâches et le rôle d'une personne au même endroit.",
+        "features": [
+            "Profil et huit indicateurs : tâches ouvertes, en retard, terminées, prospects suivis, notes, SMS envoyés, conversations avec l'assistant, demandes de support ouvertes.",
+            "Onglet Activité : notes sur les prospects, appels, SMS envoyés à la main, demandes de support et conversations IA, du plus récent au plus ancien.",
+            "Onglet Tâches : en retard, à venir, terminées récemment.",
+            "Onglet Rôle et accès : rôle dans l'espace, ce qu'il permet, agences et rôles.",
+        ],
+        "how": [
+            "Les notes et SMS ne sont listés que pour les agences auxquelles la personne qui regarde appartient.",
+            "Une personne qui demande la fiche d'un autre sans en avoir le droit voit « Membre introuvable » (dernière capture).",
+            "Le nom d'une personne dans Paramètres, Membres ouvre sa fiche.",
+        ],
+        "notes": ["Les SMS envoyés à la main avant le 23 octobre 2026 n'ont pas d'auteur enregistré et n'apparaissent pas dans l'historique."],
+    },
+    {
         "id": "estimateur",
         "group": "immobilier",
         "title": "Estimateur et offres",
@@ -556,7 +622,7 @@ PAGES = [
             "Menu du compte, « Signaler un problème » ouvre cette page avec la page courante.",
             "Limite de 10 demandes par heure et par personne.",
         ],
-        "notes": ["L'adresse courriel d'appui affichée (support@fratex.ca) est à confirmer."],
+        "notes": ["Pour les propriétaires et administrateurs, une pastille rouge sur l'icône Support indique le nombre de demandes ouvertes (mise à jour chaque minute). Personne n'est averti par courriel ni Slack.", "L'adresse courriel affichée (support@fratex.ca par défaut) est une hypothèse à confirmer. Elle se change avec la variable NEXT_PUBLIC_SUPPORT_EMAIL."],
     },
     {
         "id": "courtier",
@@ -608,7 +674,7 @@ PAGES = [
             "Le texte affiché est envoyé à Google pour être traduit, y compris les noms et messages des prospects. Les téléphones et courriels ne sont pas traduits.",
             "Les chiffres qui se mettent à jour seuls peuvent rester figés : rechargez la page.",
         ],
-        "notes": ["Cet environnement n'a pas accès à Google. Le menu, la confirmation et le cookie ont été vérifiés, pas la traduction elle-même."],
+        "notes": ["Essai réel en espagnol et en anglais le 23 octobre 2026 (script officiel chargé depuis translate.googleapis.com). Certains mots du métier sont traduits de façon approximative. La question de la loi 25 reste à trancher."],
     },
     {
         "id": "menu-compte",
@@ -634,6 +700,24 @@ PAGES = [
         "features": ["Le rouge de la marque reste lisible.", "Le vert reste réservé aux états entièrement réussis."],
         "how": [],
         "notes": [],
+    },
+    {
+        "id": "installer",
+        "group": "transversal",
+        "title": "Installer l'application et hors ligne",
+        "route": "(navigateur du téléphone)",
+        "who": "Tout le monde",
+        "img": "pwa-hors-ligne.jpg",
+        "purpose": "Ajouter Fratex à l'écran d'accueil du téléphone. L'application s'ouvre en plein écran, avec l'icône et la couleur de la marque.",
+        "features": [
+            "Manifeste complet (nom, icônes, couleur, raccourcis vers la boîte de réception et les prospects).",
+            "Si la connexion est coupée, une page claire « Vous êtes hors ligne » avec un bouton Réessayer remplace l'erreur du navigateur.",
+        ],
+        "how": [
+            "Le service worker ne garde que la page hors ligne. Aucune page connectée ni donnée de prospect n'est mise en cache.",
+            "Vérifié sur la version de production : enregistrement du service worker, puis arrêt réel du serveur et affichage de la page hors ligne.",
+        ],
+        "notes": ["Ce n'est que la première étape du chemin mobile (PWA, puis Capacitor, puis Expo si le hors ligne l'exige). Aucune application native n'est publiée."],
     },
     {
         "id": "agenda-connecte",
@@ -688,9 +772,9 @@ ANNEXES = [
 <ul>
 <li>La qualité des réponses d'un vrai modèle de langage (seul un faux modèle a été essayé).</li>
 <li>L'envoi réel de SMS (Twilio), l'arrivée de prospects Meta et la connexion de Google Agenda : aucun service externe n'est joignable dans cet environnement.</li>
-<li>La traduction elle-même par Google.</li>
-<li>L'adresse courriel du support.</li>
-<li>L'application mobile native : seule la version web adaptée au mobile existe.</li>
+<li>Les règles du SDR dépendent du code (désabonnement, consentement, 160 caractères, prise en main humaine : testés). Le jugement d'un vrai modèle (transfert à un humain, extraction des critères) a une suite d'évaluations prête, jamais lancée avec un vrai modèle.</li>
+<li>L'adresse courriel du support et l'avertissement de l'équipe à chaque demande.</li>
+<li>L'application mobile native : seule la version web installable (PWA) existe.</li>
 </ul>""",
     },
 ]
@@ -823,7 +907,7 @@ __NAV__
 <main>
 <div class="intro">
 <h1>Guide de l'application Fratex Agent</h1>
-<p>Chaque page de l'application, avec sa capture d'écran, son rôle et ses fonctions en détail. Les captures ont été prises le 22 octobre 2026 sur l'environnement local, avec des données de démonstration. Cliquez sur une image pour l'agrandir.</p>
+<p>Chaque page de l'application, avec sa capture d'écran, son rôle et ses fonctions en détail. Les captures ont été prises le 23 octobre 2026 sur l'environnement local, avec des données de démonstration. Cliquez sur une image pour l'agrandir.</p>
 <div class="cards">
 <div><b>Pour le courtier</b>Accueil, Prospects, Fiche, Boîte de réception, Portail, Estimateur.</div>
 <div><b>Pour l'équipe Fratex</b>Courtiers, Connexions, Assistant IA, Membres, Support.</div>

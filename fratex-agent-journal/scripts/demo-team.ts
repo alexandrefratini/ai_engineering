@@ -19,6 +19,7 @@ await db.activity.deleteMany({ where: { id: { startsWith: "demo-team-" } } });
 await db.leadNote.deleteMany({ where: { id: { startsWith: "demo-team-" } } });
 await db.message.deleteMany({ where: { id: { startsWith: "demo-team-" } } });
 await db.supportRequest.deleteMany({ where: { id: { startsWith: "demo-team-" } } });
+await db.generatedContent.deleteMany({ where: { idempotencyKey: { startsWith: "demo-team-" } } });
 
 const tasks: [string, string, string, number | null, number | null][] = [
 	["demo-user", "Relancer les prospects sans réponse depuis 48 h", "overdue", -DAY, null],
@@ -125,4 +126,31 @@ await db.supportRequest.create({
 	},
 });
 
-console.log("équipe: tâches, notes, SMS et demande de support ajoutés");
+const generated: [number, "LISTING_SUGGESTION" | "NOTE", "DRAFT" | "APPROVED" | "SENT", string, number][] = [
+	[0, "LISTING_SUGGESTION", "DRAFT", "Condo de 2 chambres, 345 rue Sainte-Rose, Laval — 489 000 $", 3 * HOUR],
+	[1, "LISTING_SUGGESTION", "DRAFT", "Maison de ville, 78 avenue des Érables, Laval — 524 900 $", 9 * HOUR],
+	[2, "LISTING_SUGGESTION", "APPROVED", "Condo avec stationnement, 1200 boulevard Chomedey, Laval — 459 000 $", 2 * DAY],
+	[3, "NOTE", "SENT", "Le prospect demande à parler directement à la courtière au sujet d'une offre.", 5 * HOUR],
+	[4, "NOTE", "SENT", "Prospect qualifié (score 80 sur 100). Critères confirmés par le prospect : Projet : achat. Secteur : Laval. Échéance : 3 mois. Rien n'est estimé : chaque valeur vient des réponses du prospect.", 80 * 60 * 1000],
+];
+for (const [leadIndex, kind, status, body, age] of generated) {
+	const lead = leads[leadIndex % Math.max(1, leads.length)];
+	if (!lead) continue;
+	await db.generatedContent.create({
+		data: {
+			agencyId: agency.id,
+			leadId: lead.id,
+			clientId: lead.clientId,
+			kind,
+			status,
+			agent: body.startsWith("Prospect qualifié") ? "visit_prep" : "sdr",
+			body,
+			idempotencyKey: `demo-team-gen-${leadIndex}`,
+			approvedAt: status === "APPROVED" ? ago(age - HOUR) : null,
+			approvedById: status === "APPROVED" ? "demo-user" : null,
+			createdAt: ago(age),
+		},
+	});
+}
+
+console.log("équipe: tâches, notes, SMS, demande de support et contenu généré ajoutés");
