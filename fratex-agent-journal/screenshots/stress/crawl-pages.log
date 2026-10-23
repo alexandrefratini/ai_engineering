@@ -1,0 +1,94 @@
+OK bureau 200 /crm
+OK bureau 200 /crm/account
+OK bureau 200 /crm/agents
+OK bureau 200 /crm/chat
+OK bureau 200 /crm/chat/cmvk2gelv00007b7dij3m9i73
+OK bureau 200 /crm/companies
+OK bureau 200 /crm/companies/cmvjm04gr000aaw7d6y3t7pxb
+OK bureau 200 /crm/contacts
+OK bureau 200 /crm/contacts/cmvjm04kl000xaw7ddzzoy4re
+OK bureau 200 /crm/deals
+OK bureau 200 /crm/deals/seed-deal-retool-0
+OK bureau 200 /crm/real-estate
+OK bureau 200 /crm/real-estate/activity
+OK bureau 200 /crm/real-estate/inbox
+OK bureau 200 /crm/real-estate/leads
+OK bureau 200 /crm/real-estate/leads/cmvjm063r001bbl7d1wifzomr?agencyId=cm
+KO bureau 200 /crm/real-estate/pipeline
+     - erreur de page: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use 
+OK bureau 200 /crm/real-estate/portal
+OK bureau 200 /crm/real-estate/realtors
+OK bureau 200 /crm/real-estate/realtors/new
+KO bureau 200 /crm/real-estate/valuation
+     - erreur de page: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use 
+OK bureau 200 /crm/settings
+OK bureau 200 /crm/settings/api-keys
+OK bureau 200 /crm/settings/connections
+OK bureau 200 /crm/settings/connections/gemini
+OK bureau 200 /crm/settings/connections/google
+OK bureau 200 /crm/settings/connections/intake
+OK bureau 200 /crm/settings/connections/meta-ads
+OK bureau 200 /crm/settings/connections/microsoft
+OK bureau 200 /crm/settings/connections/realtor-calendar
+OK bureau 200 /crm/settings/connections/slack
+KO bureau 200 /crm/settings/connections/slack/people
+     - requête échouée: http://localhost:3000/api/trpc/presence.team
+OK bureau 200 /crm/settings/connections/twilio
+OK bureau 200 /crm/settings/currencies
+OK bureau 200 /crm/settings/members
+OK bureau 200 /crm/settings/sso
+OK bureau 200 /crm/settings/tracking
+OK bureau 200 /crm/support
+OK bureau 200 /crm/team
+OK bureau 200 /crm/team/seed-ada-okafor
+KO bureau 404 /crm/cette-page-nexiste-pas
+     - HTTP 404: /crm/cette-page-nexiste-pas
+     - console: Failed to load resource: the server responded with a status of 404 (Not Found)
+OK mobile 200 /crm
+KO mobile 200 /crm/account
+     - erreur de page: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use 
+OK mobile 200 /crm/agents
+OK mobile 200 /crm/chat
+KO mobile 200 /crm/chat/cmvk2gelv00007b7dij3m9i73
+     - requête échouée: http://localhost:3000/eve/v1/session/wrun_01M5JS0C4SYB5Z914M2BR7T7D3/stream?includeTailInd
+OK mobile 200 /crm/companies
+OK mobile 200 /crm/companies/cmvjm04gr000aaw7d6y3t7pxb
+OK mobile 200 /crm/contacts
+OK mobile 200 /crm/contacts/cmvjm04kl000xaw7ddzzoy4re
+OK mobile 200 /crm/deals
+OK mobile 200 /crm/deals/seed-deal-retool-0
+OK mobile 200 /crm/real-estate
+OK mobile 200 /crm/real-estate/activity
+OK mobile 200 /crm/real-estate/inbox
+OK mobile 200 /crm/real-estate/leads
+OK mobile 200 /crm/real-estate/leads/cmvjm063r001bbl7d1wifzomr?agencyId=cm
+OK mobile 200 /crm/real-estate/pipeline
+OK mobile 200 /crm/real-estate/portal
+OK mobile 200 /crm/real-estate/realtors
+OK mobile 200 /crm/real-estate/realtors/new
+OK mobile 200 /crm/real-estate/valuation
+OK mobile 200 /crm/settings
+OK mobile 200 /crm/settings/api-keys
+OK mobile 200 /crm/settings/connections
+OK mobile 200 /crm/settings/connections/gemini
+OK mobile 200 /crm/settings/connections/google
+OK mobile 200 /crm/settings/connections/intake
+OK mobile 200 /crm/settings/connections/meta-ads
+OK mobile 200 /crm/settings/connections/microsoft
+OK mobile 200 /crm/settings/connections/realtor-calendar
+OK mobile 200 /crm/settings/connections/slack
+OK mobile 200 /crm/settings/connections/slack/people
+KO mobile 200 /crm/settings/connections/twilio
+     - erreur de page: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use 
+OK mobile 200 /crm/settings/currencies
+OK mobile 200 /crm/settings/members
+OK mobile 200 /crm/settings/sso
+OK mobile 200 /crm/settings/tracking
+OK mobile 200 /crm/support
+OK mobile 200 /crm/team
+OK mobile 200 /crm/team/seed-ada-okafor
+KO mobile 404 /crm/cette-page-nexiste-pas
+     - HTTP 404: /crm/cette-page-nexiste-pas
+     - console: Failed to load resource: the server responded with a status of 404 (Not Found)
+
+82 chargements, 8 avec problèmes

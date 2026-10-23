@@ -594,7 +594,9 @@ PAGES = [
             "Profil : modifier le nom affiché.",
             "Agences et rôles : ce que vous avez le droit de voir et de faire.",
             "Connexion et courriel : fournisseur, synchronisation en lecture seule.",
-            "Appareils connectés : déconnecter un appareil ou tous les autres.",
+            "Appareils connectés : déconnecter un appareil ou tous les autres (corrigé : la liste ne fonctionnait plus à partir du deuxième jour de connexion).",
+            "Notifications : trois interrupteurs (nouveau prospect, réponse d'un prospect, passage à un humain) et le bouton « Activer les notifications » dans l'application mobile.",
+            "Hors ligne : ce qui est gardé sur l'appareil et un bouton pour l'effacer.",
             "Affichage : thème clair, sombre ou automatique, langue, fuseau, devise.",
             "Raccourcis clavier, demandes d'aide, déconnexion.",
         ],
@@ -704,18 +706,18 @@ PAGES = [
     {
         "id": "installer",
         "group": "transversal",
-        "title": "Installer l'application et hors ligne",
+        "title": "Installer l'application",
         "route": "(navigateur du téléphone)",
         "who": "Tout le monde",
         "img": "pwa-hors-ligne.jpg",
         "purpose": "Ajouter Fratex à l'écran d'accueil du téléphone sans passer par une boutique. L'application s'ouvre en plein écran, avec l'icône et la couleur de la marque.",
         "features": [
             "Manifeste complet (nom, icônes, couleur, raccourcis vers la boîte de réception et les prospects).",
-            "Si la connexion est coupée, une page claire « Vous êtes hors ligne » avec un bouton Réessayer remplace l'erreur du navigateur.",
+            "Si la connexion est coupée sur une page jamais consultée, une page claire « Vous êtes hors ligne » avec un bouton Réessayer remplace l'erreur du navigateur.",
+            "Les pages déjà consultées restent lisibles hors ligne : voir la page « Lire sans connexion ».",
         ],
         "how": [
-            "Le service worker ne garde que la page hors ligne. Aucune page connectée ni donnée de prospect n'est mise en cache.",
-            "Vérifié sur la version de production : enregistrement du service worker, puis arrêt réel du serveur et affichage de la page hors ligne.",
+            "Vérifié sur la version de production : enregistrement du service worker, puis arrêt réel du serveur.",
         ],
         "notes": ["La version installable (PWA) et l'application des boutiques (page suivante) partagent le même code web."],
     },
@@ -741,8 +743,96 @@ PAGES = [
         ],
         "notes": [
             "Les projets natifs n'ont pas été compilés dans l'environnement de création (ni SDK Android ni Xcode) : la première compilation reste à faire. La logique de connexion, elle, est testée de bout en bout côté web.",
-            "Pas encore : notifications push, hors ligne complet, liens universels (le domaine de production n'est pas connu).",
+            "Notifications push, liens universels et hors ligne sont codés et testés côté serveur et web (pages suivantes) mais n'ont jamais tourné sur un appareil : aucun compte Firebase ou Apple, aucun domaine de production et aucun appareil dans l'environnement.",
         ],
+    },
+    {
+        "id": "notifications",
+        "group": "transversal",
+        "title": "Notifications push",
+        "route": "/{espace}/account (panneau Notifications)",
+        "who": "Courtier, administrateur, propriétaire",
+        "img": "notifications-et-hors-ligne.jpg",
+        "mobile": ["m-notifications.jpg"],
+        "purpose": "Être averti sur le téléphone quand un prospect arrive, répond ou attend un humain, sans ouvrir l'application. Le texte de l'alerte ne contient jamais le nom ni le numéro du prospect.",
+        "features": [
+            "Trois alertes : nouveau prospect, réponse d'un prospect, passage à un humain. Un tap ouvre la fiche du prospect.",
+            "Un interrupteur par alerte, valable pour tous vos appareils. Les choix sont enregistrés même si l'envoi n'est pas encore configuré sur le serveur (le panneau le dit).",
+            "Le bouton « Activer les notifications » n'apparaît que dans l'application mobile ; la permission du téléphone n'est jamais demandée à l'ouverture.",
+            "Qui reçoit : le courtier assigné au prospect ; à défaut, les propriétaires et les administrateurs de l'agence.",
+        ],
+        "how": [
+            "Chaque événement crée une tâche durable dans la file de l'agent, avec une clé unique : un SMS reçu deux fois ne prévient qu'une fois, et un échec d'envoi n'empêche jamais le traitement du message. Android passe par Firebase (FCM), iOS par Apple (APNs).",
+            "Un jeton refusé par Google ou Apple (application désinstallée) désactive l'appareil. Le jeton est retiré à la déconnexion. 36 tests de l'envoi et de la file, 8 tests de l'API, et le réglage essayé dans un vrai navigateur (modification, rechargement, valeur conservée).",
+            "Mise en service : docs/mobile.md (compte Firebase, clé APNs, secret GOOGLE_SERVICES_JSON du workflow).",
+        ],
+        "notes": ["Jamais essayé avec de vrais serveurs Google ou Apple ni sur un appareil : aucun identifiant n'est disponible ici. Les envois sont testés avec des transports simulés."],
+    },
+    {
+        "id": "hors-ligne",
+        "group": "transversal",
+        "title": "Lire sans connexion",
+        "route": "(toutes les pages déjà consultées)",
+        "who": "Tout le monde",
+        "img": "hors-ligne-1.jpg",
+        "extra": ["hors-ligne-2.jpg", "hors-ligne-3.jpg", "hors-ligne-4.jpg"],
+        "purpose": "Chez un client, dans un sous-sol ou dans un train : les pages et les listes déjà consultées restent lisibles. On lit, on n'écrit pas.",
+        "features": [
+            "Un bandeau en bas indique « Hors ligne : données enregistrées le … » (première capture). On peut passer d'une page consultée à une autre (deuxième).",
+            "Une page jamais consultée affiche « Vous êtes hors ligne » avec Réessayer (troisième).",
+            "Envoyer un SMS, ajouter une note ou changer un statut échoue **tout de suite** avec un message (quatrième capture) : rien n'est mis en attente pour partir plus tard. Un message envoyé une heure après, sur un contexte périmé, serait pire qu'un échec visible.",
+            "Mon compte, panneau « Hors ligne » : nombre d'éléments gardés, date du plus ancien, bouton « Effacer les données hors ligne ».",
+        ],
+        "how": [
+            "Une copie par personne, nommée par une empreinte de son identifiant. Elle est effacée à la déconnexion, sur la page de connexion et quand une autre personne se connecte sur le même appareil. Elle expire après 7 jours et ne dépasse pas 200 éléments.",
+            "Le réseau répond d'abord ; après 4 secondes ou en cas d'échec, la copie est servie. Une page que le serveur n'a pas su rendre n'écrase jamais une bonne copie. Jamais gardés : connexion, clés d'API, SSO, connexions Google, Microsoft et Slack, suivi, notifications, présence, recherche.",
+            "Vérifié dans un vrai navigateur sur la version de production, en arrêtant réellement le serveur : liste avec les noms, bandeau, navigation interne, page jamais consultée, écriture refusée en 94 ms, aucune note envoyée plus tard au retour du serveur, bandeau disparu au retour. Séparation des personnes et effacement à la déconnexion aussi (scripts/offline-flow.cjs et offline-users.cjs). 26 tests du service worker et du cache.",
+            "Défaut trouvé en route : tRPC regroupait plusieurs lectures dans une même requête dont la composition changeait à chaque chargement ; la copie n'était presque jamais retrouvée. Chaque lecture est maintenant sa propre requête.",
+        ],
+        "notes": [
+            "Sur iOS, le hors ligne de l'application native exige un domaine d'application connu (WKAppBoundDomains) : il s'active quand APP_LINK_HOST est défini. Sur Android, il fonctionne dès que l'adresse du déploiement est en https. Rien de natif n'a tourné sur un appareil.",
+            "Loi 25 : la copie sur l'appareil est réservée à la personne connectée, limitée dans le temps et effaçable ; la politique de confidentialité devrait la mentionner.",
+        ],
+    },
+    {
+        "id": "liens-universels",
+        "group": "transversal",
+        "title": "Liens universels et App Links",
+        "route": "/.well-known/apple-app-site-association et /.well-known/assetlinks.json",
+        "who": "Technique",
+        "img": "mobile-icone.jpg",
+        "purpose": "Qu'un lien de courriel ou de Slack vers un prospect ouvre l'application plutôt que le navigateur. Le domaine de production n'étant pas connu, tout est piloté par des variables et reste inactif tant qu'elles ne sont pas définies.",
+        "features": [
+            "Trois variables : APP_LINK_HOST (domaine, doit être l'hôte de l'adresse du déploiement), ANDROID_CERT_SHA256 (empreintes du certificat de signature) et APPLE_TEAM_ID.",
+            "Sans variables, les deux fichiers .well-known répondent 404. Avec elles, ils sont servis (vérifié sur la version de production).",
+            "Seules les pages de l'application sont revendiquées. La connexion, les routes /api, /native et les pages publiques ne le sont jamais : un retour OAuth dans le navigateur ne doit pas être capté par l'application.",
+        ],
+        "how": [
+            "La liste des sections liées est écrite à un seul endroit ; un test compare le manifeste Android et le fichier Apple et vérifie que les deux revendiquent les mêmes chemins et aucun chemin de connexion. 15 tests.",
+            "L'application ouvre un lien https seulement s'il vise son propre hôte et une section reconnue ; un chemin douteux est refusé.",
+        ],
+        "notes": ["Jamais essayé sur un appareil. Android 11 et moins n'ouvre que les liens sans espace de travail devant le chemin."],
+    },
+    {
+        "id": "erreurs-pannes",
+        "group": "transversal",
+        "title": "Pages d'erreur et pannes",
+        "route": "(toute page)",
+        "who": "Tout le monde",
+        "img": "erreur-panne.jpg",
+        "extra": ["page-introuvable.jpg"],
+        "purpose": "Quand le serveur ou la base de données tombe, la personne voit un message clair en français, jamais une pile d'appels ni la page anglaise par défaut.",
+        "features": [
+            "« Cette page n'a pas pu se charger » avec Réessayer, Retour à l'accueil et un code d'erreur à donner au support.",
+            "« Page introuvable » pour une adresse inconnue.",
+            "La page de connexion reste utilisable pendant une panne.",
+            "Une base de données injoignable donne un message « service momentanément indisponible » (503), et non plus « session expirée ».",
+        ],
+        "how": [
+            "Essai réel : Postgres arrêté brutalement. Réponse de l'API en 15 à 40 ms, page d'erreur française, agent toujours en marche, et reprise de l'API en moins de 50 ms après le redémarrage de Postgres, sans redémarrer l'API, l'application ni l'agent.",
+            "Essai réel : agent arrêté. Créer une entreprise répond en 75 ms ; les tâches attendent dans la file et sont exécutées exactement une fois 18 secondes après le redémarrage de l'agent.",
+        ],
+        "notes": ["Détails, mesures et limites : voir l'annexe « Campagne de stress » et docs/robustesse.md."],
     },
     {
         "id": "agenda-connecte",
@@ -791,6 +881,40 @@ ANNEXES = [
         "body": "<p>Chaque page importante et chaque section ont un petit « ? ». Il explique en une ou deux phrases ce que l'on voit et d'où vient le chiffre. Survolez-le ou touchez-le.</p>",
     },
     {
+        "id": "stress",
+        "title": "Campagne de stress : ce qui a été éprouvé",
+        "body": """
+<p>Objectif : prouver que le système tient, et ajouter du code défensif là où il ne tenait pas. Tout est rejouable (voir docs/robustesse.md dans le dépôt du produit).</p>
+<table><thead><tr><th>Essai</th><th>Résultat</th></tr></thead><tbody>
+<tr><td>Accès sans session aux 202 procédures de l'API</td><td>Tout refusé (401) sauf une procédure publique voulue (options de connexion). Le test échoue si une nouvelle procédure devient publique sans décision explicite.</td></tr>
+<tr><td>Dossier d'un prospect lu par un inconnu, par le propriétaire d'une autre agence ou par le courtier d'un autre client (toutes les procédures, vrais identifiants)</td><td>Jamais visible ni modifiable. Un témoin positif prouve que la détection voit les vraies fuites.</td></tr>
+<tr><td>Entrées hostiles sur les 202 procédures (chaînes de 1,5 Mo, 16 000 caractères aléatoires, caractère nul, pollution de prototype, imbrication, mauvais types)</td><td>Plus aucune erreur 5xx, aucune connexion coupée, aucune réponse lente. <b>Avant les correctifs : plusieurs erreurs 500.</b></td></tr>
+<tr><td>Points d'entrée publics (webhooks Twilio et Meta avec signature valide mais contenu hostile, tâches planifiées, suivi, connexion mobile, retours OAuth, pont REST)</td><td>13 tests, jamais de 5xx ; tâches planifiées refusées sans le secret ; pont REST aussi strict que tRPC.</td></tr>
+<tr><td>File de tâches : 400 tâches, 12 travailleurs, plantages simulés</td><td>Une seule exécution par tâche, 3 tentatives au plus, fin tardive jamais comptée deux fois, 40 mises en file simultanées d'une même notification = 1 tâche.</td></tr>
+<tr><td>Charge : 50 utilisateurs simultanés</td><td>337 lectures/s authentifiées (p95 192 ms), 231 listes de prospects/s (p95 275 ms), 20 pages rendues/s (p95 2,2 s), zéro erreur sur 19 000 requêtes. Conteneur partagé : indicatif seulement.</td></tr>
+<tr><td>Postgres arrêté brutalement</td><td>503 clair en 15 à 40 ms, page d'erreur française, agent vivant, reprise en moins de 50 ms sans redémarrage.</td></tr>
+<tr><td>Agent arrêté</td><td>Les demandes de l'utilisateur répondent normalement ; les tâches attendent et s'exécutent une fois au retour de l'agent.</td></tr>
+<tr><td>Parcours de 41 pages × bureau et mobile (82 chargements)</td><td>Aucune page en erreur ni texte « undefined » ou « NaN » ; 8 chargements signalés : l'erreur d'hydratation intermittente (4), deux requêtes interrompues à la fermeture de la page (flux de discussion, présence) et la page volontairement inexistante (2). Trouvé : <code>/real-estate</code> donnait un 404, la liste des appareils ne chargeait plus après un jour, une erreur d'hydratation intermittente.</td></tr>
+</tbody></table>
+<h4>Défauts réels corrigés</h4>
+<ul>
+<li>Caractère nul dans un texte : erreur 500 (Postgres le refuse). Garde d'entrée sur tRPC et sur les routes REST.</li>
+<li>Données invalides ou trop longues, erreurs de validation dans un service : 500 au lieu de 400, 409 ou 404.</li>
+<li>Corps trop gros : 500 au lieu de 413 ; aucune limite de taille côté relais web.</li>
+<li>Base de données arrêtée : « session expirée » (401) et page anglaise de Next ; maintenant 503 et page française.</li>
+<li>Réponses d'erreur qui montraient chemins de fichiers, extraits de code et hôte de la base.</li>
+<li>Appels sortants sans délai d'attente (révocation Google, OAuth Slack).</li>
+<li>Appareils connectés indisponibles à partir du deuxième jour (session « pas assez fraîche » pour Better Auth).</li>
+<li>Redirection relative qui menait à un 404 sur <code>/real-estate</code>.</li>
+</ul>
+<h4>Ce qui reste</h4>
+<ul>
+<li>Erreur d'hydratation React n° 418 intermittente en production (cause inconnue, sans effet visible, présente sans les ajouts de cette session).</li>
+<li>Pas de limitation de débit sur les routes publiques ; une requête fragmentée sans longueur déclarée n'est pas limitée côté API.</li>
+<li>Services externes jamais appelés pour de vrai ; charge mesurée sur un petit conteneur partagé.</li>
+</ul>""",
+    },
+    {
         "id": "connus",
         "title": "Ce qui n'est pas encore vérifié",
         "body": """
@@ -799,7 +923,8 @@ ANNEXES = [
 <li>L'envoi réel de SMS (Twilio), l'arrivée de prospects Meta et la connexion de Google Agenda : aucun service externe n'est joignable dans cet environnement.</li>
 <li>Les règles du SDR dépendent du code (désabonnement, consentement, 160 caractères, prise en main humaine : testés). Le jugement d'un vrai modèle (transfert à un humain, extraction des critères) a une suite d'évaluations prête, jamais lancée avec un vrai modèle.</li>
 <li>L'adresse courriel du support et l'avertissement de l'équipe à chaque demande.</li>
-<li>L'application mobile : les projets Android et iOS existent (Capacitor) mais n'ont jamais été compilés ni lancés sur un appareil. Les notifications push et le hors ligne complet ne sont pas faits.</li>
+<li>L'application mobile : les projets Android et iOS existent (Capacitor) mais n'ont jamais été compilés ni lancés sur un appareil. Notifications push, liens universels et hors ligne natif sont codés et testés côté serveur et web, mais jamais essayés avec de vrais comptes Firebase ou Apple, un domaine de production ou un appareil.</li>
+<li>Une erreur d'hydratation React intermittente (environ 5 % des chargements de la version de production, sans effet visible) dont la cause n'est pas identifiée.</li>
 </ul>""",
     },
 ]

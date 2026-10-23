@@ -7,7 +7,7 @@
 
 - Partie 0 — Incident du 22 octobre et méthode de reconstruction
 - Partie A — Compréhension du produit, règles, décisions
-- Partie B — Phases (B.1 à B.22)
+- Partie B — Phases (B.1 à B.28)
 - Partie C — Comment tout refaire depuis zéro
 - Partie D — Problèmes restants
 - Partie E — À faire plus tard (réseaux sociaux)
@@ -232,6 +232,38 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Correction** : `satisfies` et un petit utilitaire `lookup` (`packages/ui/src/lib/lookup.ts`) pour les lectures par clé quelconque ; erreurs typées structurellement (`CodedError`) ; lecture de `localStorage` analysée avec zod ; objets Prisma construits en deux temps ; charges utiles des messages entre agents typées par leurs schémas. `PageShellTitle` n'accepte plus que du texte comme enfant (l'étiquette de l'infobulle en dépend). Résultat : `lint:slop` à 0 erreur, types, Biome (0 erreur, 26 avertissements) et tous les tests inchangés ou meilleurs.
 - **À retenir** : la liste de vérification de la partie C contient maintenant `bun run lint:slop`.
 
+### B.24 — Notifications push (Android et iOS)
+- **Quoi** : trois alertes sans donnée de prospect (nouveau prospect, réponse d'un prospect, passage à un humain), envoyées par Firebase Cloud Messaging (Android) et Apple Push Notification service (iOS), avec un panneau « Notifications » dans Mon compte (trois interrupteurs, bouton « Activer » visible seulement dans l'application mobile).
+- **Où** : migration additive `20261023170000_add_push_devices` (`PushDevice`, `PushPreference`), `packages/db/src/push*.ts`, `apps/agent/agent/lib/push/` (JWT RS256 pour FCM, ES256 pour APNs, transports injectables), `apps/api/src/push` (routeur `push` : `state`, `registerDevice`, `unregisterDevice`, `setPreferences`), `apps/app/components/push-registration.tsx` et `push-settings.tsx`, configuration native (`POST_NOTIFICATIONS`, `App.entitlements`, méthodes de `AppDelegate`), variables dans `.env.example`.
+- **Logique** : chaque événement crée une tâche durable `push-notify` (voie directe de l'agent) avec une **clé d'idempotence** (`push:reply:<agence>:<MessageSid>`, `push:lead:<id>`, `push:handoff:<session>:<appel>`). Les destinataires sont calculés **au moment de l'envoi** (courtier assigné, sinon propriétaires et administrateurs) en respectant les préférences. Un jeton refusé désactive l'appareil, un échec transitoire relance la tâche (3 tentatives). Le jeton est retiré à la déconnexion. Un échec d'enfilage ne fait jamais échouer le traitement du message (`queuePushSafely`).
+- **Vérifié** : 36 tests de l'agent (signature JWT, identifiants, classement des réponses FCM et APNs, destinataires, silence, reprise, tâche mal formée, idempotence), 8 de l'API (appareil enregistré une seule fois, repris par la personne suivante, plafond de 10, retrait limité à son propriétaire, préférences, entrées refusées), assertions dans le test de bout en bout du SMS (une tâche par SMS reçu même en double, aucune pour un STOP), et le panneau dans un vrai navigateur (interrupteur modifié, page rechargée, valeur conservée).
+- **NON vérifié** : aucun envoi réel (pas de compte Firebase ni de clé APNs), aucun appareil, aucune compilation native. Mise en service : `docs/mobile.md`.
+
+### B.25 — Liens universels et App Links (domaine configurable)
+- **Quoi** : `/.well-known/assetlinks.json` et `/.well-known/apple-app-site-association` servis par l'application web **seulement si** `ANDROID_CERT_SHA256` et `APPLE_TEAM_ID` sont définis (sinon 404) ; filtre d'intention Android avec vérification automatique et droit associé iOS (`applinks:$(APP_LINK_HOST)`), tous deux pilotés par `APP_LINK_HOST` (valeur par défaut `app-link.invalid`, jamais résolue) ; `sync` refuse un `APP_LINK_HOST` qui n'est pas l'hôte de `CAPACITOR_SERVER_URL`.
+- **Choix important** : seules les pages de l'application sont revendiquées (dix sections, avec ou sans l'espace de travail devant). La connexion, `/api`, `/native` et les pages publiques ne le sont **jamais**, sinon le retour OAuth du navigateur pourrait être capté par l'application. Android ne sait pas exclure des chemins : le manifeste liste donc des préfixes précis (`pathAdvancedPattern` pour l'espace de travail, Android 12 et plus).
+- **Vérifié** : 15 tests (fichiers refusés sans configuration ou avec une valeur invalide, mêmes chemins revendiqués côté iOS et Android, aucun chemin de connexion revendiqué, ouverture d'un lien https seulement pour son propre hôte et une section reconnue), version de production avec les variables (les deux fichiers servis en JSON) et sans (404), `.well-known` exempté de la redirection de connexion.
+- **NON vérifié** : aucun appareil, aucun domaine réel (Google et Apple valident le fichier depuis leurs serveurs).
+
+### B.26 — Hors ligne : lecture sans connexion
+- **Quoi** : service worker v2 qui garde une copie **par personne** des pages et des lectures tRPC déjà consultées (réseau d'abord, copie après 4 s ou en cas d'échec), bandeau « Hors ligne : données enregistrées le … », panneau « Hors ligne » dans Mon compte (nombre d'éléments, date du plus ancien, effacement), purge à la déconnexion, sur la page de connexion et au changement de personne.
+- **Décision de fond** : **aucune écriture hors ligne**. Une file qui enverrait un SMS plus tard, sur un contexte périmé, serait pire qu'un échec visible : les mutations échouent tout de suite avec un message (`networkMode: "always"` et message unique), sauf les requêtes de fond (présence, enregistrement de l'appareil).
+- **Confidentialité (loi 25)** : cache nommé par une empreinte de l'identifiant ; expiration à 7 jours ; 200 éléments au plus ; jamais de connexion, clés d'API, SSO, connexions Google, Microsoft, Slack, suivi, notifications, présence ni recherche ; une page rendue en erreur par le serveur n'écrase jamais une bonne copie ; fichiers de l'application liés à la version du déploiement.
+- **Défauts trouvés en vérifiant, corrigés** : (1) le client tRPC regroupait les lectures en lots dont la composition changeait à chaque chargement, donc la copie n'était presque jamais retrouvée : une requête par lecture ; (2) une lecture échouée sur une page qui avait déjà ses données la faisait passer en erreur (cartes « Accès indisponible ») : les données déjà là sont conservées ; (3) les requêtes de fond affichaient un message d'écriture refusée ; (4) mon essai utilisait le mauvais nom de cookie en production (`__Secure-crm.session_token`) : toutes mes premières « réussites » étaient en réalité la page de connexion, repérées grâce à des assertions sur les noms des prospects.
+- **Vérifié** : 26 tests (service worker complet avec une fausse API de cache : routes ignorées, une seule personne, expiration, plafond, lenteur, erreur de rendu, bienvenue au rechargement ; helpers, bandeau, détection des erreurs réseau, conservation des données) et, dans un vrai navigateur sur la version de production **avec arrêt réel du serveur** (`scripts/offline-flow.cjs`) : 15 vérifications (copie unique et sans identifiant lisible, liste avec noms, bandeau daté, navigation interne, page jamais consultée, fiche de prospect, écriture refusée en 94 ms, aucune note envoyée au retour du serveur, bandeau disparu) et `scripts/offline-users.cjs` (changement de personne, déconnexion, session expirée).
+- **iOS** : un service worker dans WKWebView exige `WKAppBoundDomains` : activé quand `APP_LINK_HOST` est défini. **NON vérifié** sur un appareil.
+
+### B.27 — Campagne de stress et code défensif
+Détail complet : `docs/robustesse.md` (dépôt du produit) et l'annexe « Campagne de stress » du guide. Résumé :
+- **Balayage des 202 procédures** (`authz-sweep.e2e.spec.ts`) : sans session tout est refusé sauf `sso.signInOptions` ; aucune fuite entre agences ni entre courtiers (témoin positif inclus) ; des entrées hostiles ne donnent plus aucune erreur 5xx.
+- **Points d'entrée publics** (`public-endpoints.e2e.spec.ts`, 13 tests) : webhooks signés mais hostiles, tâches planifiées, suivi, retours OAuth, pont REST.
+- **File de l'agent** (`queue-stress.integration.spec.ts`) : 400 tâches, 12 travailleurs, plantages simulés, exactement une exécution, 3 tentatives au plus.
+- **Pannes réelles** : Postgres arrêté brutalement (503 en 15 à 40 ms, page d'erreur française, reprise en moins de 50 ms sans redémarrage) ; agent arrêté (tâches en attente, exécutées une fois au retour). **Charge** : zéro erreur sur 19 000 requêtes à 50 utilisateurs simultanés (conteneur partagé : indicatif).
+- **Parcours de 41 pages** (`scripts/crawl-pages.cjs`, bureau et mobile) : aucune page en erreur.
+- **Défauts réels corrigés** : caractère nul → 500 ; erreurs de validation et de base causées par l'utilisateur → 500 (maintenant 400, 409, 404) ; corps trop gros → 500 au lieu de 413 et aucune limite côté relais web ; base arrêtée → « session expirée » et page anglaise ; messages d'erreur qui montraient chemins de fichiers, code et hôte de la base ; appels sortants sans délai (révocation Google, deux appels OAuth Slack) ; **liste des appareils connectés cassée à partir du deuxième jour** (session « pas assez fraîche » pour Better Auth, maintenant `freshAge` = durée de session) ; `/real-estate` donnait un 404 (redirection relative) ; aucune page d'erreur en français (ajoutées).
+- **Ma propre erreur de méthode** : mon premier balayage d'entrées avait pollué la base de test et fait échouer six tests voisins ; les balayages nettoient maintenant ce qu'ils créent, et la base de test se réinitialise avec `bun run db:test` dans `packages/db`.
+- **Reste** : erreur d'hydratation React n° 418 intermittente en production (environ 5 % des chargements, jamais en développement, sans effet visible, cause inconnue, présente sans les ajouts de cette session) ; pas de limitation de débit sur les routes publiques ; services externes jamais appelés pour de vrai.
+
 ### Défauts trouvés en vérifiant le travail, tous corrigés
 1. Le patch cumulatif omettait deux fichiers supprimés (voir la partie C, étape 8).
 2. La liste d'outils de la télémétrie ignorait cinq outils de l'assistant (`list_appointments`, `list_prospects_needing_attention`, `read_prospect`, `realtor_performance`, `search_prospects`) : un test échouait depuis la phase B.4 sans que je l'aie lancé. Les tests de `packages/telemetry` sont maintenant dans la liste de vérification.
@@ -239,6 +271,7 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 4. Les mots de désabonnement avec ponctuation n'étaient pas reconnus (voir B.18).
 5. 69 erreurs de `lint:slop`, jamais lancé jusque-là (voir B.23).
 6. La page `/native/handoff` cassait la compilation de production (voir B.22).
+7. Un caractère nul faisait échouer en 500 tout texte écrit en base ; des erreurs de données renvoyées en 500 ; liste des appareils connectés cassée après un jour ; `/real-estate` en 404 ; pas de page d'erreur française (voir B.27).
 
 ---
 
@@ -255,7 +288,7 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    ```bash
    git clone -b claude/fratex-agent-rebuild https://github.com/alexandrefratini/ai_engineering ../ai_engineering
    ```
-3. **Appliquer toutes les modifications** (vérifié sur une copie propre : 385 fichiers, contenu identique octet par octet à la copie de travail)
+3. **Appliquer toutes les modifications** (vérifié sur une copie propre : 647 fichiers, contenu identique octet par octet à la copie de travail)
    ```bash
    git apply ../ai_engineering/fratex-agent-journal/patches/TOUT-cumulatif.patch
    ```
@@ -283,8 +316,8 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    bun run lint:slop
    (cd apps/app && bunx next build)
    ```
-   Résultats du 23 octobre 2026 : app 246, api 481, agent 423, mobile 7, db 115, auth 43, validation 8, telemetry 61, env 17 tests réussis, `lint:slop` à 0 erreur, aucune erreur de type, Biome sans erreur (26 avertissements), compilation de production réussie.
-   Les variables d'environnement doivent être chargées (`set -a && . ./.env`) avant `db:test` et les tests d'intégration.
+   Résultats du 23 octobre 2026 (fin de B.27, `bun run test` : 11 tâches réussies) : app 303, api 529, agent 465, mobile 11, db 115, auth 44, validation 8, telemetry 61, env 17 tests réussis, `lint:slop` à 0 erreur, aucune erreur de type, Biome sans erreur (26 avertissements), compilation de production réussie.
+   Les variables d'environnement doivent être chargées (`set -a && . ./.env`) avant `db:test` et les tests d'intégration. La base de test peut être réinitialisée avec `(cd packages/db && bun run db:test)` après un `--reset` ; si des tests voisins échouent « sans raison », vérifier d'abord qu'une exécution interrompue n'a pas laissé de lignes.
 7. **Essayer l'agent IA sans clé de modèle**
    ```bash
    bash ../ai_engineering/fratex-agent-journal/scripts/run-agent-local.sh
@@ -304,7 +337,18 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    ```
    `cookie.txt` et `cookie-marie.txt` contiennent les valeurs `COOKIE=` et `COOKIE_MARIE=` de l'étape 4. Les scripts de capture utilisent Playwright (Chromium préinstallé).
 
-10. **Application mobile**
+10. **Essais de robustesse** (voir `docs/robustesse.md` du produit)
+   ```bash
+   (cd apps/api && CRM_TELEMETRY_DISABLED=1 bun test --preload ./test/setup.ts test/authz-sweep.e2e.spec.ts test/public-endpoints.e2e.spec.ts)
+   (cd apps/agent && bun test test/queue-stress.integration.spec.ts)
+   bash ../ai_engineering/fratex-agent-journal/scripts/restart-services.sh   # après un redémarrage du conteneur
+   node ../ai_engineering/fratex-agent-journal/scripts/offline-flow.cjs <cookie> <pid du serveur web> <dossier de captures>   # tue réellement le serveur
+   node ../ai_engineering/fratex-agent-journal/scripts/crawl-pages.cjs <cookie> <dossier>   # parcours de 41 pages, bureau et mobile
+   node ../ai_engineering/fratex-agent-journal/scripts/load.mjs <url> <simultanés> <secondes> [cookie]
+   ```
+   `offline-flow.cjs` démarre lui-même un nouveau serveur à la fin et suppose la version de production de l'application sur le port 3000.
+
+11. **Application mobile**
    ```bash
    cd apps/mobile
    CAPACITOR_SERVER_URL=https://<domaine-de-production> bun run sync
@@ -340,8 +384,12 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 | P17 | Historique des SMS d'une personne : les SMS envoyés à la main avant le 23 octobre n'ont pas d'auteur enregistré. | Ils n'apparaissent pas dans la fiche Équipe. | Aucune correction possible a posteriori. Les nouveaux SMS sont attribués. | — |
 | P18 | La fiche Équipe ne montre pas les tâches du CRM assignées à une autre personne que leur créateur. | « Tâches » = tâches créées par la personne. | Ajouter un champ « assignée à » sur les activités si l'équipe en a besoin. | Technique |
 | P19 | Le répartiteur de l'agent ne reprend pas tout de suite un message `agent-message` déjà « loué » par une ancienne version du code. | Après un déploiement, un message en vol peut attendre la fin de son bail (quelques minutes). | Rien à faire en production ; en local, redémarrer l'agent puis libérer le bail. | — |
-| P20 | Pas de notifications push dans l'application mobile. | Un courtier ne sait pas qu'un prospect a répondu tant qu'il n'ouvre pas l'application. | `@capacitor/push-notifications`, projet Firebase et certificat APNs, table des jetons d'appareil, envoi depuis l'API. Première fonction à ajouter. | Alexandre (comptes), technique |
-| P21 | L'application mobile utilise un schéma d'URL personnalisé, pas des liens universels. | Une autre application pourrait ouvrir le même schéma (sans pouvoir se connecter : voir B.22). Les liens du courriel n'ouvrent pas l'application. | Servir `apple-app-site-association` et `assetlinks.json` sur le domaine de production. | Technique |
+| P20 | Notifications push codées et testées (B.24) mais jamais essayées avec de vrais serveurs ni sur un appareil. | On ne sait pas si Google et Apple acceptent nos messages ni si l'application reçoit et ouvre la bonne fiche. | Créer le projet Firebase et la clé APNs, renseigner les variables (`docs/mobile.md`), essayer sur un appareil Android puis iOS. | Alexandre (comptes et appareils) |
+| P21 | Liens universels et App Links codés (B.25) mais inactifs : le domaine de production n'est pas connu. | Les liens de courriel ouvrent le navigateur ; le schéma `ca.fratex.agent` reste utilisé. | Définir `APP_LINK_HOST`, `ANDROID_CERT_SHA256` et `APPLE_TEAM_ID`, recompiler, vérifier avec `adb shell pm get-app-links`. | Alexandre (domaine, comptes), technique |
+| P22 | Erreur d'hydratation React n° 418 intermittente sur la version de production (environ 5 % des chargements, pages différentes, jamais en développement). | Aucun effet visible (React se corrige), mais du travail inutile et un signal d'un rendu serveur et client légèrement différents. | Reproduire avec une version de production non minifiée pour lire le message complet ; chercher une valeur qui change entre la pré-génération et le rendu client. | Technique |
+| P23 | Aucune limitation de débit sur les routes publiques (webhooks, suivi) ; une requête fragmentée sans longueur déclarée n'est pas limitée côté API (B.27). | Un client malveillant pourrait saturer ces routes. | Limiter au niveau du fournisseur d'hébergement ou ajouter un limiteur Nest. | Technique |
+| P24 | Le hors ligne ne permet que la lecture, et seulement pour les pages déjà consultées. | Pas de saisie hors ligne ; une page jamais ouverte n'est pas disponible. | Décision de produit : si une saisie hors ligne est voulue, la concevoir avec confirmation avant envoi (jamais d'envoi silencieux de SMS). | Alexandre, technique |
+| P25 | En production, l'application web et l'API utilisent des noms de cookie de session différents si elles ne tournent pas dans le même mode (`__Secure-crm.session_token` ou `crm.session_token`). | En local, un mélange (application en production, API en développement) exige les deux cookies. | Faire tourner les deux dans le même mode ; à retenir pour les essais. | — |
 
 ---
 

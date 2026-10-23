@@ -1,5 +1,5 @@
- .env.example                                       |   3 +
- .github/workflows/mobile.yml                       |  83 ++
+ .env.example                                       |  17 +
+ .github/workflows/mobile.yml                       | 100 +++
  apps/agent/agent/agent.ts                          |   1 +
  apps/agent/agent/instructions/task.ts              |  10 +-
  apps/agent/agent/lib/agent-message-config.ts       |  42 +
@@ -11,8 +11,16 @@
  apps/agent/agent/lib/assistant-reports.ts          | 237 ++++++
  apps/agent/agent/lib/assistant-scope.ts            | 112 +++
  apps/agent/agent/lib/assistant-time.ts             |  98 +++
- apps/agent/agent/lib/dispatch.ts                   |   6 +
+ apps/agent/agent/lib/dispatch.ts                   |  12 +
+ apps/agent/agent/lib/push/apns.ts                  | 142 ++++
+ apps/agent/agent/lib/push/fcm.ts                   | 137 ++++
+ apps/agent/agent/lib/push/jwt.ts                   |  22 +
+ apps/agent/agent/lib/push/push-config.ts           |  28 +
+ apps/agent/agent/lib/push/push-credentials.ts      |  66 ++
+ apps/agent/agent/lib/push/push-send.ts             | 214 +++++
+ apps/agent/agent/lib/push/push-types.ts            |  18 +
  apps/agent/agent/lib/qualification.ts              |   2 +-
+ apps/agent/agent/lib/sdr-jobs.ts                   |  13 +-
  apps/agent/agent/lib/sdr-tool-policy.ts            |   5 +
  apps/agent/agent/lib/session-purpose.ts            |   2 +-
  apps/agent/agent/lib/visit-note.ts                 |  67 ++
@@ -21,7 +29,7 @@
  apps/agent/agent/subagents/agent_runner/agent.ts   |   1 +
  apps/agent/agent/tools/analyze_property_listing.ts |  12 +
  apps/agent/agent/tools/book_appointment.ts         |   9 +
- apps/agent/agent/tools/escalate_to_human.ts        |  13 +
+ apps/agent/agent/tools/escalate_to_human.ts        |  20 +
  apps/agent/agent/tools/list_appointments.ts        |  35 +
  .../tools/list_prospects_needing_attention.ts      |  23 +
  apps/agent/agent/tools/qualify_lead.ts             |  13 +-
@@ -34,18 +42,25 @@
  apps/agent/package.json                            |   4 +
  apps/agent/test/agent-messages.integration.spec.ts | 326 ++++++++
  apps/agent/test/assistant.integration.spec.ts      | 766 +++++++++++++++++
+ apps/agent/test/push.integration.spec.ts           | 579 +++++++++++++
+ apps/agent/test/queue-stress.integration.spec.ts   | 266 ++++++
  apps/agent/test/sdr-graders.spec.ts                | 167 ++++
  apps/agent/test/sdr-rules.integration.spec.ts      | 234 ++++++
  apps/agent/test/sdr.integration.spec.ts            |  20 +
- apps/api/src/app.module.ts                         |  10 +
+ apps/api/src/app.module.ts                         |  12 +
  .../assistant-activity-config.ts                   |  23 +
  .../assistant-activity.contracts.ts                |  56 ++
  .../assistant-activity.module.ts                   |  10 +
  .../assistant-activity.router.ts                   |  44 +
  .../assistant-activity.service.ts                  | 227 +++++
- apps/api/src/enrichment/enrichment-copy.ts         |   1 +
- apps/api/src/generated/server.ts                   |  94 ++-
- apps/api/src/messaging/messaging.service.ts        |  15 +-
+ apps/api/src/create-app.ts                         |   4 +
+ apps/api/src/database/database-reachable.ts        |  27 +
+ apps/api/src/enrichment/enrichment-copy.ts         |   2 +
+ apps/api/src/generated/server.ts                   | 112 ++-
+ apps/api/src/logging/all-exceptions.filter.ts      |  52 +-
+ .../src/logging/request-size-limit.middleware.ts   |  22 +
+ apps/api/src/mailbox/mailbox-token.service.ts      |  22 +-
+ apps/api/src/messaging/messaging.service.ts        |  26 +-
  apps/api/src/messaging/opt-out.ts                  |  49 ++
  apps/api/src/native-auth/native-auth.contracts.ts  |  15 +
  apps/api/src/native-auth/native-auth.controller.ts |  76 ++
@@ -55,6 +70,10 @@
  apps/api/src/presence/presence.module.ts           |  10 +
  apps/api/src/presence/presence.router.ts           |  39 +
  apps/api/src/presence/presence.service.ts          |  73 ++
+ apps/api/src/push/push.contracts.ts                |  33 +
+ apps/api/src/push/push.module.ts                   |  10 +
+ apps/api/src/push/push.router.ts                   |  61 ++
+ apps/api/src/push/push.service.ts                  |  98 +++
  apps/api/src/real-estate/calendar-state.ts         |  44 +
  .../real-estate/real-estate-calendar-connect.ts    | 131 +++
  .../real-estate/real-estate-calendar.controller.ts |  32 +
@@ -80,22 +99,40 @@
  apps/api/src/team/team.module.ts                   |  10 +
  apps/api/src/team/team.router.ts                   |  34 +
  apps/api/src/team/team.service.ts                  | 501 +++++++++++
+ apps/api/src/trpc/context.types.ts                 |   1 +
+ apps/api/src/trpc/error-formatter.ts               |  12 +-
+ apps/api/src/trpc/input-faults.ts                  | 118 +++
+ apps/api/src/trpc/input-guard.pipe.ts              |  36 +
+ apps/api/src/trpc/input-guard.ts                   |  41 +
+ apps/api/src/trpc/middlewares/auth.middleware.ts   |   8 +
+ .../trpc/middlewares/domain-error.middleware.ts    |   6 +
+ .../src/trpc/middlewares/input-guard.middleware.ts |  35 +
+ apps/api/src/trpc/trpc.context.ts                  |  22 +-
+ apps/api/src/trpc/trpc.module.ts                   |   8 +-
  .../test/assistant-activity.integration.spec.ts    | 288 +++++++
+ apps/api/test/authz-sweep.e2e.spec.ts              | 398 +++++++++
+ apps/api/test/error-formatter.spec.ts              |  54 +-
+ apps/api/test/input-faults.spec.ts                 | 151 ++++
+ apps/api/test/input-guard-pipe.spec.ts             |  32 +
+ apps/api/test/input-guard.spec.ts                  |  51 ++
  apps/api/test/native-auth.e2e.spec.ts              | 212 +++++
  apps/api/test/opt-out.spec.ts                      |  43 +
  apps/api/test/presence.integration.spec.ts         |  92 +++
+ apps/api/test/public-endpoints.e2e.spec.ts         | 472 +++++++++++
+ apps/api/test/push.integration.spec.ts             | 160 ++++
  .../test/real-estate-calendar.integration.spec.ts  | 215 +++++
- apps/api/test/real-estate-e2e.integration.spec.ts  | 132 +++
+ apps/api/test/real-estate-e2e.integration.spec.ts  | 150 ++++
  .../api/test/real-estate-inbox.integration.spec.ts | 911 +++++++++++++++++++++
  .../api/test/real-estate-tools.integration.spec.ts | 252 ++++++
  apps/api/test/support.integration.spec.ts          | 137 ++++
+ apps/api/test/support/sweep.ts                     | 223 +++++
  apps/api/test/team.integration.spec.ts             | 265 ++++++
  .../(agent-builder)/agents/[agentId]/page.tsx      |   2 +-
  .../(app)/[slug]/(agent-builder)/agents/page.tsx   |   8 +-
  .../[slug]/(agent-builder)/chat/[chatId]/page.tsx  |   2 +-
  .../app/(app)/[slug]/(agent-builder)/chat/page.tsx |   2 +-
- apps/app/app/(app)/[slug]/account/account-view.tsx | 372 +++++++++
- apps/app/app/(app)/[slug]/account/page.tsx         |  52 ++
+ apps/app/app/(app)/[slug]/account/account-view.tsx | 378 +++++++++
+ apps/app/app/(app)/[slug]/account/page.tsx         |  57 ++
  .../[slug]/companies/companies-bulk-actions.tsx    |  41 +-
  .../app/(app)/[slug]/companies/companies-table.tsx |  54 +-
  .../[slug]/companies/create-company-sheet.tsx      |  32 +-
@@ -109,6 +146,8 @@
  .../app/(app)/[slug]/deals/deals-bulk-actions.tsx  |  57 +-
  apps/app/app/(app)/[slug]/deals/deals-table.tsx    |  52 +-
  apps/app/app/(app)/[slug]/deals/page.tsx           |   7 +-
+ apps/app/app/(app)/[slug]/error.tsx                |  13 +
+ apps/app/app/(app)/[slug]/layout.tsx               |   5 +
  apps/app/app/(app)/[slug]/overview-description.tsx |  34 +
  apps/app/app/(app)/[slug]/overview-greeting.tsx    |  39 +-
  apps/app/app/(app)/[slug]/overview-scope.tsx       |  56 +-
@@ -126,6 +165,7 @@
  .../(app)/[slug]/real-estate/leads/leads-view.tsx  | 202 +++--
  .../[slug]/real-estate/leads/new-lead-control.tsx  |  45 +
  .../app/(app)/[slug]/real-estate/leads/page.tsx    |  24 +-
+ apps/app/app/(app)/[slug]/real-estate/page.tsx     |   9 +-
  .../app/(app)/[slug]/real-estate/pipeline/page.tsx |  27 +-
  .../[slug]/real-estate/pipeline/pipeline-view.tsx  | 110 ++-
  .../app/(app)/[slug]/real-estate/portal/page.tsx   |  22 +-
@@ -206,10 +246,16 @@
  .../app/app/(landing)/onboarding/research/page.tsx |   6 +-
  .../onboarding/research/research-form.tsx          |  10 +-
  apps/app/app/(landing)/sign-in/native-sign-in.tsx  |  52 ++
- apps/app/app/(landing)/sign-in/page.tsx            |  65 +-
+ apps/app/app/(landing)/sign-in/page.tsx            |  69 +-
  apps/app/app/(landing)/sign-in/social-sign-in.tsx  |  16 +-
  apps/app/app/(landing)/sign-in/sso-sign-in.tsx     |  16 +-
- apps/app/app/layout.tsx                            |  24 +-
+ .../apple-app-site-association/route.ts            |   8 +
+ apps/app/app/.well-known/assetlinks.json/route.ts  |   8 +
+ apps/app/app/api/[...path]/route.ts                |  37 +-
+ apps/app/app/error.tsx                             |  13 +
+ apps/app/app/global-error.tsx                      |  63 ++
+ apps/app/app/layout.tsx                            |  26 +-
+ apps/app/app/not-found.tsx                         |  23 +
  .../agent-builder/agent-builder-chat.tsx           | 241 +++---
  .../agent-builder/agent-builder-home.tsx           |  47 +-
  .../agent-builder/agent-builder-route-fallback.tsx |   4 +-
@@ -270,14 +316,20 @@
  .../app/components/data-table/saved-views-menu.tsx |  24 +-
  apps/app/components/detail-sheet.tsx               |   8 +-
  apps/app/components/enrichment-queue.tsx           |  24 +-
+ apps/app/components/error-view.tsx                 |  43 +
  apps/app/components/header-search.tsx              |  14 +
  apps/app/components/local-date-time.tsx            |  18 +-
  apps/app/components/native-shell.tsx               |  66 ++
+ apps/app/components/offline-banner.tsx             |  62 ++
+ apps/app/components/offline-session.tsx            |  20 +
+ apps/app/components/offline-settings.tsx           |  88 ++
  apps/app/components/page-shell.tsx                 |  31 +-
  apps/app/components/page-translation.tsx           | 128 +++
+ apps/app/components/push-registration.tsx          |  70 ++
+ apps/app/components/push-settings.tsx              | 130 +++
  apps/app/components/pwa-register.tsx               |  16 +
  apps/app/components/slack/channel-picker.tsx       |  22 +-
- apps/app/components/team-presence-control.tsx      |  61 ++
+ apps/app/components/team-presence-control.tsx      |  62 ++
  apps/app/lib/account-config.ts                     |  39 +
  apps/app/lib/activity-presentation.ts              |  12 +-
  apps/app/lib/activity-recency.ts                   |   6 +-
@@ -290,33 +342,46 @@
  apps/app/lib/agent-run-failure.ts                  |  31 +-
  apps/app/lib/agent-tool-display.ts                 |  33 +-
  apps/app/lib/agent-transcript.ts                   | 103 +--
+ apps/app/lib/api-proxy-body.ts                     |  45 +
+ apps/app/lib/api-proxy-config.ts                   |  32 +
+ apps/app/lib/app-links.ts                          |  69 ++
  apps/app/lib/assistant-activity-config.ts          |  75 ++
  apps/app/lib/deal-stage.ts                         |  14 +-
  apps/app/lib/enrichment-status.ts                  |  16 +-
+ apps/app/lib/error-copy.ts                         |  12 +
  apps/app/lib/native-agent.ts                       |   5 +
- apps/app/lib/native-config.ts                      |  27 +
- apps/app/lib/native-links.ts                       |  29 +
+ apps/app/lib/native-config.ts                      |  46 ++
+ apps/app/lib/native-links.ts                       |  59 ++
  apps/app/lib/native-pkce.ts                        |  61 ++
+ apps/app/lib/native-push-client.ts                 |  52 ++
+ apps/app/lib/native-push.ts                        |  95 +++
  apps/app/lib/navigation.ts                         | 294 +++++++
+ apps/app/lib/offline-cache.ts                      |  77 ++
+ apps/app/lib/offline-config.ts                     |  27 +
+ apps/app/lib/offline-errors.ts                     |  17 +
+ apps/app/lib/offline-status.ts                     |  55 ++
  apps/app/lib/onboarding.ts                         |  16 -
  apps/app/lib/page-help.ts                          |  47 ++
  apps/app/lib/page-translation.test.ts              |  41 +
  apps/app/lib/page-translation.ts                   |  32 +
  apps/app/lib/presence-config.ts                    |   6 +
- apps/app/lib/pwa-config.ts                         |   5 +
+ apps/app/lib/pwa-config.ts                         |   6 +
  apps/app/lib/search-param-keys.ts                  |   1 +
- apps/app/lib/sign-out.ts                           |   2 +-
+ apps/app/lib/sign-out.ts                           |   6 +-
  apps/app/lib/social-links.ts                       |   4 +-
  apps/app/lib/support-config.ts                     |  41 +
  apps/app/lib/support-pages.ts                      |  31 +
  apps/app/lib/team-config.ts                        | 128 +++
  apps/app/lib/team-roles.ts                         |  19 +
  apps/app/lib/translation-config.ts                 |  22 +
+ apps/app/lib/trpc/client.tsx                       |   4 +-
+ apps/app/lib/trpc/query-client.ts                  |  33 +-
  apps/app/lib/use-audience.ts                       |  18 +
  apps/app/lib/user-agent.test.ts                    |  21 +
  apps/app/lib/user-agent.ts                         |  23 +
  apps/app/lib/workspace-label.ts                    |   8 +-
- apps/app/package.json                              |   3 +
+ apps/app/next.config.ts                            |   7 +
+ apps/app/package.json                              |   4 +
  apps/app/proxy.ts                                  |  38 +-
  apps/app/public/apple-touch-icon.png               | Bin 2445 -> 2330 bytes
  apps/app/public/favicon-96x96.png                  | Bin 1122 -> 1283 bytes
@@ -324,31 +389,37 @@
  apps/app/public/favicon.svg                        |   4 +-
  apps/app/public/offline.html                       |  25 +
  apps/app/public/site.webmanifest                   |  37 +-
- apps/app/public/sw.js                              |  35 +
+ apps/app/public/sw.js                              | 249 ++++++
  apps/app/public/web-app-manifest-192x192.png       | Bin 2647 -> 2391 bytes
  apps/app/public/web-app-manifest-512x512.png       | Bin 10855 -> 7021 bytes
  apps/app/test/agent-builder.spec.ts                |  12 +
  apps/app/test/agent-session.spec.ts                |  24 +-
  apps/app/test/agent-tool-display.spec.ts           |  16 +-
  apps/app/test/agent-transcript.spec.ts             |   2 +-
+ apps/app/test/api-proxy.spec.ts                    |  76 ++
+ apps/app/test/app-links.spec.ts                    | 193 +++++
  apps/app/test/audience.spec.ts                     |  16 +
  apps/app/test/contact-channels.spec.ts             |  29 +
  apps/app/test/day.spec.ts                          |   2 +-
  apps/app/test/inbox-thread.spec.tsx                | 350 ++++++++
  apps/app/test/lead-conversation-thread.spec.tsx    |  22 -
+ apps/app/test/native-push.spec.ts                  |  64 ++
  apps/app/test/native.spec.ts                       |  79 ++
  apps/app/test/navigation.spec.ts                   |  86 ++
+ apps/app/test/offline.spec.ts                      | 240 ++++++
  apps/app/test/onboarding-gate.spec.ts              | 102 +--
  apps/app/test/real-estate-finance.spec.ts          | 108 +++
+ apps/app/test/service-worker.spec.ts               | 372 +++++++++
+ apps/app/test/support/fake-cache.ts                |  52 ++
  apps/app/test/workspace-label.spec.ts              |  28 +-
  apps/mobile/.gitignore                             |   1 +
  apps/mobile/android/.gitignore                     | 101 +++
- apps/mobile/android/app/.gitignore                 |   2 +
- apps/mobile/android/app/build.gradle               |  54 ++
- apps/mobile/android/app/capacitor.build.gradle     |  22 +
+ apps/mobile/android/app/.gitignore                 |   4 +
+ apps/mobile/android/app/build.gradle               |  55 ++
+ apps/mobile/android/app/capacitor.build.gradle     |  23 +
  apps/mobile/android/app/proguard-rules.pro         |  21 +
  .../myapp/ExampleInstrumentedTest.java             |  26 +
- .../android/app/src/main/AndroidManifest.xml       |  42 +
+ .../android/app/src/main/AndroidManifest.xml       |  80 ++
  .../main/java/ca/fratex/agent/MainActivity.java    |   5 +
  .../app/src/main/res/drawable-land-hdpi/splash.png | Bin 0 -> 8288 bytes
  .../app/src/main/res/drawable-land-ldpi/splash.png | Bin 0 -> 2429 bytes
@@ -411,7 +482,7 @@
  .../android/app/src/main/res/xml/file_paths.xml    |   5 +
  .../com/getcapacitor/myapp/ExampleUnitTest.java    |  18 +
  apps/mobile/android/build.gradle                   |  29 +
- apps/mobile/android/capacitor.settings.gradle      |  15 +
+ apps/mobile/android/capacitor.settings.gradle      |  18 +
  apps/mobile/android/gradle.properties              |  22 +
  .../android/gradle/wrapper/gradle-wrapper.jar      | Bin 0 -> 43764 bytes
  .../gradle/wrapper/gradle-wrapper.properties       |   7 +
@@ -424,11 +495,12 @@
  apps/mobile/assets/icon-only.png                   | Bin 0 -> 5486 bytes
  apps/mobile/assets/splash-dark.png                 | Bin 0 -> 28422 bytes
  apps/mobile/assets/splash.png                      | Bin 0 -> 28537 bytes
- apps/mobile/capacitor.config.ts                    |  38 +
+ apps/mobile/capacitor.config.ts                    |  40 +
  apps/mobile/ios/.gitignore                         |  13 +
- apps/mobile/ios/App/App.xcodeproj/project.pbxproj  | 380 +++++++++
+ apps/mobile/ios/App/App.xcodeproj/project.pbxproj  | 384 +++++++++
  .../xcshareddata/IDEWorkspaceChecks.plist          |   8 +
- apps/mobile/ios/App/App/AppDelegate.swift          |  44 +
+ apps/mobile/ios/App/App/App.entitlements           |  12 +
+ apps/mobile/ios/App/App/AppDelegate.swift          |  52 ++
  .../AppIcon.appiconset/AppIcon-512@2x.png          | Bin 0 -> 19601 bytes
  .../AppIcon.appiconset/Contents.json               |  14 +
  .../ios/App/App/Assets.xcassets/Contents.json      |   6 +
@@ -444,31 +516,33 @@
  .../Splash.imageset/splash-2732x2732.png           | Bin 0 -> 41273 bytes
  .../ios/App/App/Base.lproj/LaunchScreen.storyboard |  32 +
  apps/mobile/ios/App/App/Base.lproj/Main.storyboard |  19 +
- apps/mobile/ios/App/App/Info.plist                 |  86 ++
+ apps/mobile/ios/App/App/Info.plist                 |  90 ++
  apps/mobile/ios/App/App/SceneDelegate.swift        |  24 +
  apps/mobile/ios/App/CapApp-SPM/.gitignore          |   9 +
- apps/mobile/ios/App/CapApp-SPM/Package.swift       |  33 +
+ apps/mobile/ios/App/CapApp-SPM/Package.swift       |  35 +
  apps/mobile/ios/App/CapApp-SPM/README.md           |   5 +
  .../CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift |   1 +
  apps/mobile/ios/debug.xcconfig                     |   1 +
- apps/mobile/mobile-config.ts                       |  26 +
+ apps/mobile/mobile-config.ts                       |  49 ++
  apps/mobile/offline.template.html                  |  24 +
- apps/mobile/package.json                           |  35 +
+ apps/mobile/package.json                           |  36 +
  apps/mobile/scripts/prepare-www.ts                 |  19 +
- apps/mobile/test/mobile-config.spec.ts             |  50 ++
+ apps/mobile/test/mobile-config.spec.ts             |  97 +++
  apps/mobile/tsconfig.json                          |  12 +
- bun.lock                                           | 474 ++++++++++-
+ bun.lock                                           | 478 ++++++++++-
  docs/design.md                                     |   6 +-
- docs/mobile.md                                     | 126 +++
+ docs/mobile.md                                     | 256 ++++++
+ docs/robustesse.md                                 |  77 ++
  packages/auth/package.json                         |   1 +
- packages/auth/src/auth.ts                          |   7 +
+ packages/auth/src/auth.ts                          |  15 +-
  packages/auth/src/index.ts                         |  10 +
  packages/auth/src/native-constants.ts              |  29 +
  packages/auth/src/native-session.ts                |  55 ++
  packages/auth/src/slack-connect.ts                 |   6 +-
  packages/auth/src/slack-scopes.ts                  |  56 +-
+ packages/auth/test/session-lifetime.spec.ts        |  13 +
  .../auth/test/slack-connect.integration.spec.ts    |  10 +-
- packages/db/package.json                           |   1 +
+ packages/db/package.json                           |   3 +
  .../migration.sql                                  |   2 +
  .../migration.sql                                  |  23 +
  .../migration.sql                                  |   3 +
@@ -476,12 +550,15 @@
  .../migration.sql                                  |   2 +
  .../migration.sql                                  |  51 ++
  .../migration.sql                                  |   8 +
- packages/db/prisma/schema.prisma                   | 122 ++-
- packages/db/src/agent-tasks.ts                     |   3 +
+ .../20261023170000_add_push_devices/migration.sql  |  41 +
+ packages/db/prisma/schema.prisma                   | 160 +++-
+ packages/db/src/agent-tasks.ts                     |   5 +
  packages/db/src/currency.ts                        |  22 +-
  packages/db/src/fields-shape.ts                    |  16 +-
  packages/db/src/generated-content-config.ts        |   1 +
  packages/db/src/generated-content.ts               |  44 +
+ packages/db/src/push-config.ts                     |  38 +
+ packages/db/src/push.ts                            |  48 ++
  packages/db/src/sdr-messages.ts                    |  43 +-
  packages/db/src/tracking.ts                        |   6 +-
  packages/db/test/currency.spec.ts                  |   2 +-
@@ -563,8 +640,9 @@
  packages/ui/src/lib/real-estate-finance.ts         | 176 ++++
  packages/ui/src/lib/real-estate.ts                 | 303 +++++++
  packages/ui/src/styles/globals.css                 |  56 +-
- packages/validation/package.json                   |   1 +
+ packages/validation/package.json                   |   2 +
  packages/validation/src/agent-message.ts           |  39 +
+ packages/validation/src/push.ts                    |  10 +
  packages/validation/src/real-estate.ts             |  38 +
  packages/validation/test/phone.spec.ts             |  27 +
- 569 files changed, 31541 insertions(+), 3990 deletions(-)
+ 647 files changed, 38197 insertions(+), 4031 deletions(-)
