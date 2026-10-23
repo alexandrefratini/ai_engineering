@@ -7,9 +7,10 @@
 
 - Partie 0 — Incident du 22 octobre et méthode de reconstruction
 - Partie A — Compréhension du produit, règles, décisions
-- Partie B — Phases (B.1 à B.14)
+- Partie B — Phases (B.1 à B.17)
 - Partie C — Comment tout refaire depuis zéro
 - Partie D — Problèmes restants
+- Partie E — À faire plus tard (réseaux sociaux)
 - Documents liés : `guide/index.html` (guide navigable avec captures), `ETUDE-AGENTS-IA.md` (étude des agents IA et du mobile), `REBUILD-SPEC.md` (spécification de la reconstruction)
 
 ---
@@ -146,7 +147,7 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Quoi** : bouton globe dans la barre du haut, neuf langues, confirmation avant la première traduction, cookie `googtrans`, retour au français en un clic.
 - **Comment** : le script du site « Google Website Translator » est chargé seulement quand une langue est active. Des garde-fous DOM évitent les plantages de React quand Google modifie la page. Les téléphones et courriels ont `translate="no"`.
 - **Limites** : ce que la traduction envoie à Google (confirmation obligatoire) ; les chiffres qui se mettent à jour seuls peuvent rester figés.
-- **Vérifié** : menu, confirmation, cookie, chargement du script. **Non vérifié** : la traduction elle-même (cet environnement n'atteint pas Google).
+- **Vérifié** : menu, confirmation, cookie, chargement du script. La vérification de la traduction elle-même est reprise en B.16 (correction : elle n'était pas faite à ce stade).
 
 ### B.12 — Boîte de réception multicanal et mobile
 - **Quoi** : barre « Contacter » : Appeler (`tel:`), SMS (place le curseur dans la zone SMS), Courriel (`mailto:`), WhatsApp (`wa.me`), Messenger (pour les prospects venus de Meta). Mobile : tableau des prospects sans colonne inutile, pipeline avec glissement par colonne, boutons de contact sur une seule ligne.
@@ -164,6 +165,31 @@ Chaque phase : **Quoi** · **Où** · **Comment** · **Pourquoi** · **Vérifié
 - **Quoi** : `guide/index.html` (menu latéral, filtre, 40 pages décrites, 59 captures, agrandissement au clic, mode sombre et mobile), sections : démarrer, immobilier, assistant IA, CRM général, paramètres, compte et aide, partout dans l'application, annexes.
 - **Comment refaire** : voir la partie C, étape 9.
 
+### B.15 — Mêmes tailles et mêmes espacements partout, Mon compte en une colonne
+- **Problème** : chaque page espaçait ses cartes à sa façon (écarts, marges internes, hauteurs de tuiles), d'où l'impression de disparité.
+- **Quoi** : un seul système de mise en page. `LAYOUT` (`packages/ui/src/lib/layout.ts`) fixe les écarts (`gap-4` sur mobile, `gap-5` dès `md`), la marge interne des cartes (`p-4`, `p-5` dès `md`), la hauteur minimale des tuiles (`min-h-24`), la hauteur de l'en-tête de carte (`min-h-8`) et la largeur des colonnes de formulaire (`max-w-3xl`, alignée à gauche). Le composant `Panel` (`packages/ui/src/components/panel.tsx`) applique ces valeurs : titre, aide « ? », description, action, corps.
+- **Où** : Accueil immobilier, portail courtier, estimateur, intégration du courtier, fiche du prospect et ses outils, pipeline, prospects, courtiers, paramètres, devises, tableau de ventes, pages de connexions, Support. Les listes à l'intérieur d'une carte n'ont plus de deuxième bordure (`divide-y`).
+- **Mon compte** : une seule colonne (`LAYOUT.column`), les sections se suivent : profil, agences, connexion, appareils, préférences, aide.
+- **Comment refaire** : une nouvelle page prend `className={LAYOUT.stack}` pour la pile, `LAYOUT.column` pour une colonne de formulaire, et `<Panel>` pour chaque bloc. Ne pas écrire d'écarts à la main.
+- **Vérifié** : types, 237 tests de l'application, captures desktop et mobile des pages touchées.
+
+### B.16 — Traduction : icône refaite, essai réel auprès de Google
+- **Correction** : le journal disait que la traduction n'avait pas pu être essayée. En fait seul l'hôte `translate.google.com` est bloqué par le réseau de cet environnement. Le script officiel se charge aussi depuis `translate.googleapis.com` (changé dans `apps/app/lib/translation-config.ts`) et **la vraie traduction fonctionne** : essai complet en espagnol et en anglais (`scripts/translate-flow.cjs`, `scripts/translate-real.cjs`, `scripts/translate-e2e.cjs`).
+- **Icône** : globe (Carbon `Earth`) de 20 px, rempli et rouge quand une langue est active, avec le code de la langue en petit badge (ES, EN…), infobulle « Traduire la page ».
+- **Défauts trouvés pendant l'essai réel, corrigés** : Google traduisait les initiales d'un avatar (« AF » devenait « Fuerza Aérea ») et les noms de personnes. `translate="no"` sur les initiales, les noms, les téléphones, les courriels et la marque. Google traduit aussi les `aria-label` : les essais automatiques s'appuient donc sur des attributs `data-*`, pas sur les libellés.
+- **Limite connue (à décider)** : Google reçoit le texte affiché, y compris des noms et des messages de prospects, pour le traduire. Une confirmation est exigée avant la première traduction. **Savoir si c'est acceptable au regard de la loi 25 est une décision d'Alexandre.**
+- **Limite de qualité** : certains mots du métier sont traduits de façon approximative (exemples relevés : « courtière », « Rendez-vous », « Prospects »).
+
+### B.17 — Page Équipe
+- **Quoi** : une page `/team` (barre latérale, après Pipeline, réservée au personnel de l'agence) et une fiche `/team/[userId]`.
+  - **Liste** : tuiles (membres, en ligne, tâches en retard, actions sur 30 jours), recherche, filtres Tous / En ligne / Courtiers / Équipe, une ligne par personne (rôle, agences, tâches ouvertes et en retard, actions, dernière connexion).
+  - **Fiche** : profil, huit tuiles (tâches ouvertes, en retard, terminées, prospects suivis, notes, SMS envoyés, conversations IA, demandes de support ouvertes) et trois onglets : **Activité** (fil des notes, appels, SMS envoyés à la main, demandes de support, conversations avec l'assistant), **Tâches** (en retard, à venir, terminées récemment), **Rôle et accès** (rôle dans l'espace, ce qu'il permet, agences et rôles).
+- **Règles d'accès (testées)** : un propriétaire ou un administrateur de l'espace voit tout le monde. Un membre ne voit que sa propre fiche et reçoit « Membre introuvable » pour une autre. Les notes et SMS ne sont listés que pour les agences où la personne qui regarde est elle-même membre : aucune fuite entre agences.
+- **Données** : une action est une note de prospect, une activité du CRM ou un SMS envoyé à la main. Pour savoir qui a envoyé un SMS, le champ `metadata.authorId` du message est maintenant rempli (`queueLeadSms`, paramètre `authorId`). **Les SMS envoyés avant ce changement n'ont pas d'auteur et n'apparaissent pas dans l'historique d'une personne.** Index ajouté sur `leadNote(authorId, createdAt)` (migration additive `20261023120000_add_lead_note_author_index`).
+- **Où** : `apps/api/src/team/*` (configuration, contrats Zod, service, routeur, module) ; `packages/ui/src/components/team-roster.tsx` et `team-member-detail.tsx` ; `apps/app/app/(app)/[slug]/team/*` ; textes dans `apps/app/lib/team-config.ts`, rôles dans `team-roles.ts` ; le nom dans le tableau des membres (Paramètres) ouvre la fiche ; le fil d'Ariane affiche le nom de la personne.
+- **Vérifié** : 7 tests d'intégration (`apps/api/test/team.integration.spec.ts`), tests de navigation, captures bureau, mobile, mode sombre, courtière (pas d'entrée dans la barre, fiche d'un autre refusée). Données de démonstration : `scripts/demo-team.ts`. Captures : `scripts/team-shots.cjs`.
+- **Limites** : la fiche n'affiche pas de « changement de rôle » (il reste dans Paramètres, Membres). Un propriétaire de l'espace qui n'est membre d'aucune agence ne voit aucune note ni aucun SMS de prospect (cohérent avec le reste de l'application : l'accès aux prospects passe par l'agence).
+
 ---
 
 ## Partie C — Comment tout refaire depuis zéro
@@ -179,7 +205,7 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    ```bash
    git clone -b claude/fratex-agent-rebuild https://github.com/alexandrefratini/ai_engineering ../ai_engineering
    ```
-3. **Appliquer toutes les modifications** (vérifié sur une copie propre : 365 fichiers)
+3. **Appliquer toutes les modifications** (vérifié sur une copie propre : 385 fichiers, contenu identique octet par octet à la copie de travail)
    ```bash
    git apply ../ai_engineering/fratex-agent-journal/patches/TOUT-cumulatif.patch
    ```
@@ -187,7 +213,7 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    ```bash
    bash ../ai_engineering/fratex-agent-journal/scripts/setup-local.sh "$(pwd)"
    ```
-   Le script affiche deux lignes `COOKIE=` et `COOKIE_MARIE=` : ce sont les sessions de démonstration (propriétaire et courtière). Il crée aussi la base de test.
+   Le script affiche deux lignes `COOKIE=` et `COOKIE_MARIE=` : ce sont les sessions de démonstration (propriétaire et courtière). Il ajoute aussi les données de l'équipe (`demo-team.ts` : tâches, notes, SMS, demande de support) et crée la base de test.
 5. **Démarrer l'application**
    ```bash
    nohup bun run dev --filter=app --filter=api > /tmp/dev.log 2>&1 &
@@ -214,9 +240,9 @@ Prérequis : Linux, Bun 1.4, Node 22 (et Node 24 seulement pour l'agent), Postgr
    - Où se trouvent les choses : `docs/design.md` (design), `docs/agent.md` (agent), `AGENTS.md` (règles), `REBUILD-SPEC.md` (spécification).
    - Après chaque phase : mettre à jour ce journal, puis
      ```bash
-     git add -N . && git diff --binary > ../ai_engineering/fratex-agent-journal/patches/TOUT-cumulatif.patch
+     git add -N . && git diff HEAD --binary > ../ai_engineering/fratex-agent-journal/patches/TOUT-cumulatif.patch
      ```
-     puis commit et push du journal sur `claude/fratex-agent-rebuild`.
+     puis commit et push du journal sur `claude/fratex-agent-rebuild`. **Utiliser `git diff HEAD`, pas `git diff`** : sans `HEAD`, les fichiers supprimés avec `git rm` manquent au patch (erreur trouvée le 23 octobre 2026 : deux fichiers supprimés n'y figuraient pas).
 9. **Refaire le guide et ses captures** (serveurs démarrés)
    ```bash
    node ../ai_engineering/fratex-agent-journal/scripts/guide-shots.cjs cookie.txt cookie-marie.txt ../ai_engineering/fratex-agent-journal/guide/images
@@ -234,7 +260,7 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 |---|----------|-------|-------------|-------------|
 | P1 | Aucun vrai modèle de langage n'a été essayé. | On ne sait pas si l'assistant respecte STOP, le transfert à un humain et la règle de 160 caractères. | Brancher `AI_GATEWAY_API_KEY` ou un serveur compatible OpenAI. Écrire les evals du SDR (`ETUDE-AGENTS-IA.md`, partie 5.4). | Alexandre (clé), technique (evals) |
 | P2 | Twilio, Meta, Google Agenda et l'envoi des conversions n'ont jamais été essayés en vrai. | Le SMS du faux essai reste à l'état « incertain ». | Créer les comptes de test et rejouer le parcours complet. | Alexandre |
-| P3 | La traduction Google n'a pas été essayée (le réseau de l'environnement l'empêche). | Le menu marche, le résultat de traduction est inconnu. | Essayer sur un vrai navigateur. Décider si le texte des prospects peut être envoyé à Google (loi 25). | Alexandre |
+| P3 | La traduction Google fonctionne (essai réel, voir B.16), mais envoie le texte affiché, noms et messages de prospects compris, à Google. | Risque de conformité (loi 25) si ce n'est pas acceptable. | Décider si c'est acceptable. Sinon : retirer le bouton ou ne l'offrir qu'aux pages sans données de prospects. | Alexandre |
 | P4 | L'équipe n'est pas avertie d'une nouvelle demande de support. L'adresse `support@fratex.ca` est une hypothèse. | Une demande peut rester sans réponse. | Confirmer l'adresse. Ajouter une alerte Slack ou courriel. | Alexandre, technique |
 | P5 | Les messages d'erreur de l'API sont en anglais. | Un courtier peut voir de l'anglais. | Traduire les exceptions des services anciens. | Technique |
 | P6 | L'application mobile native n'existe pas. | Seule la version web adaptée au mobile existe. | Suivre le plan M1 à M5 (`ETUDE-AGENTS-IA.md`, partie 7). | Alexandre (décision), technique |
@@ -247,3 +273,18 @@ Chaque entrée : **problème**, **effet**, **proposition**, **responsable**.
 | P13 | Les données de démonstration du CRM général n'ont pas de « dernière activité ». | Colonne « — » dans Affaires et Contacts. | Remplir `lastActivityAt` dans le script de démonstration. | Technique |
 | P14 | La page « Connexions, Assistant IA » montre le faux modèle dans les captures. | Capture non représentative d'une vraie configuration. | Reprendre la capture après le branchement d'un vrai modèle. | Technique |
 | P15 | Les tests d'intégration exigent que les variables d'environnement soient chargées. | `bun run db:test` échoue sans elles. | Charger `.env` dans le script `db:test` du dépôt. | Technique |
+| P16 | Google traduit certains mots du métier de façon approximative (« courtière », « Rendez-vous », « Prospects »). | Un courtier non francophone peut mal comprendre un terme. | Ajouter `translate="no"` aux termes du métier ou fournir de vraies traductions (i18n) si la demande existe. | Technique |
+| P17 | Historique des SMS d'une personne : les SMS envoyés à la main avant le 23 octobre n'ont pas d'auteur enregistré. | Ils n'apparaissent pas dans la fiche Équipe. | Aucune correction possible a posteriori. Les nouveaux SMS sont attribués. | — |
+| P18 | La fiche Équipe ne montre pas les tâches du CRM assignées à une autre personne que leur créateur. | « Tâches » = tâches créées par la personne. | Ajouter un champ « assignée à » sur les activités si l'équipe en a besoin. | Technique |
+
+---
+
+## Partie E — À faire plus tard : gestion des réseaux sociaux
+
+**Statut : noté, rien n'est construit.** Demande d'Alexandre : l'application devra pouvoir gérer les réseaux sociaux, mais pas maintenant.
+
+- **Ce qui existe déjà** : prospects Meta Lead Ads, canal Messenger dans la boîte de réception (ouvre l'application externe), conversions renvoyées à Meta.
+- **Ce qu'il faudrait** : (1) connecter les comptes (pages Facebook et comptes Instagram professionnels) dans Paramètres, Connexions, avec l'autorisation Meta appropriée (une revue de l'application Meta est nécessaire pour publier ou lire les messages) ; (2) un calendrier de publications avec brouillon, approbation par le courtier et publication planifiée ; (3) les commentaires et messages directs dans la boîte de réception multicanal ; (4) le suivi des résultats par publication.
+- **À faire avant** : le registre du contenu généré (P8) et le protocole entre agents (P7), puisque les publications seront écrites par des agents. Chaque texte généré doit rester une **suggestion** tant que le courtier ne l'a pas approuvé (règle du dépôt : donnée non confirmée = suggestion).
+- **Points d'attention** : droit d'auteur et consentement pour les photos de propriétés, mentions légales de l'Office de la protection du consommateur et de l'OACIQ dans les annonces, loi 25 pour les messages directs.
+- **Décisions à prendre le moment venu** : quels réseaux d'abord (Facebook et Instagram sont les plus probables), qui approuve une publication, et si les messages directs entrent dans l'assistant SDR.

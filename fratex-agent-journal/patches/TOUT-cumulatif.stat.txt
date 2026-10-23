@@ -18,8 +18,8 @@
  apps/agent/agent/tools/realtor_performance.ts      |  33 +
  apps/agent/agent/tools/search_prospects.ts         |  32 +
  apps/agent/test/assistant.integration.spec.ts      | 767 +++++++++++++++++
- apps/api/src/app.module.ts                         |   4 +
- apps/api/src/generated/server.ts                   |  69 +-
+ apps/api/src/app.module.ts                         |   6 +
+ apps/api/src/generated/server.ts                   |  80 +-
  apps/api/src/presence/presence-config.ts           |   6 +
  apps/api/src/presence/presence.contracts.ts        |  28 +
  apps/api/src/presence/presence.module.ts           |  10 +
@@ -39,23 +39,29 @@
  apps/api/src/real-estate/real-estate.contracts.ts  | 417 +++++++++-
  apps/api/src/real-estate/real-estate.module.ts     |   2 +
  apps/api/src/real-estate/real-estate.router.ts     | 117 +++
- apps/api/src/real-estate/real-estate.service.ts    | 267 ++++--
+ apps/api/src/real-estate/real-estate.service.ts    | 268 ++++--
  apps/api/src/support/support-config.ts             |  18 +
  apps/api/src/support/support.contracts.ts          |  53 ++
  apps/api/src/support/support.module.ts             |  10 +
  apps/api/src/support/support.router.ts             |  53 ++
  apps/api/src/support/support.service.ts            | 148 ++++
+ apps/api/src/team/team-config.ts                   |  15 +
+ apps/api/src/team/team.contracts.ts                |  94 +++
+ apps/api/src/team/team.module.ts                   |  10 +
+ apps/api/src/team/team.router.ts                   |  34 +
+ apps/api/src/team/team.service.ts                  | 501 +++++++++++
  apps/api/test/presence.integration.spec.ts         |  92 +++
  .../test/real-estate-calendar.integration.spec.ts  | 212 +++++
  apps/api/test/real-estate-e2e.integration.spec.ts  | 132 +++
  .../api/test/real-estate-inbox.integration.spec.ts | 911 +++++++++++++++++++++
  .../api/test/real-estate-tools.integration.spec.ts | 252 ++++++
  apps/api/test/support.integration.spec.ts          | 117 +++
+ apps/api/test/team.integration.spec.ts             | 265 ++++++
  .../(agent-builder)/agents/[agentId]/page.tsx      |   2 +-
  .../(app)/[slug]/(agent-builder)/agents/page.tsx   |   8 +-
  .../[slug]/(agent-builder)/chat/[chatId]/page.tsx  |   2 +-
  .../app/(app)/[slug]/(agent-builder)/chat/page.tsx |   2 +-
- apps/app/app/(app)/[slug]/account/account-view.tsx | 367 +++++++++
+ apps/app/app/(app)/[slug]/account/account-view.tsx | 371 +++++++++
  apps/app/app/(app)/[slug]/account/page.tsx         |  52 ++
  .../[slug]/companies/companies-bulk-actions.tsx    |  41 +-
  .../app/(app)/[slug]/companies/companies-table.tsx |  54 +-
@@ -65,7 +71,7 @@
  .../app/(app)/[slug]/contacts/contacts-table.tsx   |  55 +-
  .../(app)/[slug]/contacts/create-contact-sheet.tsx |  36 +-
  apps/app/app/(app)/[slug]/contacts/page.tsx        |   7 +-
- apps/app/app/(app)/[slug]/dashboard-summary.tsx    |  62 +-
+ apps/app/app/(app)/[slug]/dashboard-summary.tsx    |  67 +-
  .../app/(app)/[slug]/deals/create-deal-sheet.tsx   |  41 +-
  .../app/(app)/[slug]/deals/deals-bulk-actions.tsx  |  57 +-
  apps/app/app/(app)/[slug]/deals/deals-table.tsx    |  52 +-
@@ -80,25 +86,25 @@
  .../(app)/[slug]/real-estate/inbox/inbox-view.tsx  | 474 +++++++----
  .../app/(app)/[slug]/real-estate/inbox/page.tsx    |  34 +-
  .../app/(app)/[slug]/real-estate/lead-errors.ts    |  19 +
- .../leads/[leadId]/lead-detail-view.tsx            | 340 ++++++++
+ .../leads/[leadId]/lead-detail-view.tsx            | 341 ++++++++
  .../[slug]/real-estate/leads/[leadId]/page.tsx     |  40 +
- .../(app)/[slug]/real-estate/leads/leads-view.tsx  | 201 +++--
+ .../(app)/[slug]/real-estate/leads/leads-view.tsx  | 202 +++--
  .../[slug]/real-estate/leads/new-lead-control.tsx  |  45 +
  .../app/(app)/[slug]/real-estate/leads/page.tsx    |  24 +-
  .../app/(app)/[slug]/real-estate/pipeline/page.tsx |  27 +-
- .../[slug]/real-estate/pipeline/pipeline-view.tsx  | 109 ++-
+ .../[slug]/real-estate/pipeline/pipeline-view.tsx  | 110 ++-
  .../app/(app)/[slug]/real-estate/portal/page.tsx   |  22 +-
- .../[slug]/real-estate/portal/portal-view.tsx      |  75 +-
+ .../[slug]/real-estate/portal/portal-view.tsx      |  76 +-
  .../(app)/[slug]/real-estate/realtors/new/page.tsx |  53 ++
  .../app/(app)/[slug]/real-estate/realtors/page.tsx |  71 ++
- .../real-estate/realtors/realtor-onboarding.tsx    | 112 +++
- .../[slug]/real-estate/realtors/realtors-view.tsx  | 102 +++
+ .../real-estate/realtors/realtor-onboarding.tsx    | 113 +++
+ .../[slug]/real-estate/realtors/realtors-view.tsx  | 103 +++
  .../app/(app)/[slug]/real-estate/use-agency.tsx    |   9 +-
  apps/app/app/(app)/[slug]/real-estate/use-now.ts   |  13 +
  .../(app)/[slug]/real-estate/valuation/page.tsx    |  11 +-
- .../real-estate/valuation/valuation-view.tsx       | 131 ++-
+ .../real-estate/valuation/valuation-view.tsx       | 132 ++-
  .../(app)/[slug]/real-estate/workspace-config.ts   |   8 +-
- apps/app/app/(app)/[slug]/sales-dashboard.tsx      |  56 +-
+ apps/app/app/(app)/[slug]/sales-dashboard.tsx      |  59 +-
  apps/app/app/(app)/[slug]/settings/agent-model.tsx |  37 +-
  .../[slug]/settings/api-keys/api-keys-table.tsx    |  46 +-
  .../settings/api-keys/create-api-key-sheet.tsx     |  29 +-
@@ -106,7 +112,8 @@
  .../app/(app)/[slug]/settings/api-keys/page.tsx    |  10 +-
  .../(app)/[slug]/settings/archive-retention.tsx    |  17 +-
  .../settings/connections/add-connection-dialog.tsx |  35 +-
- .../settings/connections/connection-header.tsx     |  27 +
+ .../settings/connections/connection-header.tsx     |  28 +
+ .../settings/connections/connection-page.tsx       |   7 +-
  .../settings/connections/gemini-connection.tsx     |  74 +-
  .../[slug]/settings/connections/gemini/page.tsx    |  10 +-
  .../settings/connections/google-connection.tsx     |  97 ++-
@@ -114,7 +121,7 @@
  .../settings/connections/meta-ads-connection.tsx   |  76 +-
  .../[slug]/settings/connections/meta-ads/page.tsx  |  10 +-
  .../settings/connections/microsoft-connection.tsx  |  90 +-
- .../app/(app)/[slug]/settings/connections/page.tsx | 294 +++----
+ .../app/(app)/[slug]/settings/connections/page.tsx | 297 +++----
  .../settings/connections/realtor-calendar/page.tsx |  32 +-
  .../realtor-calendar-connection.tsx                | 204 ++---
  .../connections/sdr-connections-overview.tsx       | 147 ++++
@@ -128,18 +135,18 @@
  .../settings/connections/twilio-connection.tsx     |  40 +-
  .../[slug]/settings/connections/twilio/page.tsx    |  10 +-
  apps/app/app/(app)/[slug]/settings/copy-value.tsx  |   6 +-
- .../settings/currencies/currency-settings.tsx      |  90 +-
- .../app/(app)/[slug]/settings/currencies/page.tsx  |   9 +-
- .../[slug]/settings/members/members-table.tsx      |  35 +-
+ .../settings/currencies/currency-settings.tsx      |  93 ++-
+ .../app/(app)/[slug]/settings/currencies/page.tsx  |  12 +-
+ .../[slug]/settings/members/members-table.tsx      |  54 +-
  .../app/app/(app)/[slug]/settings/members/page.tsx |   7 +-
- apps/app/app/(app)/[slug]/settings/page.tsx        |   8 +-
+ apps/app/app/(app)/[slug]/settings/page.tsx        |  11 +-
  .../app/app/(app)/[slug]/settings/research-key.tsx |  20 +-
  .../app/(app)/[slug]/settings/settings-sidebar.tsx |  20 +-
  .../[slug]/settings/sso/add-sso-provider-sheet.tsx |  45 +-
  apps/app/app/(app)/[slug]/settings/sso/page.tsx    |   8 +-
  .../app/(app)/[slug]/settings/sso/sso-table.tsx    |  40 +-
  .../[slug]/settings/tracking/allowed-domains.tsx   |  38 +-
- .../app/(app)/[slug]/settings/tracking/page.tsx    |  11 +-
+ .../app/(app)/[slug]/settings/tracking/page.tsx    |  14 +-
  .../[slug]/settings/tracking/tracking-cookies.tsx  |  24 +-
  .../[slug]/settings/tracking/tracking-rules.tsx    |  12 +-
  .../[slug]/settings/tracking/tracking-script.tsx   |  82 +-
@@ -148,6 +155,10 @@
  .../app/(app)/[slug]/settings/workspace-form.tsx   |  25 +-
  apps/app/app/(app)/[slug]/support/page.tsx         |  39 +
  apps/app/app/(app)/[slug]/support/support-view.tsx | 158 ++++
+ .../app/(app)/[slug]/team/[userId]/member-view.tsx | 273 ++++++
+ apps/app/app/(app)/[slug]/team/[userId]/page.tsx   |  41 +
+ apps/app/app/(app)/[slug]/team/page.tsx            |  39 +
+ apps/app/app/(app)/[slug]/team/team-view.tsx       | 153 ++++
  apps/app/app/(landing)/agenda-connecte/page.tsx    |  77 ++
  .../app/(landing)/grant-access/grant-access.tsx    |  14 +-
  apps/app/app/(landing)/grant-access/page.tsx       |  14 +-
@@ -184,9 +195,9 @@
  .../components/agent-builder/team-agent-detail.tsx | 102 +--
  .../components/agent-builder/team-agents-index.tsx |  28 +-
  .../components/agent-clarification-composer.tsx    |  16 +-
- apps/app/components/app-breadcrumb.tsx             |  55 ++
+ apps/app/components/app-breadcrumb.tsx             |  68 ++
  apps/app/components/app-header.tsx                 |  96 ++-
- apps/app/components/app-icon-rail.tsx              | 253 ++++--
+ apps/app/components/app-icon-rail.tsx              | 262 ++++--
  apps/app/components/auth-shell.tsx                 |  20 +-
  apps/app/components/crm/agent-conversations.tsx    |  12 +-
  apps/app/components/crm/agent-panel.tsx            |  18 +-
@@ -241,9 +252,9 @@
  apps/app/lib/agent-transcript.ts                   | 103 +--
  apps/app/lib/deal-stage.ts                         |  14 +-
  apps/app/lib/enrichment-status.ts                  |  16 +-
- apps/app/lib/navigation.ts                         | 260 ++++++
+ apps/app/lib/navigation.ts                         | 276 +++++++
  apps/app/lib/onboarding.ts                         |  16 -
- apps/app/lib/page-help.ts                          |  44 +
+ apps/app/lib/page-help.ts                          |  45 +
  apps/app/lib/page-translation.test.ts              |  41 +
  apps/app/lib/page-translation.ts                   |  32 +
  apps/app/lib/presence-config.ts                    |   6 +
@@ -252,6 +263,8 @@
  apps/app/lib/social-links.ts                       |   4 +-
  apps/app/lib/support-config.ts                     |  33 +
  apps/app/lib/support-pages.ts                      |  31 +
+ apps/app/lib/team-config.ts                        | 128 +++
+ apps/app/lib/team-roles.ts                         |  17 +
  apps/app/lib/translation-config.ts                 |  22 +
  apps/app/lib/use-audience.ts                       |  18 +
  apps/app/lib/user-agent.test.ts                    |  21 +
@@ -273,7 +286,8 @@
  apps/app/test/contact-channels.spec.ts             |  29 +
  apps/app/test/day.spec.ts                          |   2 +-
  apps/app/test/inbox-thread.spec.tsx                | 350 ++++++++
- apps/app/test/navigation.spec.ts                   |  68 ++
+ apps/app/test/lead-conversation-thread.spec.tsx    |  22 -
+ apps/app/test/navigation.spec.ts                   |  76 ++
  apps/app/test/onboarding-gate.spec.ts              | 102 +--
  apps/app/test/real-estate-finance.spec.ts          | 108 +++
  apps/app/test/workspace-label.spec.ts              |  28 +-
@@ -285,29 +299,30 @@
  .../migration.sql                                  |  23 +
  .../migration.sql                                  |   3 +
  .../migration.sql                                  |  30 +
- packages/db/prisma/schema.prisma                   |  70 +-
+ .../migration.sql                                  |   2 +
+ packages/db/prisma/schema.prisma                   |  71 +-
  packages/db/src/currency.ts                        |  22 +-
  packages/db/src/fields-shape.ts                    |  16 +-
- packages/db/src/sdr-messages.ts                    |  41 +-
+ packages/db/src/sdr-messages.ts                    |  43 +-
  packages/db/src/tracking.ts                        |   6 +-
  packages/db/test/currency.spec.ts                  |   2 +-
- packages/ui/src/components/account-panel.tsx       |  48 ++
+ packages/ui/src/components/account-panel.tsx       |  39 +
  .../ui/src/components/assistant-result-cards.tsx   | 487 +++++++++++
  packages/ui/src/components/async-action.tsx        |   4 +-
  packages/ui/src/components/attendee-list.tsx       |  10 +-
- packages/ui/src/components/avatar.tsx              |   2 +-
+ packages/ui/src/components/avatar.tsx              |   3 +-
  packages/ui/src/components/badge.tsx               |   3 +
  packages/ui/src/components/brand-logos/gemini.tsx  |  37 +-
  .../src/components/brand-logos/google-calendar.tsx |  17 +
  packages/ui/src/components/brand-logos/meta.tsx    |  11 +-
  packages/ui/src/components/brand-logos/twilio.tsx  |  14 +-
- packages/ui/src/components/breadcrumb.tsx          |  54 ++
- .../ui/src/components/calendar-connect-panel.tsx   | 225 +++++
+ packages/ui/src/components/breadcrumb.tsx          |  55 ++
+ .../ui/src/components/calendar-connect-panel.tsx   | 226 +++++
  packages/ui/src/components/calendar.tsx            |   3 +-
  packages/ui/src/components/combobox.tsx            |   6 +-
  packages/ui/src/components/command.tsx             |   4 +-
- packages/ui/src/components/connection-list.tsx     | 112 +++
- packages/ui/src/components/connection-setup.tsx    |  35 +-
+ packages/ui/src/components/connection-list.tsx     | 110 +++
+ packages/ui/src/components/connection-setup.tsx    |  39 +-
  packages/ui/src/components/contact-channels.tsx    |  95 +++
  packages/ui/src/components/contact-link.tsx        |  35 +
  packages/ui/src/components/crm-export-form.tsx     |  36 +-
@@ -318,21 +333,23 @@
  packages/ui/src/components/dot-matrix.tsx          |   2 +-
  packages/ui/src/components/empty-state.tsx         |  42 +
  packages/ui/src/components/inbox.tsx               | 783 ++++++++++++++++++
- packages/ui/src/components/lead-profile.tsx        | 831 +++++++++++++++++++
+ .../ui/src/components/lead-conversation-thread.tsx | 182 ----
+ packages/ui/src/components/lead-profile.tsx        | 803 ++++++++++++++++++
  packages/ui/src/components/lead-status-badge.tsx   |  50 +-
  packages/ui/src/components/lead-tools.tsx          | 310 +++++++
  packages/ui/src/components/logo.tsx                |   6 +-
  packages/ui/src/components/markdown.tsx            |   5 +-
  packages/ui/src/components/message-scroller.tsx    |   2 +-
+ packages/ui/src/components/panel.tsx               |  56 ++
  packages/ui/src/components/pipeline-kanban.tsx     | 186 +++--
- .../components/property-valuation-calculator.tsx   | 775 ++++++++++++++----
+ .../components/property-valuation-calculator.tsx   | 754 +++++++++++++----
  packages/ui/src/components/questionnaire.tsx       |   8 +-
- packages/ui/src/components/real-estate-home.tsx    | 252 ++++++
- .../ui/src/components/real-estate-lead-table.tsx   | 249 ++++--
- packages/ui/src/components/real-estate-visuals.tsx | 510 ++++++++++++
+ packages/ui/src/components/real-estate-home.tsx    | 223 +++++
+ .../ui/src/components/real-estate-lead-table.tsx   | 253 ++++--
+ packages/ui/src/components/real-estate-visuals.tsx | 511 ++++++++++++
  .../ui/src/components/real-estate-workspace.tsx    |  38 +-
- .../ui/src/components/realtor-onboarding-form.tsx  | 374 ++++++---
- .../ui/src/components/realtor-portal-dashboard.tsx | 615 ++++++++++++--
+ .../ui/src/components/realtor-onboarding-form.tsx  | 347 +++++---
+ .../ui/src/components/realtor-portal-dashboard.tsx | 579 +++++++++++--
  packages/ui/src/components/realtor-roster.tsx      | 190 +++++
  packages/ui/src/components/reasoning.tsx           |   4 +-
  packages/ui/src/components/search-trigger.tsx      |  45 +
@@ -343,19 +360,22 @@
  packages/ui/src/components/spinner.tsx             |   2 +-
  packages/ui/src/components/status-indicator.tsx    |   4 +-
  packages/ui/src/components/suggestion.tsx          |  45 +-
- packages/ui/src/components/support-panel.tsx       |  65 ++
+ packages/ui/src/components/support-panel.tsx       |  50 ++
  .../ui/src/components/support-request-form.tsx     | 147 ++++
  .../ui/src/components/support-request-list.tsx     |  86 ++
  packages/ui/src/components/table-pagination.tsx    |  13 +-
+ packages/ui/src/components/team-member-detail.tsx  | 249 ++++++
  packages/ui/src/components/team-presence.tsx       | 148 ++++
+ packages/ui/src/components/team-roster.tsx         | 149 ++++
  packages/ui/src/components/thinking-indicator.tsx  |   2 +-
  packages/ui/src/components/thread-message.tsx      |   2 +-
  packages/ui/src/components/toggle.tsx              |   2 +-
  packages/ui/src/components/tool.tsx                | 113 +++
  packages/ui/src/components/top-bar.tsx             |  52 ++
- packages/ui/src/components/translate-menu.tsx      | 101 +++
+ packages/ui/src/components/translate-menu.tsx      | 119 +++
  packages/ui/src/lib/contact-channels.ts            |  24 +
  packages/ui/src/lib/format.ts                      |  18 +-
+ packages/ui/src/lib/layout.ts                      |  12 +
  packages/ui/src/lib/motion.ts                      |   8 +
  packages/ui/src/lib/real-estate-finance-config.ts  |  88 ++
  packages/ui/src/lib/real-estate-finance.ts         | 176 ++++
@@ -363,4 +383,4 @@
  packages/ui/src/styles/globals.css                 |  56 +-
  packages/validation/src/real-estate.ts             |  38 +
  packages/validation/test/phone.spec.ts             |  27 +
- 365 files changed, 22828 insertions(+), 3729 deletions(-)
+ 385 files changed, 24841 insertions(+), 3946 deletions(-)

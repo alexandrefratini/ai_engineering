@@ -33,4 +33,7 @@ rm -f packages/db/demo-fr.local.ts
 cp "$JOURNAL/demo-evidence.ts" packages/db/demo-evidence.local.ts
 (cd packages/db && set -a && . ../../.env && set +a && bun demo-evidence.local.ts)
 rm -f packages/db/demo-evidence.local.ts
+cp "$JOURNAL/demo-team.ts" packages/db/demo-team.local.ts
+(cd packages/db && set -a && . ../../.env && set +a && bun demo-team.local.ts)
+rm -f packages/db/demo-team.local.ts
 echo "Démarrer : cd $REPO && nohup bun run dev --filter=app --filter=api > /tmp/dev.log 2>&1 &"
